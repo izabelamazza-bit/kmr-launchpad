@@ -52,6 +52,23 @@ const tools = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "transfer_to_human",
+      description:
+        "Transfere o atendimento para um humano. Use quando o visitante pedir para falar com um atendente, quando não souber responder, ou quando a situação exigir intervenção humana.",
+      parameters: {
+        type: "object",
+        properties: {
+          lead_id: { type: "string", description: "ID do lead" },
+          reason: { type: "string", description: "Motivo da transferência" },
+        },
+        required: ["reason"],
+        additionalProperties: false,
+      },
+    },
+  },
 ];
 
 async function loadAgentConfig(supabase: ReturnType<typeof createClient>) {
@@ -81,7 +98,6 @@ function buildSystemPrompt(config: Record<string, unknown>): string {
     prompt += `\n\nLIMITE: Mantenha suas respostas em no máximo ${maxLen} caracteres.`;
   }
 
-  // Inject knowledge base
   const kb = (config.knowledge_base as Array<{ title: string; content: string; category: string }>) || [];
   if (kb.length > 0) {
     prompt += "\n\nBASE DE CONHECIMENTO (use estas informações para responder):";
@@ -90,15 +106,12 @@ function buildSystemPrompt(config: Record<string, unknown>): string {
     }
   }
 
-  // Inject allowed actions
   const actions = (config.allowed_actions as Array<{ name: string; label: string; enabled: boolean }>) || [];
-  const enabledActions = actions.filter((a) => a.enabled);
   const disabledActions = actions.filter((a) => !a.enabled);
   if (disabledActions.length > 0) {
     prompt += `\n\nAÇÕES DESATIVADAS (NÃO use estas tools): ${disabledActions.map((a) => a.name).join(", ")}`;
   }
 
-  // Inject restrictions
   const restrictions = (config.restricted_topics as string[]) || [];
   if (restrictions.length > 0) {
     prompt += "\n\nRESTRIÇÕES (NUNCA faça o seguinte):";
@@ -113,7 +126,6 @@ function buildSystemPrompt(config: Record<string, unknown>): string {
 function getActiveTools(config: Record<string, unknown>) {
   const actions = (config.allowed_actions as Array<{ name: string; label: string; enabled: boolean }>) || [];
   const enabledNames = new Set(actions.filter((a) => a.enabled).map((a) => a.name));
-  // If no config, return all tools
   if (enabledNames.size === 0 && actions.length === 0) return tools;
   return tools.filter((t) => enabledNames.has(t.function.name));
 }
@@ -122,7 +134,8 @@ async function executeTool(
   toolName: string,
   args: Record<string, unknown>,
   supabase: ReturnType<typeof createClient>,
-  conversationHistory: unknown[]
+  conversationHistory: unknown[],
+  currentLeadId: string | null
 ): Promise<{ result: string; leadId?: string }> {
   if (toolName === "save_lead") {
     const { data, error } = await supabase
@@ -135,6 +148,7 @@ async function executeTool(
         interest: (args.interest as string) || null,
         qualification_notes: (args.qualification_notes as string) || null,
         status: "qualificado",
+        channel_status: "ai_active",
         conversation_history: conversationHistory,
       })
       .select("id")
@@ -148,6 +162,7 @@ async function executeTool(
   }
 
   if (toolName === "schedule_meeting") {
+    const leadId = (args.lead_id as string) || currentLeadId;
     const { error } = await supabase
       .from("leads")
       .update({
@@ -155,13 +170,33 @@ async function executeTool(
         status: "agendado",
         updated_at: new Date().toISOString(),
       })
-      .eq("id", args.lead_id as string);
+      .eq("id", leadId as string);
 
     if (error) {
       console.error("Error scheduling:", error);
       return { result: `Erro ao agendar: ${error.message}` };
     }
     return { result: "Reunião agendada com sucesso!" };
+  }
+
+  if (toolName === "transfer_to_human") {
+    const leadId = (args.lead_id as string) || currentLeadId;
+    if (!leadId) {
+      return { result: "Lead ID não encontrado para transferência." };
+    }
+    const { error } = await supabase
+      .from("leads")
+      .update({
+        channel_status: "queue",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", leadId);
+
+    if (error) {
+      console.error("Error transferring:", error);
+      return { result: `Erro ao transferir: ${error.message}` };
+    }
+    return { result: "Atendimento transferido para a fila de atendentes humanos." };
   }
 
   return { result: "Tool desconhecida" };
@@ -197,7 +232,20 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Load dynamic config
+    // Check if lead's channel_status is ai_active (if leadId exists)
+    if (leadId) {
+      const { data: leadData } = await supabase
+        .from("leads")
+        .select("channel_status")
+        .eq("id", leadId)
+        .single();
+
+      if (leadData && leadData.channel_status !== "ai_active") {
+        // AI should not respond - human has taken over or it's in queue
+        return errorResponse(403, "Atendimento assumido por um humano.");
+      }
+    }
+
     const agentConfig = await loadAgentConfig(supabase);
 
     if (agentConfig && !agentConfig.is_active) {
@@ -211,12 +259,11 @@ serve(async (req) => {
     const allMessages = [
       { role: "system", content: systemPrompt },
       ...(leadId
-        ? [{ role: "system", content: `O lead atual já está salvo com ID: ${leadId}. Use este ID para agendar reunião.` }]
+        ? [{ role: "system", content: `O lead atual já está salvo com ID: ${leadId}. Use este ID para agendar reunião ou transferir.` }]
         : []),
       ...messages,
     ];
 
-    // First call
     const firstResponse = await callAI(LOVABLE_API_KEY, {
       model,
       messages: allMessages,
@@ -236,7 +283,6 @@ serve(async (req) => {
     const firstData = await firstResponse.json();
     const choice = firstData.choices?.[0];
 
-    // Handle tool calls
     if (choice?.message?.tool_calls?.length > 0) {
       const toolMessages = [...allMessages, choice.message];
       let currentLeadId = leadId;
@@ -246,14 +292,22 @@ serve(async (req) => {
         let fnArgs: Record<string, unknown>;
         try { fnArgs = JSON.parse(toolCall.function.arguments); } catch { fnArgs = {}; }
 
-        if (fnName === "schedule_meeting" && !fnArgs.lead_id && currentLeadId) {
+        if ((fnName === "schedule_meeting" || fnName === "transfer_to_human") && !fnArgs.lead_id && currentLeadId) {
           fnArgs.lead_id = currentLeadId;
         }
 
-        const { result, leadId: newLeadId } = await executeTool(fnName, fnArgs, supabase, messages);
+        const { result, leadId: newLeadId } = await executeTool(fnName, fnArgs, supabase, messages, currentLeadId);
         if (newLeadId) currentLeadId = newLeadId;
 
         toolMessages.push({ role: "tool", tool_call_id: toolCall.id, content: result });
+      }
+
+      // Also update conversation_history on the lead if we have an ID
+      if (currentLeadId) {
+        await supabase
+          .from("leads")
+          .update({ conversation_history: messages, updated_at: new Date().toISOString() })
+          .eq("id", currentLeadId);
       }
 
       const secondResponse = await callAI(LOVABLE_API_KEY, { model, messages: toolMessages, stream: true });

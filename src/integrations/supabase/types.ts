@@ -118,6 +118,8 @@ export type Database = {
       }
       leads: {
         Row: {
+          assigned_to: string | null
+          channel_status: string
           company: string | null
           conversation_history: Json | null
           created_at: string
@@ -132,6 +134,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          assigned_to?: string | null
+          channel_status?: string
           company?: string | null
           conversation_history?: Json | null
           created_at?: string
@@ -146,6 +150,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          assigned_to?: string | null
+          channel_status?: string
           company?: string | null
           conversation_history?: Json | null
           created_at?: string

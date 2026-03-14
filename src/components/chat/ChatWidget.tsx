@@ -4,8 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import ChatMessage from "./ChatMessage";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
-type Msg = { role: "user" | "assistant"; content: string };
+type Msg = { role: "user" | "assistant" | "agent"; content: string };
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat-agent`;
 
@@ -15,6 +16,7 @@ const ChatWidget = () => {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [leadId, setLeadId] = useState<string | null>(null);
+  const [channelStatus, setChannelStatus] = useState<string>("ai_active");
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -30,6 +32,29 @@ const ChatWidget = () => {
       inputRef.current.focus();
     }
   }, [open]);
+
+  // Realtime subscription for human agent messages
+  useEffect(() => {
+    if (!leadId) return;
+
+    const channel = supabase
+      .channel(`lead-chat-${leadId}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "leads", filter: `id=eq.${leadId}` },
+        (payload) => {
+          const updated = payload.new as { channel_status: string; conversation_history: Msg[] | null };
+          setChannelStatus(updated.channel_status);
+
+          if (updated.conversation_history) {
+            setMessages(updated.conversation_history);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [leadId]);
 
   const streamChat = useCallback(
     async (allMessages: Msg[]) => {
@@ -78,7 +103,6 @@ const ChatWidget = () => {
           try {
             const parsed = JSON.parse(jsonStr);
 
-            // Check for custom leadId event
             if (parsed.leadId) {
               setLeadId(parsed.leadId);
               continue;
@@ -143,14 +167,42 @@ const ChatWidget = () => {
     [leadId]
   );
 
+  // Send message directly to DB when human is attending
+  const sendDirectMessage = useCallback(
+    async (text: string) => {
+      if (!leadId) return;
+      const newMessages = [...messages, { role: "user" as const, content: text }];
+      setMessages(newMessages);
+
+      const { error } = await supabase
+        .from("leads")
+        .update({
+          conversation_history: newMessages as unknown as import("@/integrations/supabase/types").Json,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", leadId);
+
+      if (error) {
+        toast({ title: "Erro", description: error.message, variant: "destructive" });
+      }
+    },
+    [leadId, messages, toast]
+  );
+
   const handleSend = async () => {
     const text = input.trim();
     if (!text || loading) return;
+    setInput("");
+
+    // If human is attending or in queue, send directly to DB
+    if (channelStatus !== "ai_active" && leadId) {
+      await sendDirectMessage(text);
+      return;
+    }
 
     const userMsg: Msg = { role: "user", content: text };
     const updatedMessages = [...messages, userMsg];
     setMessages(updatedMessages);
-    setInput("");
     setLoading(true);
 
     try {
@@ -174,9 +226,16 @@ const ChatWidget = () => {
     }
   };
 
+  const statusMessage = channelStatus === "queue"
+    ? "Aguardando atendente..."
+    : channelStatus === "human_active"
+    ? "Atendente conectado"
+    : channelStatus === "closed"
+    ? "Atendimento encerrado"
+    : null;
+
   return (
     <>
-      {/* Floating button */}
       {!open && (
         <button
           onClick={() => setOpen(true)}
@@ -187,7 +246,6 @@ const ChatWidget = () => {
         </button>
       )}
 
-      {/* Chat panel */}
       {open && (
         <div className="fixed bottom-0 right-0 sm:bottom-6 sm:right-6 z-50 w-full sm:w-[400px] h-[100dvh] sm:h-[560px] bg-card border sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden">
           {/* Header */}
@@ -196,7 +254,9 @@ const ChatWidget = () => {
               <MessageCircle className="w-5 h-5" />
               <div>
                 <p className="font-semibold text-sm">Assistente KMR</p>
-                <p className="text-xs opacity-80">Garantia locatícia simplificada</p>
+                <p className="text-xs opacity-80">
+                  {statusMessage || "Garantia locatícia simplificada"}
+                </p>
               </div>
             </div>
             <button onClick={() => setOpen(false)} className="hover:opacity-70 transition-opacity" aria-label="Fechar chat">
@@ -214,7 +274,7 @@ const ChatWidget = () => {
               </div>
             )}
             {messages.map((msg, i) => (
-              <ChatMessage key={i} role={msg.role} content={msg.content} />
+              <ChatMessage key={i} role={msg.role === "agent" ? "assistant" : msg.role} content={msg.content} />
             ))}
             {loading && messages[messages.length - 1]?.role !== "assistant" && (
               <div className="flex gap-2.5 items-start">
@@ -224,6 +284,11 @@ const ChatWidget = () => {
                 <div className="bg-muted rounded-2xl rounded-tl-sm px-3.5 py-2.5 text-sm text-muted-foreground">
                   Digitando...
                 </div>
+              </div>
+            )}
+            {channelStatus === "queue" && (
+              <div className="text-center text-sm text-muted-foreground py-2">
+                ⏳ Aguardando um atendente humano...
               </div>
             )}
           </div>
@@ -236,13 +301,13 @@ const ChatWidget = () => {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Digite sua mensagem..."
-                disabled={loading}
+                placeholder={channelStatus === "closed" ? "Atendimento encerrado" : "Digite sua mensagem..."}
+                disabled={loading || channelStatus === "closed"}
                 className="flex-1 min-h-[44px]"
               />
               <Button
                 onClick={handleSend}
-                disabled={!input.trim() || loading}
+                disabled={!input.trim() || loading || channelStatus === "closed"}
                 size="icon"
                 className="min-h-[44px] min-w-[44px]"
               >
