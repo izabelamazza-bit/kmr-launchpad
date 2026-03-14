@@ -125,10 +125,10 @@ const AgentConfig = () => {
     const { error } = await supabase
       .from("agent_config")
       .update({
-        system_prompt: config.system_prompt,
-        knowledge_base: config.knowledge_base as unknown as Record<string, unknown>[],
-        allowed_actions: config.allowed_actions as unknown as Record<string, unknown>[],
-        restricted_topics: config.restricted_topics as unknown as string[],
+      system_prompt: config.system_prompt,
+      knowledge_base: JSON.parse(JSON.stringify(config.knowledge_base)),
+      allowed_actions: JSON.parse(JSON.stringify(config.allowed_actions)),
+      restricted_topics: config.restricted_topics as unknown as string[],
         personality: config.personality,
         greeting_message: config.greeting_message,
         max_response_length: config.max_response_length,
