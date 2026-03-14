@@ -12,6 +12,7 @@ const menuItems = [
   { label: "Pessoas", icon: UserCircle, path: "/cadastros/pessoas", desc: "Gerenciar pessoas cadastradas" },
   { label: "Produtos e Serviços", icon: Package, path: "/cadastros/produtos-servicos", desc: "Gerenciar produtos e serviços" },
   { label: "Leads", icon: MessageSquare, path: "/cadastros/leads", desc: "Leads qualificados pelo agente de IA" },
+  { label: "Agente de IA", icon: Bot, path: "/agente", desc: "Configure e treine o assistente virtual" },
 ];
 
 const Dashboard = () => {
