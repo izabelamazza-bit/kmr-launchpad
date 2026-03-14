@@ -6,11 +6,11 @@ import logoKMR from "@/assets/Logo_KMR.png";
 import { LogOut, Plus, Search, ArrowLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
-interface CrudLayoutProps {
+export interface CrudLayoutProps {
   title: string;
   searchValue: string;
   onSearchChange: (value: string) => void;
-  onNewClick: () => void;
+  onNewClick?: () => void;
   newLabel?: string;
   children: ReactNode;
 }
@@ -50,10 +50,12 @@ const CrudLayout = ({
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
           <h1 className="text-2xl sm:text-3xl font-semibold text-foreground">{title}</h1>
-          <Button onClick={onNewClick} className="min-h-[44px] w-full sm:w-auto">
-            <Plus className="h-4 w-4 mr-1" />
-            {newLabel}
-          </Button>
+          {onNewClick && newLabel && (
+            <Button onClick={onNewClick} className="min-h-[44px] w-full sm:w-auto">
+              <Plus className="h-4 w-4 mr-1" />
+              {newLabel}
+            </Button>
+          )}
         </div>
 
         <div className="relative mb-6">

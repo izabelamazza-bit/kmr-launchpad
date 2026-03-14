@@ -11,6 +11,7 @@ import Users from "./pages/cadastros/Users.tsx";
 import Companies from "./pages/cadastros/Companies.tsx";
 import People from "./pages/cadastros/People.tsx";
 import ProductsServices from "./pages/cadastros/ProductsServices.tsx";
+import Leads from "./pages/cadastros/Leads.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -30,6 +31,7 @@ const App = () => (
           <Route path="/cadastros/empresas" element={<Companies />} />
           <Route path="/cadastros/pessoas" element={<People />} />
           <Route path="/cadastros/produtos-servicos" element={<ProductsServices />} />
+          <Route path="/cadastros/leads" element={<Leads />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
