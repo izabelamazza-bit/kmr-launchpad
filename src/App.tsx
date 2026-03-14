@@ -14,6 +14,7 @@ import People from "./pages/cadastros/People.tsx";
 import ProductsServices from "./pages/cadastros/ProductsServices.tsx";
 import Leads from "./pages/cadastros/Leads.tsx";
 import AgentConfig from "./pages/AgentConfig.tsx";
+import Atendimento from "./pages/Atendimento.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
