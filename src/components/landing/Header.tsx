@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Menu, X } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import logoKMR from "@/assets/Logo_KMR.png";
 
@@ -36,6 +37,9 @@ const Header = () => {
           <Button asChild className="bg-accent hover:bg-accent/90 text-accent-foreground font-semibold px-6">
             <a href="#contato">Agendar demonstração</a>
           </Button>
+          <Button asChild variant="outline" className="font-semibold px-6">
+            <Link to="/login">Login</Link>
+          </Button>
         </nav>
 
         {/* Mobile toggle */}
@@ -63,6 +67,9 @@ const Header = () => {
           ))}
           <Button asChild className="w-full bg-accent hover:bg-accent/90 text-accent-foreground font-semibold">
             <a href="#contato" onClick={() => setMenuOpen(false)}>Agendar demonstração</a>
+          </Button>
+          <Button asChild variant="outline" className="w-full font-semibold">
+            <Link to="/login" onClick={() => setMenuOpen(false)}>Login</Link>
           </Button>
         </nav>
       )}
