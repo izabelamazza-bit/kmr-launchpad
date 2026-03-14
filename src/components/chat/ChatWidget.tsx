@@ -177,7 +177,7 @@ const ChatWidget = () => {
       const { error } = await supabase
         .from("leads")
         .update({
-          conversation_history: newMessages as unknown as Record<string, unknown>[],
+          conversation_history: newMessages as unknown as import("@/integrations/supabase/types").Json,
           updated_at: new Date().toISOString(),
         })
         .eq("id", leadId);

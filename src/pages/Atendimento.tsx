@@ -305,7 +305,7 @@ const Atendimento = () => {
     const { error } = await supabase
       .from("leads")
       .update({
-        conversation_history: history as unknown as Record<string, unknown>[],
+        conversation_history: history as unknown as import("@/integrations/supabase/types").Json,
         updated_at: new Date().toISOString(),
       })
       .eq("id", leadId);
