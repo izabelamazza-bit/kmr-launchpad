@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import logoKMR from "@/assets/Logo_KMR.png";
-import { LogOut, Users, Building2, UserCircle, Package, MessageSquare, Bot } from "lucide-react";
+import { LogOut, Users, Building2, UserCircle, Package, MessageSquare, Bot, Headset } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 
 const menuItems = [
