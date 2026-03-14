@@ -3,8 +3,15 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import logoKMR from "@/assets/Logo_KMR.png";
-import { LogOut } from "lucide-react";
+import { LogOut, Users, Building2, UserCircle, Package } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
+
+const menuItems = [
+  { label: "Usuários", icon: Users, path: "/cadastros/usuarios", desc: "Gerenciar usuários do sistema" },
+  { label: "Empresas", icon: Building2, path: "/cadastros/empresas", desc: "Gerenciar empresas cadastradas" },
+  { label: "Pessoas", icon: UserCircle, path: "/cadastros/pessoas", desc: "Gerenciar pessoas cadastradas" },
+  { label: "Produtos e Serviços", icon: Package, path: "/cadastros/produtos-servicos", desc: "Gerenciar produtos e serviços" },
+];
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -13,19 +20,13 @@ const Dashboard = () => {
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session) {
-        navigate("/login");
-        return;
-      }
+      if (!session) { navigate("/login"); return; }
       setUser(session.user);
       setLoading(false);
     });
 
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
-        navigate("/login");
-        return;
-      }
+      if (!session) { navigate("/login"); return; }
       setUser(session.user);
       setLoading(false);
     });
@@ -69,17 +70,18 @@ const Dashboard = () => {
         <h1 className="text-3xl font-semibold text-foreground mb-2">Dashboard</h1>
         <p className="text-muted-foreground mb-8">Bem-vindo ao painel administrativo da KMR.</p>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {[
-            { title: "Propostas", value: "0", desc: "Propostas recebidas" },
-            { title: "Aprovadas", value: "0", desc: "Garantias aprovadas" },
-            { title: "Imobiliárias", value: "0", desc: "Imobiliárias cadastradas" },
-          ].map((card) => (
-            <div key={card.title} className="bg-card rounded-lg border shadow-sm p-6">
-              <p className="text-sm text-muted-foreground">{card.title}</p>
-              <p className="text-3xl font-bold text-foreground mt-1">{card.value}</p>
-              <p className="text-xs text-muted-foreground mt-1">{card.desc}</p>
-            </div>
+        <h2 className="text-lg font-medium text-foreground mb-4">Cadastros</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {menuItems.map((item) => (
+            <button
+              key={item.path}
+              onClick={() => navigate(item.path)}
+              className="bg-card rounded-lg border shadow-sm p-6 text-left hover:border-primary/50 hover:shadow-md transition-all group"
+            >
+              <item.icon className="h-8 w-8 text-primary mb-3 group-hover:scale-110 transition-transform" />
+              <p className="font-medium text-foreground">{item.label}</p>
+              <p className="text-sm text-muted-foreground mt-1">{item.desc}</p>
+            </button>
           ))}
         </div>
       </main>
