@@ -1,19 +1,33 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import logoKMR from "@/assets/Logo_KMR.png";
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast({ title: "Login enviado", description: "Funcionalidade de autenticação em breve." });
+    setLoading(true);
+
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+
+    if (error) {
+      toast({ title: "Erro ao entrar", description: error.message, variant: "destructive" });
+      setLoading(false);
+      return;
+    }
+
+    toast({ title: "Login realizado com sucesso!" });
+    navigate("/dashboard");
   };
 
   return (
@@ -38,7 +52,9 @@ const Login = () => {
               <Label htmlFor="password">Senha</Label>
               <Input id="password" type="password" placeholder="••••••••" required value={password} onChange={(e) => setPassword(e.target.value)} />
             </div>
-            <Button type="submit" className="w-full">Entrar</Button>
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? "Entrando..." : "Entrar"}
+            </Button>
           </form>
           <p className="text-center text-sm text-muted-foreground mt-6">
             <Link to="/" className="text-primary hover:underline">← Voltar para o site</Link>
