@@ -14,7 +14,192 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      companies: {
+        Row: {
+          bairro: string | null
+          cep: string | null
+          cidade: string | null
+          cnpj: string
+          complemento: string | null
+          created_at: string
+          email: string
+          estado: string | null
+          id: string
+          logradouro: string | null
+          nome_fantasia: string
+          numero: string | null
+          phone: string | null
+          razao_social: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          bairro?: string | null
+          cep?: string | null
+          cidade?: string | null
+          cnpj: string
+          complemento?: string | null
+          created_at?: string
+          email: string
+          estado?: string | null
+          id?: string
+          logradouro?: string | null
+          nome_fantasia: string
+          numero?: string | null
+          phone?: string | null
+          razao_social: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          bairro?: string | null
+          cep?: string | null
+          cidade?: string | null
+          cnpj?: string
+          complemento?: string | null
+          created_at?: string
+          email?: string
+          estado?: string | null
+          id?: string
+          logradouro?: string | null
+          nome_fantasia?: string
+          numero?: string | null
+          phone?: string | null
+          razao_social?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      people: {
+        Row: {
+          bairro: string | null
+          birth_date: string | null
+          cep: string | null
+          cidade: string | null
+          complemento: string | null
+          cpf: string
+          created_at: string
+          email: string
+          estado: string | null
+          full_name: string
+          id: string
+          logradouro: string | null
+          numero: string | null
+          phone: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          bairro?: string | null
+          birth_date?: string | null
+          cep?: string | null
+          cidade?: string | null
+          complemento?: string | null
+          cpf: string
+          created_at?: string
+          email: string
+          estado?: string | null
+          full_name: string
+          id?: string
+          logradouro?: string | null
+          numero?: string | null
+          phone?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          bairro?: string | null
+          birth_date?: string | null
+          cep?: string | null
+          cidade?: string | null
+          complemento?: string | null
+          cpf?: string
+          created_at?: string
+          email?: string
+          estado?: string | null
+          full_name?: string
+          id?: string
+          logradouro?: string | null
+          numero?: string | null
+          phone?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      products_services: {
+        Row: {
+          category: string | null
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          price: number
+          status: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          price?: number
+          status?: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          price?: number
+          status?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      users_registry: {
+        Row: {
+          access_profile: string
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          phone: string | null
+          status: string
+          updated_at: string
+          username: string
+        }
+        Insert: {
+          access_profile?: string
+          created_at?: string
+          email: string
+          full_name: string
+          id?: string
+          phone?: string | null
+          status?: string
+          updated_at?: string
+          username: string
+        }
+        Update: {
+          access_profile?: string
+          created_at?: string
+          email?: string
+          full_name?: string
+          id?: string
+          phone?: string | null
+          status?: string
+          updated_at?: string
+          username?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
