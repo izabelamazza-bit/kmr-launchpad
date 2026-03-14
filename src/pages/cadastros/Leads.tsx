@@ -114,9 +114,10 @@ const Leads = () => {
   return (
     <CrudLayout
       title="Leads"
-      search={search}
+      searchValue={search}
       onSearchChange={setSearch}
-      onBackClick={() => window.history.back()}
+      onNewClick={() => {}}
+      newLabel=""
     >
       <DataTable
         columns={columns}
