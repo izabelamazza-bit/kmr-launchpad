@@ -71,6 +71,51 @@ export type Database = {
         }
         Relationships: []
       }
+      leads: {
+        Row: {
+          company: string | null
+          conversation_history: Json | null
+          created_at: string
+          email: string | null
+          id: string
+          interest: string | null
+          name: string | null
+          phone: string | null
+          qualification_notes: string | null
+          scheduled_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          company?: string | null
+          conversation_history?: Json | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          interest?: string | null
+          name?: string | null
+          phone?: string | null
+          qualification_notes?: string | null
+          scheduled_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          company?: string | null
+          conversation_history?: Json | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          interest?: string | null
+          name?: string | null
+          phone?: string | null
+          qualification_notes?: string | null
+          scheduled_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       people: {
         Row: {
           bairro: string | null
