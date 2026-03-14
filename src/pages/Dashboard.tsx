@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import logoKMR from "@/assets/Logo_KMR.png";
-import { LogOut, Users, Building2, UserCircle, Package } from "lucide-react";
+import { LogOut, Users, Building2, UserCircle, Package, MessageSquare } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 
 const menuItems = [
@@ -11,6 +11,7 @@ const menuItems = [
   { label: "Empresas", icon: Building2, path: "/cadastros/empresas", desc: "Gerenciar empresas cadastradas" },
   { label: "Pessoas", icon: UserCircle, path: "/cadastros/pessoas", desc: "Gerenciar pessoas cadastradas" },
   { label: "Produtos e Serviços", icon: Package, path: "/cadastros/produtos-servicos", desc: "Gerenciar produtos e serviços" },
+  { label: "Leads", icon: MessageSquare, path: "/cadastros/leads", desc: "Leads qualificados pelo agente de IA" },
 ];
 
 const Dashboard = () => {
