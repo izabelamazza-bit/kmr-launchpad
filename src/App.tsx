@@ -13,6 +13,7 @@ import Companies from "./pages/cadastros/Companies.tsx";
 import People from "./pages/cadastros/People.tsx";
 import ProductsServices from "./pages/cadastros/ProductsServices.tsx";
 import Leads from "./pages/cadastros/Leads.tsx";
+import AgentConfig from "./pages/AgentConfig.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
