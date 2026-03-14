@@ -14,6 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      agent_config: {
+        Row: {
+          allowed_actions: Json
+          created_at: string
+          greeting_message: string
+          id: string
+          is_active: boolean
+          knowledge_base: Json
+          max_response_length: number
+          model: string
+          personality: string
+          restricted_topics: Json
+          system_prompt: string
+          updated_at: string
+        }
+        Insert: {
+          allowed_actions?: Json
+          created_at?: string
+          greeting_message?: string
+          id?: string
+          is_active?: boolean
+          knowledge_base?: Json
+          max_response_length?: number
+          model?: string
+          personality?: string
+          restricted_topics?: Json
+          system_prompt?: string
+          updated_at?: string
+        }
+        Update: {
+          allowed_actions?: Json
+          created_at?: string
+          greeting_message?: string
+          id?: string
+          is_active?: boolean
+          knowledge_base?: Json
+          max_response_length?: number
+          model?: string
+          personality?: string
+          restricted_topics?: Json
+          system_prompt?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       companies: {
         Row: {
           bairro: string | null
