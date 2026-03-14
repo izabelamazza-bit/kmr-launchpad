@@ -6,11 +6,11 @@ import logoKMR from "@/assets/Logo_KMR.png";
 import { LogOut, Plus, Search, ArrowLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
-interface CrudLayoutProps {
+export interface CrudLayoutProps {
   title: string;
   searchValue: string;
   onSearchChange: (value: string) => void;
-  onNewClick: () => void;
+  onNewClick?: () => void;
   newLabel?: string;
   children: ReactNode;
 }
