@@ -1,15 +1,20 @@
 import { Shield, Building2, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import heroBg from "@/assets/hero-bg.jpg";
 
 const WHATSAPP_LINK = "https://wa.me/5500000000000?text=Olá! Gostaria de saber mais sobre a garantia locatícia KMR.";
 
 const Hero = () => {
   return (
     <section className="relative pt-24 pb-16 md:pt-36 md:pb-28 overflow-hidden">
-      {/* Background decoration */}
+      {/* Background image + overlay */}
       <div className="absolute inset-0 -z-10">
+        <div
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-20"
+          style={{ backgroundImage: `url(${heroBg})` }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-br from-background/95 via-background/85 to-background/80" />
         <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-secondary/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4" />
-        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-accent/8 rounded-full blur-3xl translate-y-1/2 -translate-x-1/4" />
       </div>
 
       <div className="container">
