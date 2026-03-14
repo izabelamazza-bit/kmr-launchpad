@@ -37,6 +37,9 @@ const Header = () => {
           <Button asChild className="bg-accent hover:bg-accent/90 text-accent-foreground font-semibold px-6">
             <a href="#contato">Agendar demonstração</a>
           </Button>
+          <Button asChild variant="outline" className="font-semibold px-6">
+            <Link to="/login">Login</Link>
+          </Button>
         </nav>
 
         {/* Mobile toggle */}
