@@ -7,39 +7,6 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const SYSTEM_PROMPT = `Você é o assistente virtual da KMR, uma empresa especializada em garantia locatícia para aluguel.
-
-Seu papel é qualificar leads (potenciais clientes) e agendar reuniões com o time comercial.
-
-PERSONALIDADE:
-- Amigável, profissional e direto
-- Sem juridiquês — linguagem simples e clara
-- Transmita segurança e confiança
-
-FLUXO DA CONVERSA:
-1. Cumprimente o visitante e pergunte o nome dele
-2. Pergunte o nome da imobiliária/empresa
-3. Pergunte qual a necessidade (garantia locatícia, volume de contratos, tipo de imóveis)
-4. Colete email e telefone (com DDD)
-5. Qualifique: pergunte sobre volume mensal de contratos, tipos de imóveis (residencial/comercial), e urgência
-6. Proponha agendar uma reunião/demonstração com o time KMR — ofereça datas próximas (dias úteis, horários comerciais 9h-18h)
-7. Quando tiver nome, email, telefone e interesse, use a tool save_lead para salvar
-8. Quando o cliente confirmar um horário, use a tool schedule_meeting para agendar
-
-REGRAS:
-- Sempre colete pelo menos nome, email e telefone antes de salvar
-- Seja conciso nas respostas (máximo 3-4 frases por mensagem)
-- Se o visitante não for do segmento imobiliário, seja educado mas explique que a KMR atende imobiliárias
-- Sempre direcione para o agendamento de demonstração
-- Use markdown para formatação quando necessário
-- Responda SEMPRE em português brasileiro
-
-BENEFÍCIOS DA KMR (use quando relevante):
-- Regras claras e sem interpretações ambíguas
-- Processo simples e sem burocracia
-- Agilidade na aprovação
-- Transparência total`;
-
 const tools = [
   {
     type: "function",
@@ -87,6 +54,70 @@ const tools = [
   },
 ];
 
+async function loadAgentConfig(supabase: ReturnType<typeof createClient>) {
+  const { data, error } = await supabase
+    .from("agent_config")
+    .select("*")
+    .limit(1)
+    .single();
+
+  if (error || !data) {
+    console.error("Error loading agent config:", error);
+    return null;
+  }
+  return data;
+}
+
+function buildSystemPrompt(config: Record<string, unknown>): string {
+  let prompt = (config.system_prompt as string) || "";
+
+  const personality = config.personality as string;
+  if (personality) {
+    prompt += `\n\nPERSONALIDADE:\n${personality}`;
+  }
+
+  const maxLen = config.max_response_length as number;
+  if (maxLen) {
+    prompt += `\n\nLIMITE: Mantenha suas respostas em no máximo ${maxLen} caracteres.`;
+  }
+
+  // Inject knowledge base
+  const kb = (config.knowledge_base as Array<{ title: string; content: string; category: string }>) || [];
+  if (kb.length > 0) {
+    prompt += "\n\nBASE DE CONHECIMENTO (use estas informações para responder):";
+    for (const item of kb) {
+      prompt += `\n\n[${item.category}] ${item.title}:\n${item.content}`;
+    }
+  }
+
+  // Inject allowed actions
+  const actions = (config.allowed_actions as Array<{ name: string; label: string; enabled: boolean }>) || [];
+  const enabledActions = actions.filter((a) => a.enabled);
+  const disabledActions = actions.filter((a) => !a.enabled);
+  if (disabledActions.length > 0) {
+    prompt += `\n\nAÇÕES DESATIVADAS (NÃO use estas tools): ${disabledActions.map((a) => a.name).join(", ")}`;
+  }
+
+  // Inject restrictions
+  const restrictions = (config.restricted_topics as string[]) || [];
+  if (restrictions.length > 0) {
+    prompt += "\n\nRESTRIÇÕES (NUNCA faça o seguinte):";
+    for (const r of restrictions) {
+      prompt += `\n- ${r}`;
+    }
+  }
+
+  return prompt;
+}
+
+function getActiveTools(config: Record<string, unknown>) {
+  const actions = (config.allowed_actions as Array<{ name: string; label: string; enabled: boolean }>) || [];
+  const enabledNames = new Set(actions.filter((a) => a.enabled).map((a) => a.name));
+  // If no config, return all tools
+  if (enabledNames.size === 0 && actions.length === 0) return tools;
+  return tools.filter((t) => enabledNames.has(t.function.name));
+}
+
 async function executeTool(
   toolName: string,
   args: Record<string, unknown>,
@@ -113,10 +144,7 @@ async function executeTool(
       console.error("Error saving lead:", error);
       return { result: `Erro ao salvar lead: ${error.message}` };
     }
-    return {
-      result: `Lead salvo com sucesso! ID: ${data.id}`,
-      leadId: data.id,
-    };
+    return { result: `Lead salvo com sucesso! ID: ${data.id}`, leadId: data.id };
   }
 
   if (toolName === "schedule_meeting") {
@@ -139,6 +167,22 @@ async function executeTool(
   return { result: "Tool desconhecida" };
 }
 
+async function callAI(apiKey: string, body: Record<string, unknown>) {
+  const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return resp;
+}
+
+function errorResponse(status: number, message: string) {
+  return new Response(JSON.stringify({ error: message }), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -153,44 +197,37 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Build messages with system prompt
+    // Load dynamic config
+    const agentConfig = await loadAgentConfig(supabase);
+
+    if (agentConfig && !agentConfig.is_active) {
+      return errorResponse(503, "O assistente está temporariamente indisponível.");
+    }
+
+    const systemPrompt = agentConfig ? buildSystemPrompt(agentConfig) : "Você é um assistente virtual.";
+    const model = (agentConfig?.model as string) || "google/gemini-3-flash-preview";
+    const activeTools = agentConfig ? getActiveTools(agentConfig) : tools;
+
     const allMessages = [
-      { role: "system", content: SYSTEM_PROMPT },
+      { role: "system", content: systemPrompt },
       ...(leadId
         ? [{ role: "system", content: `O lead atual já está salvo com ID: ${leadId}. Use este ID para agendar reunião.` }]
         : []),
       ...messages,
     ];
 
-    // First call - may trigger tool use
-    const firstResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: allMessages,
-        tools,
-        stream: false,
-      }),
+    // First call
+    const firstResponse = await callAI(LOVABLE_API_KEY, {
+      model,
+      messages: allMessages,
+      tools: activeTools.length > 0 ? activeTools : undefined,
+      stream: false,
     });
 
     if (!firstResponse.ok) {
       const status = firstResponse.status;
-      if (status === 429) {
-        return new Response(JSON.stringify({ error: "Muitas requisições. Tente novamente em alguns segundos." }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (status === 402) {
-        return new Response(JSON.stringify({ error: "Créditos insuficientes." }), {
-          status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
+      if (status === 429) return errorResponse(429, "Muitas requisições. Tente novamente em alguns segundos.");
+      if (status === 402) return errorResponse(402, "Créditos insuficientes.");
       const t = await firstResponse.text();
       console.error("AI error:", status, t);
       throw new Error("AI gateway error");
@@ -199,7 +236,7 @@ serve(async (req) => {
     const firstData = await firstResponse.json();
     const choice = firstData.choices?.[0];
 
-    // Check for tool calls
+    // Handle tool calls
     if (choice?.message?.tool_calls?.length > 0) {
       const toolMessages = [...allMessages, choice.message];
       let currentLeadId = leadId;
@@ -207,13 +244,8 @@ serve(async (req) => {
       for (const toolCall of choice.message.tool_calls) {
         const fnName = toolCall.function.name;
         let fnArgs: Record<string, unknown>;
-        try {
-          fnArgs = JSON.parse(toolCall.function.arguments);
-        } catch {
-          fnArgs = {};
-        }
+        try { fnArgs = JSON.parse(toolCall.function.arguments); } catch { fnArgs = {}; }
 
-        // If scheduling and we have a leadId from this session, inject it
         if (fnName === "schedule_meeting" && !fnArgs.lead_id && currentLeadId) {
           fnArgs.lead_id = currentLeadId;
         }
@@ -221,26 +253,10 @@ serve(async (req) => {
         const { result, leadId: newLeadId } = await executeTool(fnName, fnArgs, supabase, messages);
         if (newLeadId) currentLeadId = newLeadId;
 
-        toolMessages.push({
-          role: "tool",
-          tool_call_id: toolCall.id,
-          content: result,
-        });
+        toolMessages.push({ role: "tool", tool_call_id: toolCall.id, content: result });
       }
 
-      // Second call with tool results - stream this one
-      const secondResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
-          messages: toolMessages,
-          stream: true,
-        }),
-      });
+      const secondResponse = await callAI(LOVABLE_API_KEY, { model, messages: toolMessages, stream: true });
 
       if (!secondResponse.ok) {
         const t = await secondResponse.text();
@@ -248,7 +264,6 @@ serve(async (req) => {
         throw new Error("AI gateway error on second call");
       }
 
-      // Prepend leadId info as a custom SSE event
       const encoder = new TextEncoder();
       const leadIdEvent = currentLeadId
         ? encoder.encode(`data: ${JSON.stringify({ leadId: currentLeadId })}\n\n`)
@@ -267,45 +282,20 @@ serve(async (req) => {
         },
       });
 
-      return new Response(stream, {
-        headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
-      });
+      return new Response(stream, { headers: { ...corsHeaders, "Content-Type": "text/event-stream" } });
     }
 
     // No tool calls - stream directly
-    const streamResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: allMessages,
-        stream: true,
-      }),
-    });
+    const streamResponse = await callAI(LOVABLE_API_KEY, { model, messages: allMessages, stream: true });
 
     if (!streamResponse.ok) {
       const status = streamResponse.status;
-      if (status === 429) {
-        return new Response(JSON.stringify({ error: "Muitas requisições. Tente novamente em alguns segundos." }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (status === 402) {
-        return new Response(JSON.stringify({ error: "Créditos insuficientes." }), {
-          status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
+      if (status === 429) return errorResponse(429, "Muitas requisições. Tente novamente em alguns segundos.");
+      if (status === 402) return errorResponse(402, "Créditos insuficientes.");
       throw new Error("AI gateway stream error");
     }
 
-    return new Response(streamResponse.body, {
-      headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
-    });
+    return new Response(streamResponse.body, { headers: { ...corsHeaders, "Content-Type": "text/event-stream" } });
   } catch (e) {
     console.error("chat-agent error:", e);
     return new Response(
