@@ -68,6 +68,9 @@ const Header = () => {
           <Button asChild className="w-full bg-accent hover:bg-accent/90 text-accent-foreground font-semibold">
             <a href="#contato" onClick={() => setMenuOpen(false)}>Agendar demonstração</a>
           </Button>
+          <Button asChild variant="outline" className="w-full font-semibold">
+            <Link to="/login" onClick={() => setMenuOpen(false)}>Login</Link>
+          </Button>
         </nav>
       )}
     </header>
