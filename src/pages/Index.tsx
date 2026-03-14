@@ -6,7 +6,6 @@ import FAQ from "@/components/landing/FAQ";
 import ContactForm from "@/components/landing/ContactForm";
 import CTASection from "@/components/landing/CTASection";
 import Footer from "@/components/landing/Footer";
-import ChatWidget from "@/components/chat/ChatWidget";
 
 const Index = () => {
   return (
@@ -21,7 +20,6 @@ const Index = () => {
         <ContactForm />
       </main>
       <Footer />
-      <ChatWidget />
     </div>
   );
 };
