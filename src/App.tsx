@@ -15,6 +15,9 @@ import ProductsServices from "./pages/cadastros/ProductsServices.tsx";
 import Leads from "./pages/cadastros/Leads.tsx";
 import AgentConfig from "./pages/AgentConfig.tsx";
 import Atendimento from "./pages/Atendimento.tsx";
+import NovoSinistro from "./pages/sinistros/NovoSinistro.tsx";
+import ResumoSinistro from "./pages/sinistros/ResumoSinistro.tsx";
+import Sinistros from "./pages/sinistros/Sinistros.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -37,6 +40,9 @@ const App = () => (
           <Route path="/cadastros/leads" element={<Leads />} />
           <Route path="/agente" element={<AgentConfig />} />
           <Route path="/atendimento" element={<Atendimento />} />
+          <Route path="/sinistros" element={<Sinistros />} />
+          <Route path="/novo-sinistro" element={<NovoSinistro />} />
+          <Route path="/novo-sinistro/resumo/:id" element={<ResumoSinistro />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
