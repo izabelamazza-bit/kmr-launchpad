@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import logoKMR from "@/assets/Logo_KMR.png";
-import { LogOut, Users, Building2, UserCircle, Package, MessageSquare, Bot, Headset } from "lucide-react";
+import { LogOut, Users, Building2, UserCircle, Package, MessageSquare, Bot, Headset, AlertTriangle, FileWarning } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 
 const menuItems = [
@@ -14,6 +14,7 @@ const menuItems = [
   { label: "Leads", icon: MessageSquare, path: "/cadastros/leads", desc: "Leads qualificados pelo agente de IA" },
   { label: "Agente de IA", icon: Bot, path: "/agente", desc: "Configure e treine o assistente virtual" },
   { label: "Atendimento", icon: Headset, path: "/atendimento", desc: "Acompanhe e gerencie conversas em tempo real" },
+  { label: "Sinistros", icon: FileWarning, path: "/sinistros", desc: "Acompanhar inadimplências registradas" },
 ];
 
 const Dashboard = () => {
@@ -72,6 +73,26 @@ const Dashboard = () => {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <h1 className="text-3xl font-semibold text-foreground mb-2">Dashboard</h1>
         <p className="text-muted-foreground mb-8">Bem-vindo ao painel administrativo da KMR.</p>
+
+        <div className="mb-8 bg-card border rounded-lg p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shadow-sm">
+          <div className="flex items-start gap-3">
+            <div className="bg-primary/10 rounded-md p-2">
+              <AlertTriangle className="h-6 w-6 text-primary" />
+            </div>
+            <div>
+              <p className="font-semibold text-foreground">Registrar novo sinistro</p>
+              <p className="text-sm text-muted-foreground">
+                Cadastre uma nova inadimplência de aluguel com débitos e documentos.
+              </p>
+            </div>
+          </div>
+          <Button
+            onClick={() => navigate("/novo-sinistro")}
+            className="min-h-[44px] w-full sm:w-auto"
+          >
+            Registrar novo sinistro
+          </Button>
+        </div>
 
         <h2 className="text-lg font-medium text-foreground mb-4">Cadastros</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
