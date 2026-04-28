@@ -22,6 +22,7 @@ import logoKMR from "@/assets/Logo_KMR.png";
 
 import FileUploadField from "@/components/sinistros/FileUploadField";
 import CurrencyInput from "@/components/sinistros/CurrencyInput";
+import MultiFileUploadField from "@/components/sinistros/MultiFileUploadField";
 
 type StatusImovel = "ocupado" | "desocupado";
 
@@ -87,6 +88,11 @@ const NovoSinistro = () => {
   // Desocupado
   const [motivoDesocupacao, setMotivoDesocupacao] = useState("");
   const [dataChaves, setDataChaves] = useState<Date | undefined>();
+  const [termoChaves, setTermoChaves] = useState<File | null>(null);
+
+  // Obras
+  const [possuiObras, setPossuiObras] = useState<"sim" | "nao">("nao");
+  const [orcamentosObras, setOrcamentosObras] = useState<File[]>([]);
 
   // Checklist
   const [checklist, setChecklist] = useState<ChecklistItem[]>(
@@ -178,6 +184,22 @@ const NovoSinistro = () => {
         });
         return;
       }
+      if (!termoChaves) {
+        toast({
+          title: "Termo de entrega de chaves obrigatório",
+          description: "Anexe o termo de entrega de chaves.",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (possuiObras === "sim" && orcamentosObras.length === 0) {
+        toast({
+          title: "Orçamentos de obras obrigatórios",
+          description: "Anexe ao menos um orçamento.",
+          variant: "destructive",
+        });
+        return;
+      }
     }
 
     for (const [i, c] of consumos.entries()) {
@@ -207,10 +229,11 @@ const NovoSinistro = () => {
             statusImovel === "desocupado" && dataChaves
               ? format(dataChaves, "yyyy-MM-dd")
               : null,
+          possui_obras: statusImovel === "desocupado" && possuiObras === "sim",
           checklist: checklist
             .filter((c) => c.checked)
             .map((c) => ({ label: c.label })),
-          status: "rascunho",
+          status: "em_analise",
           created_by: userData.user?.id ?? null,
         })
         .select()
@@ -254,6 +277,30 @@ const NovoSinistro = () => {
             sinistro_id: sinistro.id,
             nome: item.file.name,
             tipo: item.label,
+            file_path: path,
+          });
+        }
+      }
+
+      // 5. Termo de entrega de chaves (desocupado)
+      if (statusImovel === "desocupado" && termoChaves) {
+        const path = await uploadFile(sinistro.id, termoChaves, "desocupacao");
+        await supabase.from("sinistro_anexos").insert({
+          sinistro_id: sinistro.id,
+          nome: termoChaves.name,
+          tipo: "Termo de entrega de chaves",
+          file_path: path,
+        });
+      }
+
+      // 6. Orçamentos de obras
+      if (statusImovel === "desocupado" && possuiObras === "sim") {
+        for (const f of orcamentosObras) {
+          const path = await uploadFile(sinistro.id, f, "obras");
+          await supabase.from("sinistro_anexos").insert({
+            sinistro_id: sinistro.id,
+            nome: f.name,
+            tipo: "Orçamento de obras",
             file_path: path,
           });
         }
@@ -489,48 +536,96 @@ const NovoSinistro = () => {
 
         {/* Desocupado */}
         {statusImovel === "desocupado" && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Informações da desocupação</CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-4 sm:grid-cols-2">
-              <div className="sm:col-span-2 space-y-2">
-                <Label htmlFor="motivo">Motivo da desocupação</Label>
-                <Textarea
-                  id="motivo"
-                  value={motivoDesocupacao}
-                  onChange={(e) => setMotivoDesocupacao(e.target.value)}
-                  rows={3}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Data de entrega das chaves</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !dataChaves && "text-muted-foreground",
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {dataChaves ? format(dataChaves, "dd/MM/yyyy") : "Selecionar"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={dataChaves}
-                      onSelect={setDataChaves}
-                      initialFocus
-                      className={cn("p-3 pointer-events-auto")}
+          <>
+            <Card>
+              <CardHeader>
+                <CardTitle>Informações da desocupação</CardTitle>
+              </CardHeader>
+              <CardContent className="grid gap-4 sm:grid-cols-2">
+                <div className="sm:col-span-2 space-y-2">
+                  <Label htmlFor="motivo">Motivo da desocupação</Label>
+                  <Textarea
+                    id="motivo"
+                    value={motivoDesocupacao}
+                    onChange={(e) => setMotivoDesocupacao(e.target.value)}
+                    rows={3}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Data de entrega das chaves</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !dataChaves && "text-muted-foreground",
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {dataChaves ? format(dataChaves, "dd/MM/yyyy") : "Selecionar"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={dataChaves}
+                        onSelect={setDataChaves}
+                        initialFocus
+                        className={cn("p-3 pointer-events-auto")}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <div className="space-y-2">
+                  <Label>Termo de entrega de chaves</Label>
+                  <FileUploadField
+                    value={termoChaves}
+                    onChange={setTermoChaves}
+                    label="Anexar termo"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Obras</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Indique se o imóvel possui obras a serem realizadas.
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Imóvel possui obras?</Label>
+                  <RadioGroup
+                    value={possuiObras}
+                    onValueChange={(v) => setPossuiObras(v as "sim" | "nao")}
+                    className="flex flex-col sm:flex-row gap-4"
+                  >
+                    <label className="flex items-center gap-2 border rounded-md px-4 py-3 cursor-pointer flex-1 hover:border-primary/50 has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-primary/5">
+                      <RadioGroupItem value="nao" />
+                      <span className="font-medium">Não</span>
+                    </label>
+                    <label className="flex items-center gap-2 border rounded-md px-4 py-3 cursor-pointer flex-1 hover:border-primary/50 has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-primary/5">
+                      <RadioGroupItem value="sim" />
+                      <span className="font-medium">Sim</span>
+                    </label>
+                  </RadioGroup>
+                </div>
+                {possuiObras === "sim" && (
+                  <div className="space-y-2">
+                    <Label>Anexar orçamentos de obras</Label>
+                    <MultiFileUploadField
+                      value={orcamentosObras}
+                      onChange={setOrcamentosObras}
+                      label="Selecionar orçamentos"
                     />
-                  </PopoverContent>
-                </Popover>
-              </div>
-            </CardContent>
-          </Card>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </>
         )}
 
         {/* Checklist */}
