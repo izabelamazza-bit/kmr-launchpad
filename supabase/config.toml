@@ -2,3 +2,6 @@ project_id = "odntzbmmepjfcusleefd"
 
 [functions.create-first-user]
 verify_jwt = false
+
+[functions.chat-agent]
+verify_jwt = false
