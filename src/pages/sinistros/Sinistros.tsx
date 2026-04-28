@@ -27,6 +27,39 @@ interface SinistroRow {
   created_at: string;
 }
 
+const SINISTRO_STATUS: Record<string, { label: string; className: string }> = {
+  em_analise: {
+    label: "Em análise",
+    className: "bg-yellow-100 text-yellow-800 hover:bg-yellow-100 border-yellow-200",
+  },
+  pagamento: {
+    label: "Em pagamento",
+    className: "bg-blue-100 text-blue-800 hover:bg-blue-100 border-blue-200",
+  },
+  pago: {
+    label: "Pago",
+    className: "bg-green-100 text-green-800 hover:bg-green-100 border-green-200",
+  },
+  cancelado: {
+    label: "Cancelado",
+    className: "bg-red-100 text-red-800 hover:bg-red-100 border-red-200",
+  },
+};
+
+const getStatusBadge = (status: string) => {
+  // Compatibilidade: registros legados (rascunho/aberto) viram "Em análise"
+  if (status === "rascunho" || status === "aberto") return SINISTRO_STATUS.em_analise;
+  return (
+    SINISTRO_STATUS[status] ?? {
+      label: status,
+      className: "bg-muted text-muted-foreground",
+    }
+  );
+};
+
+const getImovelLabel = (status: string) =>
+  status === "desocupado" ? "Rescindido" : status === "ocupado" ? "Ocupado" : status;
+
 const Sinistros = () => {
   const navigate = useNavigate();
   const [data, setData] = useState<SinistroRow[]>([]);
@@ -115,7 +148,6 @@ const Sinistros = () => {
             <TableHeader>
               <TableRow>
                 <TableHead>Inquilino</TableHead>
-                <TableHead className="hidden md:table-cell">CPF</TableHead>
                 <TableHead className="hidden md:table-cell">Contrato</TableHead>
                 <TableHead>Imóvel</TableHead>
                 <TableHead>Status</TableHead>
@@ -126,50 +158,47 @@ const Sinistros = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                     Carregando...
                   </TableCell>
                 </TableRow>
               ) : filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                     {search ? "Nenhum resultado encontrado." : "Nenhum sinistro registrado."}
                   </TableCell>
                 </TableRow>
               ) : (
-                filtered.map((s) => (
-                  <TableRow key={s.id}>
-                    <TableCell className="font-medium">{s.inquilino_nome}</TableCell>
-                    <TableCell className="hidden md:table-cell">{s.inquilino_cpf}</TableCell>
-                    <TableCell className="hidden md:table-cell">{s.codigo_contrato}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="capitalize">
-                        {s.status_imovel}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={s.status === "aberto" ? "default" : "secondary"}
-                        className="capitalize"
-                      >
-                        {s.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="hidden sm:table-cell text-muted-foreground text-sm">
-                      {format(new Date(s.created_at), "dd/MM/yyyy")}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => navigate(`/novo-sinistro/resumo/${s.id}`)}
-                      >
-                        <Eye className="h-4 w-4 mr-1" />
-                        Ver
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
+                filtered.map((s) => {
+                  const badge = getStatusBadge(s.status);
+                  return (
+                    <TableRow key={s.id}>
+                      <TableCell className="font-medium">{s.inquilino_nome}</TableCell>
+                      <TableCell className="hidden md:table-cell">{s.codigo_contrato}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{getImovelLabel(s.status_imovel)}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={badge.className} variant="outline">
+                          {badge.label}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="hidden sm:table-cell text-muted-foreground text-sm">
+                        {format(new Date(s.created_at), "dd/MM/yyyy")}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => navigate(`/novo-sinistro/resumo/${s.id}`)}
+                        >
+                          <Eye className="h-4 w-4 mr-1" />
+                          Ver
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
               )}
             </TableBody>
           </Table>

@@ -109,7 +109,7 @@ const ResumoSinistro = () => {
     setSaving(true);
     const { error } = await supabase
       .from("sinistros")
-      .update({ status: "aberto", observacoes })
+      .update({ status: "em_analise", observacoes })
       .eq("id", sinistro.id);
     setSaving(false);
     if (error) {
@@ -168,11 +168,14 @@ const ResumoSinistro = () => {
               Confira todos os dados antes de abrir o sinistro.
             </p>
           </div>
-          <Badge
-            variant={sinistro.status === "aberto" ? "default" : "secondary"}
-            className="capitalize"
-          >
-            {sinistro.status}
+          <Badge variant="secondary" className="capitalize">
+            {sinistro.status === "rascunho" || sinistro.status === "aberto"
+              ? "Em análise"
+              : sinistro.status === "em_analise"
+                ? "Em análise"
+                : sinistro.status === "pagamento"
+                  ? "Em pagamento"
+                  : sinistro.status}
           </Badge>
         </div>
 
