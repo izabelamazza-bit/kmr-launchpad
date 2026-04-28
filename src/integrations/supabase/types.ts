@@ -260,6 +260,130 @@ export type Database = {
         }
         Relationships: []
       }
+      sinistro_anexos: {
+        Row: {
+          created_at: string
+          file_path: string
+          id: string
+          nome: string
+          sinistro_id: string
+          tipo: string | null
+        }
+        Insert: {
+          created_at?: string
+          file_path: string
+          id?: string
+          nome: string
+          sinistro_id: string
+          tipo?: string | null
+        }
+        Update: {
+          created_at?: string
+          file_path?: string
+          id?: string
+          nome?: string
+          sinistro_id?: string
+          tipo?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sinistro_anexos_sinistro_id_fkey"
+            columns: ["sinistro_id"]
+            isOneToOne: false
+            referencedRelation: "sinistros"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sinistro_debitos: {
+        Row: {
+          boleto_path: string | null
+          created_at: string
+          data_vencimento: string
+          descricao: string | null
+          id: string
+          sinistro_id: string
+          tipo: string
+          valor: number
+        }
+        Insert: {
+          boleto_path?: string | null
+          created_at?: string
+          data_vencimento: string
+          descricao?: string | null
+          id?: string
+          sinistro_id: string
+          tipo: string
+          valor?: number
+        }
+        Update: {
+          boleto_path?: string | null
+          created_at?: string
+          data_vencimento?: string
+          descricao?: string | null
+          id?: string
+          sinistro_id?: string
+          tipo?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sinistro_debitos_sinistro_id_fkey"
+            columns: ["sinistro_id"]
+            isOneToOne: false
+            referencedRelation: "sinistros"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sinistros: {
+        Row: {
+          checklist: Json
+          codigo_contrato: string
+          created_at: string
+          created_by: string | null
+          data_entrega_chaves: string | null
+          id: string
+          inquilino_cpf: string
+          inquilino_nome: string
+          motivo_desocupacao: string | null
+          observacoes: string | null
+          status: string
+          status_imovel: string
+          updated_at: string
+        }
+        Insert: {
+          checklist?: Json
+          codigo_contrato: string
+          created_at?: string
+          created_by?: string | null
+          data_entrega_chaves?: string | null
+          id?: string
+          inquilino_cpf: string
+          inquilino_nome: string
+          motivo_desocupacao?: string | null
+          observacoes?: string | null
+          status?: string
+          status_imovel: string
+          updated_at?: string
+        }
+        Update: {
+          checklist?: Json
+          codigo_contrato?: string
+          created_at?: string
+          created_by?: string | null
+          data_entrega_chaves?: string | null
+          id?: string
+          inquilino_cpf?: string
+          inquilino_nome?: string
+          motivo_desocupacao?: string | null
+          observacoes?: string | null
+          status?: string
+          status_imovel?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       users_registry: {
         Row: {
           access_profile: string
