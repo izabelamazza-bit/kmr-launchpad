@@ -348,6 +348,7 @@ export type Database = {
           inquilino_nome: string
           motivo_desocupacao: string | null
           observacoes: string | null
+          possui_obras: boolean
           status: string
           status_imovel: string
           updated_at: string
@@ -363,6 +364,7 @@ export type Database = {
           inquilino_nome: string
           motivo_desocupacao?: string | null
           observacoes?: string | null
+          possui_obras?: boolean
           status?: string
           status_imovel: string
           updated_at?: string
@@ -378,6 +380,7 @@ export type Database = {
           inquilino_nome?: string
           motivo_desocupacao?: string | null
           observacoes?: string | null
+          possui_obras?: boolean
           status?: string
           status_imovel?: string
           updated_at?: string

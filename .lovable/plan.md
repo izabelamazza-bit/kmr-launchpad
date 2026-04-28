@@ -1,129 +1,81 @@
-## Plano: Módulo de Registro de Sinistros (Inadimplência)
+## Plano: Ajustes em Sinistros (desocupação, obras e listagem)
 
-Novo módulo dentro do dashboard para cadastrar sinistros de inadimplência de aluguel, com fluxo multi-etapa, upload de documentos, débitos dinâmicos, checklist e tela de resumo.
+Ajustes pontuais — sem recriar o fluxo existente.
 
 ### 1. Banco de dados (migration)
 
-**Tabela `sinistros`** — registro principal:
-```text
-id uuid pk
-inquilino_nome text not null
-inquilino_cpf text not null
-codigo_contrato text not null   -- código Imoview, usado em relatórios
-status_imovel text not null     -- 'ocupado' | 'desocupado'
-motivo_desocupacao text         -- só se desocupado
-data_entrega_chaves date        -- só se desocupado
-checklist jsonb default '[]'    -- itens marcados do checklist
-observacoes text
-status text default 'aberto'    -- 'rascunho' | 'aberto'
-created_by uuid
-created_at, updated_at
-```
+Atualizar tabela `sinistros`:
 
-**Tabela `sinistro_debitos`** — débitos vinculados (aluguel + contas):
-```text
-id uuid pk
-sinistro_id uuid fk -> sinistros (on delete cascade)
-tipo text not null        -- 'aluguel' | 'consumo'
-descricao text            -- ex: água, luz, condomínio (livre p/ consumo)
-data_vencimento date not null
-valor numeric(12,2) not null
-boleto_path text          -- caminho no storage
-created_at
-```
+- Adicionar coluna `possui_obras boolean not null default false`.
+- Trocar status default de `'rascunho'` para `'em_analise'` (apenas o default; registros antigos seguem como estão).
+- Status válidos passam a ser: `em_analise`, `pagamento`, `pago`, `cancelado` (sem CHECK constraint, validado via app — segue padrão atual).
 
-**Tabela `sinistro_anexos`** — documentos extras do checklist:
-```text
-id uuid pk
-sinistro_id uuid fk
-nome text
-tipo text       -- categoria (laudo, termo, etc.)
-file_path text
-created_at
-```
+Não há mudança de schema para anexos: o termo de chaves e os orçamentos de obras serão armazenados em `sinistro_anexos` com `tipo` específico (`"Termo de entrega de chaves"` e `"Orçamento de obras"`), reaproveitando o bucket `sinistros`.
 
-RLS: todas com policies para `authenticated` (select/insert/update/delete) seguindo o padrão das demais tabelas.
+### 2. `NovoSinistro.tsx` — bloco Desocupação
 
-**Storage bucket** `sinistros` (privado) com policies para `authenticated` ler/escrever no próprio path.
+- Reorganizar o card "Informações da desocupação" em grid de 3 colunas em desktop (`sm:grid-cols-3`), mantendo motivo no topo em coluna inteira:
+  - Linha: Data de entrega das chaves | Termo de entrega de chaves (upload) | (espaço da terceira coluna ocupado proporcionalmente)
+  - Layout responsivo: empilha no mobile.
+- Novo state `termoChaves: File | null`.
+- Validação: se `statusImovel === "desocupado"`, `termoChaves` é obrigatório.
+- No submit, fazer upload com prefixo `desocupacao` e inserir em `sinistro_anexos` com `tipo: "Termo de entrega de chaves"`.
 
-### 2. Rotas e navegação
+### 3. `NovoSinistro.tsx` — novo bloco Obras
 
-- `/novo-sinistro` — formulário de cadastro (etapa 1)
-- `/novo-sinistro/resumo/:id` — tela de resumo (etapa 2)
-- `/sinistros` — listagem (para acessar resumos e futuros relatórios)
+Novo `Card` logo abaixo do bloco de desocupação (visível independente do status do imóvel — confirmar abaixo).
 
-**Dashboard:** adicionar botão primário em destaque **"Registrar novo sinistro"** acima do grid de cards, e novo card "Sinistros" no menu apontando para `/sinistros`.
+- Campo "Imóvel possui obras?" com `RadioGroup` (Sim / Não), default Não.
+- Se Sim: campo de upload múltiplo "Anexar orçamentos de obras" (mínimo 1 arquivo, obrigatório).
+- States: `possuiObras: boolean`, `orcamentosObras: File[]`.
+- No submit:
+  - Validar: se Sim e lista vazia → toast de erro.
+  - Persistir `possui_obras` na tabela `sinistros`.
+  - Upload de cada arquivo em `sinistros/{id}/obras/...` e insert em `sinistro_anexos` com `tipo: "Orçamento de obras"`.
 
-### 3. Página `NovoSinistro.tsx` (formulário)
+### 4. Componente novo: `MultiFileUploadField`
 
-Layout com header padrão (estilo `CrudLayout`), formulário centralizado em card com seções bem espaçadas.
+Em `src/components/sinistros/MultiFileUploadField.tsx`, baseado no `FileUploadField` existente:
+- Aceita múltiplos arquivos (`multiple` no input).
+- Lista arquivos selecionados com botão remover por item.
+- API: `value: File[]`, `onChange: (files: File[]) => void`.
 
-**Seção 1 — Dados do inquilino:**
-- Nome completo (Input)
-- CPF (MaskedInput `999.999.999-99` + validação `validateCPF`)
-- Código do contrato (Imoview)
+### 5. Status inicial do sinistro
 
-**Seção 2 — Status do imóvel:**
-- RadioGroup: Ocupado | Desocupado
+- No insert em `NovoSinistro.tsx`, trocar `status: "rascunho"` → `status: "em_analise"`.
+- Em `ResumoSinistro.tsx`, o botão "Abrir sinistro" mantém-se mas atualiza para `status: "em_analise"` (caso já não esteja) — o sinistro já nasce em análise; o botão passa a ser "Confirmar sinistro" e apenas redireciona/atualiza observações. Manter comportamento atual mas alinhar string para `em_analise`.
 
-**Seção 3 — Débito de aluguel** (sempre visível):
-- Upload do boleto (input file com preview do nome)
-- Data de vencimento (DatePicker shadcn)
-- Valor original (input com formatação R$)
+### 6. `Sinistros.tsx` — listagem
 
-**Seção 4 — Contas de consumo (repetível):**
-- Lista dinâmica com botão "+ Adicionar conta"
-- Cada item: descrição, data vencimento, valor, upload boleto, botão remover
+- Colunas exibidas: Inquilino | Contrato | Imóvel | Status | Criado em | Ações (CPF removido para dar espaço aos novos status).
+- Mapear labels:
+  - `status_imovel`: `ocupado` → "Ocupado", `desocupado` → "Rescindido".
+  - `status` do sinistro:
+    - `em_analise` → "Em análise" — badge amarelo
+    - `pagamento` → "Em pagamento" — badge azul
+    - `pago` → "Pago" — badge verde
+    - `cancelado` → "Cancelado" — badge vermelho
+- Helper `getStatusBadge(status)` retorna `{ label, className }` com classes Tailwind do design system (amarelo: `bg-yellow-100 text-yellow-800`, azul: `bg-blue-100 text-blue-800`, verde: `bg-green-100 text-green-800`, vermelho: `bg-red-100 text-red-800`).
+- Compatibilidade com registros legados (`rascunho`, `aberto`): exibir como "Em análise".
 
-**Seção 5 — Campos extras (só se desocupado):**
-- Motivo da desocupação (Textarea)
-- Data de entrega das chaves (DatePicker)
+### 7. `ResumoSinistro.tsx`
 
-**Seção 6 — Checklist de documentos:**
-- Lista de Checkbox dinâmica conforme status:
-  - Ocupado: Boleto aluguel vencido, Condomínio, Água, Lixo, IPTU, Apólice de seguro
-  - Desocupado: todos acima + Laudo de vistoria de saída assinado, Demonstrativo de rescisão, Termo de entrega de chaves, E-mail de rescisão, Boletos dos débitos, Dois orçamentos
-- Cada item marcado pode ter upload opcional de arquivo
-
-**Validação (zod):** CPF válido, código de contrato obrigatório, pelo menos 1 débito, valores > 0, datas válidas, campos extras obrigatórios se desocupado.
-
-**Botão "Continuar":** salva sinistro como `rascunho`, sobe arquivos para storage, persiste débitos/anexos e navega para `/novo-sinistro/resumo/:id`.
-
-### 4. Página `ResumoSinistro.tsx`
-
-Carrega o sinistro pelo `:id` e exibe:
-
-- **Card Dados cadastrados:** nome, CPF, código contrato, status (badge)
-- **Card Débitos:** tabela com tipo/descrição, vencimento, valor; total consolidado em destaque
-- **Card Arquivos anexados:** lista com nome e link para baixar (signed URL do storage)
-- **Card Observações:** Textarea editável (salva on blur)
-- **Botão secundário "Adicionar mais inadimplências":** volta para `/novo-sinistro/:id` permitindo incluir novos débitos no mesmo sinistro
-- **Botão primário "Abrir sinistro":** muda status para `aberto`, exibe toast e redireciona para `/sinistros`
-
-### 5. Página `Sinistros.tsx` (listagem simples)
-
-Reusa `CrudLayout` + `DataTable`: colunas inquilino, CPF, contrato, status imóvel, status, data; botão "Ver" abre o resumo. Botão "Novo" no header → `/novo-sinistro`.
-
-### 6. Componentes reutilizáveis
-
-- `FileUploadField` — input file com preview de nome, ícone, botão remover (estilo design system KMR)
-- `CurrencyInput` — input com máscara R$ usando `Intl.NumberFormat` (formatador BRL)
-- Todos usam tokens do tema (cores KMR), bordas arredondadas, sombras suaves, mobile-first
+- Exibir card "Obras" quando `possui_obras = true`, listando os orçamentos (já vêm via `sinistro_anexos` com `tipo: "Orçamento de obras"`).
+- Termo de chaves aparece automaticamente no card "Arquivos anexados" (via `sinistro_anexos`).
 
 ### Arquivos
 
 ```text
 Criar:
-  src/pages/sinistros/NovoSinistro.tsx
-  src/pages/sinistros/ResumoSinistro.tsx
-  src/pages/sinistros/Sinistros.tsx
-  src/components/sinistros/FileUploadField.tsx
-  src/components/sinistros/CurrencyInput.tsx
-  supabase migration (3 tabelas + RLS + bucket storage + policies)
+  src/components/sinistros/MultiFileUploadField.tsx
+  supabase migration (possui_obras + status default)
 
 Editar:
-  src/App.tsx                (rotas /novo-sinistro, /novo-sinistro/resumo/:id, /sinistros)
-  src/pages/Dashboard.tsx    (botão destaque + card Sinistros)
+  src/pages/sinistros/NovoSinistro.tsx
+  src/pages/sinistros/Sinistros.tsx
+  src/pages/sinistros/ResumoSinistro.tsx
 ```
 
-LP pública não será alterada.
+### Pergunta de confirmação
+
+O bloco "Imóvel possui obras?" deve aparecer **sempre** (ocupado e desocupado) ou **apenas quando desocupado**? Por padrão do plano vou deixar **sempre visível** já que o prompt diz "logo abaixo da seção de desocupação" sem condicionar — mas o card de desocupação só aparece quando o imóvel está desocupado, então na prática faz mais sentido o bloco Obras também só aparecer para **desocupado**. Vou implementar assim (apenas desocupado). Se preferir sempre visível, é só avisar antes de aprovar.
