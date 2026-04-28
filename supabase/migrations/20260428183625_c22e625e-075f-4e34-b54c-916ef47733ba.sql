@@ -1,0 +1,2 @@
+ALTER TABLE public.sinistros DROP CONSTRAINT IF EXISTS sinistros_status_check;
+ALTER TABLE public.sinistros ADD CONSTRAINT sinistros_status_check CHECK (status IN ('em_analise','pagamento','pago','cancelado','rascunho','aberto'));
