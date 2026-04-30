@@ -13,17 +13,17 @@ const CTASection = () => {
 
           <div className="relative z-10 max-w-2xl mx-auto space-y-6">
             <h2 className="font-display text-2xl md:text-3xl lg:text-4xl font-bold text-primary-foreground leading-tight">
-              Transforme a forma como sua imobiliária aprova locações.
+              Pronto para alugar sem fiador?
             </h2>
             <p className="text-primary-foreground/80 text-base md:text-lg max-w-lg mx-auto">
-              Junte-se às imobiliárias que já simplificaram o processo de garantia locatícia com a KMR.
+              Simples, rápido e digital. Comece agora e dê o próximo passo rumo ao seu novo lar.
             </p>
             <Button
               asChild
               size="lg"
               className="bg-accent hover:bg-accent/90 text-accent-foreground font-semibold text-base px-10 h-12 shadow-lg shadow-accent/30"
             >
-              <a href="#contato">Agendar demonstração</a>
+              <a href="#contato">Começar agora</a>
             </Button>
           </div>
         </div>

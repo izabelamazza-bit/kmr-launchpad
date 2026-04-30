@@ -1,81 +1,81 @@
-## Plano: Ajustes em Sinistros (desocupação, obras e listagem)
+## Plano: Reescrita B2C da Landing Page (foco no inquilino)
 
-Ajustes pontuais — sem recriar o fluxo existente.
+### Escopo
 
-### 1. Banco de dados (migration)
+Reescrever **apenas textos** da LP pública. Sem mudanças de layout, componentes, cores, imagens ou rotas. Sem alterações na área logada.
 
-Atualizar tabela `sinistros`:
-
-- Adicionar coluna `possui_obras boolean not null default false`.
-- Trocar status default de `'rascunho'` para `'em_analise'` (apenas o default; registros antigos seguem como estão).
-- Status válidos passam a ser: `em_analise`, `pagamento`, `pago`, `cancelado` (sem CHECK constraint, validado via app — segue padrão atual).
-
-Não há mudança de schema para anexos: o termo de chaves e os orçamentos de obras serão armazenados em `sinistro_anexos` com `tipo` específico (`"Termo de entrega de chaves"` e `"Orçamento de obras"`), reaproveitando o bucket `sinistros`.
-
-### 2. `NovoSinistro.tsx` — bloco Desocupação
-
-- Reorganizar o card "Informações da desocupação" em grid de 3 colunas em desktop (`sm:grid-cols-3`), mantendo motivo no topo em coluna inteira:
-  - Linha: Data de entrega das chaves | Termo de entrega de chaves (upload) | (espaço da terceira coluna ocupado proporcionalmente)
-  - Layout responsivo: empilha no mobile.
-- Novo state `termoChaves: File | null`.
-- Validação: se `statusImovel === "desocupado"`, `termoChaves` é obrigatório.
-- No submit, fazer upload com prefixo `desocupacao` e inserir em `sinistro_anexos` com `tipo: "Termo de entrega de chaves"`.
-
-### 3. `NovoSinistro.tsx` — novo bloco Obras
-
-Novo `Card` logo abaixo do bloco de desocupação (visível independente do status do imóvel — confirmar abaixo).
-
-- Campo "Imóvel possui obras?" com `RadioGroup` (Sim / Não), default Não.
-- Se Sim: campo de upload múltiplo "Anexar orçamentos de obras" (mínimo 1 arquivo, obrigatório).
-- States: `possuiObras: boolean`, `orcamentosObras: File[]`.
-- No submit:
-  - Validar: se Sim e lista vazia → toast de erro.
-  - Persistir `possui_obras` na tabela `sinistros`.
-  - Upload de cada arquivo em `sinistros/{id}/obras/...` e insert em `sinistro_anexos` com `tipo: "Orçamento de obras"`.
-
-### 4. Componente novo: `MultiFileUploadField`
-
-Em `src/components/sinistros/MultiFileUploadField.tsx`, baseado no `FileUploadField` existente:
-- Aceita múltiplos arquivos (`multiple` no input).
-- Lista arquivos selecionados com botão remover por item.
-- API: `value: File[]`, `onChange: (files: File[]) => void`.
-
-### 5. Status inicial do sinistro
-
-- No insert em `NovoSinistro.tsx`, trocar `status: "rascunho"` → `status: "em_analise"`.
-- Em `ResumoSinistro.tsx`, o botão "Abrir sinistro" mantém-se mas atualiza para `status: "em_analise"` (caso já não esteja) — o sinistro já nasce em análise; o botão passa a ser "Confirmar sinistro" e apenas redireciona/atualiza observações. Manter comportamento atual mas alinhar string para `em_analise`.
-
-### 6. `Sinistros.tsx` — listagem
-
-- Colunas exibidas: Inquilino | Contrato | Imóvel | Status | Criado em | Ações (CPF removido para dar espaço aos novos status).
-- Mapear labels:
-  - `status_imovel`: `ocupado` → "Ocupado", `desocupado` → "Rescindido".
-  - `status` do sinistro:
-    - `em_analise` → "Em análise" — badge amarelo
-    - `pagamento` → "Em pagamento" — badge azul
-    - `pago` → "Pago" — badge verde
-    - `cancelado` → "Cancelado" — badge vermelho
-- Helper `getStatusBadge(status)` retorna `{ label, className }` com classes Tailwind do design system (amarelo: `bg-yellow-100 text-yellow-800`, azul: `bg-blue-100 text-blue-800`, verde: `bg-green-100 text-green-800`, vermelho: `bg-red-100 text-red-800`).
-- Compatibilidade com registros legados (`rascunho`, `aberto`): exibir como "Em análise".
-
-### 7. `ResumoSinistro.tsx`
-
-- Exibir card "Obras" quando `possui_obras = true`, listando os orçamentos (já vêm via `sinistro_anexos` com `tipo: "Orçamento de obras"`).
-- Termo de chaves aparece automaticamente no card "Arquivos anexados" (via `sinistro_anexos`).
-
-### Arquivos
+### Arquivos a editar (somente strings)
 
 ```text
-Criar:
-  src/components/sinistros/MultiFileUploadField.tsx
-  supabase migration (possui_obras + status default)
-
-Editar:
-  src/pages/sinistros/NovoSinistro.tsx
-  src/pages/sinistros/Sinistros.tsx
-  src/pages/sinistros/ResumoSinistro.tsx
+src/components/landing/Hero.tsx
+src/components/landing/Benefits.tsx
+src/components/landing/HowItWorks.tsx
+src/components/landing/FAQ.tsx
+src/components/landing/CTASection.tsx
+src/components/landing/ContactForm.tsx
+src/components/landing/Header.tsx       (apenas se houver CTA "Agendar demonstração")
+src/components/landing/Footer.tsx       (apenas microcopy se necessário)
+index.html                              (title + meta description SEO B2C)
 ```
 
-### Pergunta de confirmação
+### Conteúdo proposto
 
-O bloco "Imóvel possui obras?" deve aparecer **sempre** (ocupado e desocupado) ou **apenas quando desocupado**? Por padrão do plano vou deixar **sempre visível** já que o prompt diz "logo abaixo da seção de desocupação" sem condicionar — mas o card de desocupação só aparece quando o imóvel está desocupado, então na prática faz mais sentido o bloco Obras também só aparecer para **desocupado**. Vou implementar assim (apenas desocupado). Se preferir sempre visível, é só avisar antes de aprovar.
+**Hero**
+- Badge: "Aluguel sem fiador"
+- H1: "Alugue sem fiador, sem caução alta e sem burocracia."
+- Subtítulo: "Aprovação rápida e 100% digital. Mostramos para o proprietário que você é um bom inquilino — e você fecha o aluguel sem dor de cabeça."
+- CTA principal: "Quero alugar sem fiador" (rola para #contato)
+- CTA secundário: "Falar no WhatsApp"
+
+**Benefits** — título "Por que escolher a KMR para alugar"
+1. Sem fiador — "Não precisa pedir favor para ninguém."
+2. Sem caução alta — "Esqueça depósito de 3 aluguéis presos numa conta."
+3. Aprovação rápida — "Análise em poucas horas, tudo online."
+4. Mais chance de aprovar — "Seu perfil é avaliado de forma justa e transparente."
+5. 100% digital — "Faça tudo pelo celular, sem ir em cartório."
+6. Segurança para todos — "Você aluga tranquilo e o proprietário fica protegido."
+
+**HowItWorks** — título "Como funciona para você" (2ª pessoa)
+1. Você se cadastra — "Em poucos minutos, pelo celular."
+2. Analisamos seu perfil — "Rápido, justo e sem burocracia."
+3. Sua garantia é aprovada — "Você recebe a confirmação e pode seguir."
+4. Você fecha o aluguel — "Mude para o seu novo lar sem fiador."
+
+**FAQ** (substituir todas as 5)
+- Preciso de fiador? — Não. A KMR substitui o fiador.
+- Quanto custa? — Valor proporcional ao aluguel; consulte sua simulação no WhatsApp.
+- Quanto tempo demora a aprovação? — Geralmente em poucas horas.
+- É seguro? — Sim. Solução regulamentada, com contrato claro e sem letras miúdas.
+- E se eu atrasar o aluguel? — Entre em contato o quanto antes; orientamos a regularização e evitamos que vire um problema maior.
+
+**CTASection**
+- H2: "Pronto para alugar sem fiador?"
+- Texto: "Simples, rápido e digital. Comece agora e dê o próximo passo rumo ao seu novo lar."
+- Botão: "Começar agora" (rola para #contato)
+
+**ContactForm**
+- Título: "Simule sua garantia"
+- Subtítulo: "Preencha seus dados e fale com a gente no WhatsApp."
+- Campo "Imobiliária" → trocar por "Cidade do imóvel" (apenas label/placeholder; ajustar schema/zod e mensagem do WhatsApp para enviar "Cidade" em vez de "Imobiliária").
+- Botão: "Simular agora"
+- Mensagem WhatsApp: "Olá! Quero alugar sem fiador. Nome / Cidade / Telefone / Email."
+
+**Header**
+- Se houver botão "Agendar demonstração", trocar para "Simular agora".
+
+**index.html (SEO B2C)**
+- title: "KMR — Alugue sem fiador e sem caução alta"
+- meta description: "Garantia de aluguel rápida, simples e 100% digital. Alugue sem fiador, sem caução e sem burocracia com a KMR."
+- og/twitter title e description equivalentes.
+
+### Regras seguidas
+- Sem alterar layout, classes Tailwind, estrutura de componentes ou imagens.
+- Mantém marca KMR, paleta e tipografia.
+- Linguagem direta, 2ª pessoa, sem juridiquês.
+- Mantém menção sutil à proteção do proprietário (credibilidade).
+- Nenhuma alteração na área logada (`/dashboard`, `/sinistros`, `/atendimento`, etc.).
+
+### Não incluído
+- Nenhuma migração, edge function ou mudança de schema.
+- Sem novos componentes ou rotas.
+- Sem alterações visuais.

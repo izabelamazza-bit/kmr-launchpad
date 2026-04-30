@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 
 const formSchema = z.object({
   nome: z.string().trim().min(2, "Informe seu nome").max(100),
-  imobiliaria: z.string().trim().min(2, "Informe o nome da imobiliária").max(100),
+  cidade: z.string().trim().min(2, "Informe a cidade do imóvel").max(100),
   telefone: z.string().trim().min(8, "Informe um telefone válido").max(20),
   email: z.string().trim().email("Informe um email válido").max(255),
 });
@@ -24,20 +24,20 @@ const ContactForm = () => {
     resolver: zodResolver(formSchema),
     defaultValues: {
       nome: "",
-      imobiliaria: "",
+      cidade: "",
       telefone: "",
       email: "",
     },
   });
 
   const onSubmit = (data: FormValues) => {
-    const message = `Olá! Gostaria de agendar uma demonstração.\n\nNome: ${data.nome}\nImobiliária: ${data.imobiliaria}\nTelefone: ${data.telefone}\nEmail: ${data.email}`;
+    const message = `Olá! Quero alugar sem fiador.\n\nNome: ${data.nome}\nCidade do imóvel: ${data.cidade}\nTelefone: ${data.telefone}\nEmail: ${data.email}`;
     const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, "_blank", "noopener,noreferrer");
 
     toast({
       title: "Redirecionando para o WhatsApp!",
-      description: "Complete o envio da mensagem para agendar sua demonstração.",
+      description: "É só enviar a mensagem para fazer sua simulação.",
     });
 
     form.reset();
@@ -48,12 +48,12 @@ const ContactForm = () => {
       <div className="container">
         <div className="max-w-lg mx-auto">
           <div className="text-center mb-10">
-            <span className="text-sm font-semibold text-secondary uppercase tracking-wider">Contato</span>
+            <span className="text-sm font-semibold text-secondary uppercase tracking-wider">Simulação</span>
             <h2 className="font-display text-2xl md:text-3xl font-bold text-primary mt-3">
-              Agende sua demonstração
+              Simule sua garantia
             </h2>
             <p className="text-muted-foreground mt-3">
-              Preencha o formulário e entraremos em contato via WhatsApp.
+              Preencha seus dados e fale com a gente no WhatsApp.
             </p>
           </div>
 
@@ -76,12 +76,12 @@ const ContactForm = () => {
 
                 <FormField
                   control={form.control}
-                  name="imobiliaria"
+                  name="cidade"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Imobiliária</FormLabel>
+                      <FormLabel>Cidade do imóvel</FormLabel>
                       <FormControl>
-                        <Input placeholder="Nome da sua imobiliária" {...field} />
+                        <Input placeholder="Onde você quer alugar" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -121,7 +121,7 @@ const ContactForm = () => {
                   size="lg"
                   className="w-full bg-accent hover:bg-accent/90 text-accent-foreground font-semibold text-base h-12 shadow-md shadow-accent/20"
                 >
-                  Agendar demonstração
+                  Simular agora
                 </Button>
               </form>
             </Form>
