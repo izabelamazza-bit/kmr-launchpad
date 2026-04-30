@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import logoKMR from "@/assets/Logo_KMR.png";
 
-const WHATSAPP_LINK = "https://wa.me/5500000000000?text=Olá! Gostaria de saber mais sobre a garantia locatícia KMR.";
+const WHATSAPP_LINK = "https://wa.me/5500000000000?text=Olá! Quero alugar sem fiador. Pode me ajudar?";
 
 const navLinks = [
   { label: "Benefícios", href: "#beneficios" },
@@ -35,7 +35,7 @@ const Header = () => {
             </a>
           ))}
           <Button asChild className="bg-accent hover:bg-accent/90 text-accent-foreground font-semibold px-6">
-            <a href="#contato">Agendar demonstração</a>
+            <a href="#contato">Simular agora</a>
           </Button>
           <Button asChild variant="outline" className="font-semibold px-6">
             <Link to="/login">Login</Link>
@@ -66,7 +66,7 @@ const Header = () => {
             </a>
           ))}
           <Button asChild className="w-full bg-accent hover:bg-accent/90 text-accent-foreground font-semibold">
-            <a href="#contato" onClick={() => setMenuOpen(false)}>Agendar demonstração</a>
+            <a href="#contato" onClick={() => setMenuOpen(false)}>Simular agora</a>
           </Button>
           <Button asChild variant="outline" className="w-full font-semibold">
             <Link to="/login" onClick={() => setMenuOpen(false)}>Login</Link>
