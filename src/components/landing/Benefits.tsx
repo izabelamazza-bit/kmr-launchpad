@@ -1,30 +1,35 @@
-import { CheckCircle2, FileText, Zap, TrendingUp, ShieldCheck } from "lucide-react";
+import { UserX, Wallet, Zap, TrendingUp, Smartphone, ShieldCheck } from "lucide-react";
 
 const benefits = [
   {
-    icon: CheckCircle2,
-    title: "Processo simples",
-    description: "Sem burocracia ou regras confusas. Tudo descomplicado para sua imobiliária.",
+    icon: UserX,
+    title: "Sem fiador",
+    description: "Você não precisa pedir favor para ninguém. A KMR substitui o fiador no seu contrato.",
   },
   {
-    icon: FileText,
-    title: "Regras claras",
-    description: "Sua imobiliária sabe exatamente como funciona. Sem letras miúdas.",
+    icon: Wallet,
+    title: "Sem caução alta",
+    description: "Esqueça depósito de 3 aluguéis preso numa conta. Mais dinheiro no seu bolso para a mudança.",
   },
   {
     icon: Zap,
     title: "Aprovação rápida",
-    description: "Menos tempo analisando garantias. Mais tempo fechando negócios.",
+    description: "Análise em poucas horas, tudo online. Você não fica esperando dias por uma resposta.",
   },
   {
     icon: TrendingUp,
-    title: "Mais locações aprovadas",
-    description: "Mais negócios fechados com uma garantia acessível para seus clientes.",
+    title: "Mais chance de aprovar",
+    description: "Seu perfil é avaliado de forma justa e transparente, aumentando suas chances de conseguir o imóvel.",
+  },
+  {
+    icon: Smartphone,
+    title: "100% digital",
+    description: "Faça tudo pelo celular. Sem filas, sem papelada e sem cartório.",
   },
   {
     icon: ShieldCheck,
-    title: "Segurança para a imobiliária",
-    description: "Garantia de recebimento do aluguel. Sua imobiliária sempre protegida.",
+    title: "Segurança para todos",
+    description: "Você aluga tranquilo e o proprietário fica protegido. Todo mundo sai ganhando.",
   },
 ];
 
@@ -35,10 +40,10 @@ const Benefits = () => {
         <div className="text-center mb-12 md:mb-16 max-w-2xl mx-auto">
           <span className="text-sm font-semibold text-secondary uppercase tracking-wider">Benefícios</span>
           <h2 className="font-display text-2xl md:text-3xl lg:text-4xl font-bold text-primary mt-3">
-            Por que imobiliárias escolhem a KMR
+            Por que escolher a KMR para alugar
           </h2>
           <p className="text-muted-foreground mt-4 text-base md:text-lg">
-            Uma garantia locatícia pensada para simplificar o dia a dia da sua imobiliária.
+            Uma forma mais simples e acessível de conseguir o imóvel que você quer.
           </p>
         </div>
 
