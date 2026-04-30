@@ -4,26 +4,26 @@ const steps = [
   {
     icon: UserPlus,
     step: "01",
-    title: "Cadastro",
-    description: "A imobiliária cadastra o locatário na plataforma.",
+    title: "Você se cadastra",
+    description: "Em poucos minutos, direto pelo celular. Simples e sem papelada.",
   },
   {
     icon: Search,
     step: "02",
-    title: "Análise",
-    description: "Analisamos o perfil rapidamente.",
+    title: "Analisamos seu perfil",
+    description: "Avaliação rápida, justa e sem burocracia desnecessária.",
   },
   {
     icon: FileCheck,
     step: "03",
-    title: "Emissão",
-    description: "Emitimos a garantia locatícia.",
+    title: "Sua garantia é aprovada",
+    description: "Você recebe a confirmação e pode seguir com o aluguel.",
   },
   {
     icon: ShieldCheck,
     step: "04",
-    title: "Garantia",
-    description: "O aluguel fica garantido.",
+    title: "Você fecha o imóvel",
+    description: "Mude para o seu novo lar sem fiador e sem caução alta.",
   },
 ];
 
@@ -34,10 +34,10 @@ const HowItWorks = () => {
         <div className="text-center mb-12 md:mb-16 max-w-2xl mx-auto">
           <span className="text-sm font-semibold text-secondary uppercase tracking-wider">Como funciona</span>
           <h2 className="font-display text-2xl md:text-3xl lg:text-4xl font-bold text-primary mt-3">
-            Simples e rápido em 4 passos
+            Como funciona para você
           </h2>
           <p className="text-muted-foreground mt-4 text-base md:text-lg">
-            Do cadastro à garantia aprovada, tudo de forma ágil e transparente.
+            Do cadastro à mudança, em 4 passos simples e rápidos.
           </p>
         </div>
 
