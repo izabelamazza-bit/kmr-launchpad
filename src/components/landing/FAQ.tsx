@@ -8,23 +8,27 @@ import {
 const faqs = [
   {
     question: "Preciso de fiador?",
-    answer: "Não! Com a KMR, seus clientes podem alugar sem fiador. A garantia locatícia substitui essa necessidade, simplificando o processo para a imobiliária e para o locatário.",
+    answer: "Não. A KMR substitui o fiador no seu contrato de aluguel. Você não precisa pedir favor para parente nem para amigo.",
   },
   {
-    question: "Quanto custa a garantia?",
-    answer: "O custo varia conforme o valor do aluguel e o perfil do locatário. Entre em contato conosco para uma demonstração personalizada e saiba os valores exatos para a sua imobiliária.",
+    question: "Quanto custa?",
+    answer: "O valor é proporcional ao aluguel do imóvel e bem mais acessível do que uma caução de 3 meses presa numa conta. Faça uma simulação rápida pelo WhatsApp e veja quanto você paga no seu caso.",
   },
   {
-    question: "Quanto tempo demora a análise?",
-    answer: "Nossa análise é rápida. Na maioria dos casos, a aprovação acontece em poucas horas, permitindo que sua imobiliária feche o contrato no mesmo dia.",
+    question: "Quanto tempo demora a aprovação?",
+    answer: "Na maioria dos casos, sua garantia é aprovada em poucas horas. Tudo é feito online, sem fila e sem cartório.",
   },
   {
-    question: "Quais documentos são necessários?",
-    answer: "O processo é simplificado. Geralmente precisamos apenas de documentos básicos de identificação e comprovação de renda do locatário. Sem burocracia desnecessária.",
+    question: "Quais documentos eu preciso?",
+    answer: "Apenas o básico: documento de identidade e comprovação de renda. Sem exigências absurdas e sem montanha de papel.",
   },
   {
-    question: "A imobiliária recebe o aluguel garantido?",
-    answer: "Sim! Em caso de inadimplência, a KMR garante o recebimento do aluguel pela imobiliária, conforme as condições da garantia contratada.",
+    question: "É seguro?",
+    answer: "Sim. Nosso contrato é claro, sem letras miúdas, e a solução protege tanto você quanto o proprietário do imóvel. Tudo registrado e transparente.",
+  },
+  {
+    question: "E se eu atrasar o aluguel?",
+    answer: "Entre em contato com a gente o quanto antes. A KMR ajuda a regularizar a situação sem que isso vire um problema maior, evitando dor de cabeça para você.",
   },
 ];
 
@@ -38,7 +42,7 @@ const FAQ = () => {
             Perguntas frequentes
           </h2>
           <p className="text-muted-foreground mt-4 text-base md:text-lg">
-            Tire suas dúvidas sobre a garantia locatícia KMR.
+            Tire suas dúvidas sobre alugar com a KMR.
           </p>
         </div>
 
