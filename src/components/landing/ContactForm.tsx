@@ -44,20 +44,20 @@ const ContactForm = () => {
   };
 
   return (
-    <section id="contato" className="py-16 md:py-24">
+    <section id="contato" className="py-16 md:py-24 bg-[#F5F7FA]">
       <div className="container">
         <div className="max-w-lg mx-auto">
           <div className="text-center mb-10">
-            <span className="text-sm font-semibold text-secondary uppercase tracking-wider">Simulação</span>
-            <h2 className="font-display text-2xl md:text-3xl font-bold text-primary mt-3">
+            <span className="text-sm font-semibold text-[#2F80ED] uppercase tracking-wider">Simulação</span>
+            <h2 className="font-display text-2xl md:text-3xl font-bold text-[#0F2A44] mt-3">
               Simule sua garantia
             </h2>
-            <p className="text-muted-foreground mt-3">
+            <p className="text-[#4F4F4F] mt-3">
               Preencha seus dados e fale com a gente no WhatsApp.
             </p>
           </div>
 
-          <div className="bg-card rounded-2xl border border-border p-6 md:p-8 shadow-lg shadow-primary/5">
+          <div className="bg-white rounded-[14px] border border-[#E8EDF2] p-6 md:p-8 shadow-lg shadow-black/5">
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
                 <FormField
@@ -119,7 +119,7 @@ const ContactForm = () => {
                 <Button
                   type="submit"
                   size="lg"
-                  className="w-full bg-accent hover:bg-accent/90 text-accent-foreground font-semibold text-base h-12 shadow-md shadow-accent/20"
+                  className="w-full bg-[#2F80ED] hover:bg-[#2F80ED]/90 text-white font-semibold text-base h-12 rounded-[9px] shadow-md"
                 >
                   Simular agora
                 </Button>
