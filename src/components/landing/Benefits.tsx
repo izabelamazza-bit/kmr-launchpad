@@ -35,14 +35,14 @@ const benefits = [
 
 const Benefits = () => {
   return (
-    <section id="beneficios" className="py-16 md:py-24 bg-card">
+    <section id="beneficios" className="py-16 md:py-24 bg-white">
       <div className="container">
         <div className="text-center mb-12 md:mb-16 max-w-2xl mx-auto">
-          <span className="text-sm font-semibold text-secondary uppercase tracking-wider">Benefícios</span>
-          <h2 className="font-display text-2xl md:text-3xl lg:text-4xl font-bold text-primary mt-3">
+          <span className="text-sm font-semibold text-[#2F80ED] uppercase tracking-wider">Benefícios</span>
+          <h2 className="font-display text-2xl md:text-3xl lg:text-4xl font-bold text-[#0F2A44] mt-3">
             Por que escolher a KMR para alugar
           </h2>
-          <p className="text-muted-foreground mt-4 text-base md:text-lg">
+          <p className="text-[#4F4F4F] mt-4 text-base md:text-lg">
             Uma forma mais simples e acessível de conseguir o imóvel que você quer.
           </p>
         </div>
@@ -51,13 +51,13 @@ const Benefits = () => {
           {benefits.map((benefit, index) => (
             <div
               key={index}
-              className="group p-6 md:p-8 rounded-2xl bg-background border border-border hover:border-secondary/30 hover:shadow-lg hover:shadow-secondary/5 transition-all duration-300"
+              className="group p-6 md:p-8 rounded-[14px] bg-white border border-[#E8EDF2] shadow-sm hover:shadow-md transition-all duration-300"
             >
-              <div className="w-12 h-12 rounded-xl bg-secondary/10 flex items-center justify-center mb-5 group-hover:bg-secondary/15 transition-colors">
-                <benefit.icon className="text-secondary" size={24} />
+              <div className="w-12 h-12 rounded-xl bg-[#EBF3FF] flex items-center justify-center mb-5">
+                <benefit.icon className="text-[#2F80ED]" size={24} />
               </div>
-              <h3 className="font-semibold text-lg text-foreground mb-2">{benefit.title}</h3>
-              <p className="text-muted-foreground text-sm leading-relaxed">{benefit.description}</p>
+              <h3 className="font-semibold text-lg text-[#0F2A44] mb-2">{benefit.title}</h3>
+              <p className="text-[#4F4F4F] text-sm leading-relaxed">{benefit.description}</p>
             </div>
           ))}
         </div>
