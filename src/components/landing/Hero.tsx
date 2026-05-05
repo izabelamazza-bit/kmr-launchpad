@@ -2,12 +2,6 @@ import { Button } from "@/components/ui/button";
 
 const WHATSAPP_LINK = "https://wa.me/5500000000000?text=Olá! Quero alugar sem fiador. Pode me ajudar?";
 
-const stats = [
-  { value: "+12.000", label: "Inquilinos aprovados" },
-  { value: "98%", label: "Taxa de aprovação" },
-  { value: "< 2h", label: "Tempo médio de análise" },
-];
-
 const Hero = () => {
   return (
     <section className="relative bg-[#0F2A44] pt-28 md:pt-32">
@@ -43,17 +37,6 @@ const Hero = () => {
                 Falar no WhatsApp
               </a>
             </Button>
-          </div>
-
-          <div className="border-t border-white/10 pt-8 mt-10 grid grid-cols-3 gap-4 sm:gap-8 max-w-2xl">
-            {stats.map((s) => (
-              <div key={s.label}>
-                <div className="font-display text-2xl sm:text-3xl md:text-4xl font-bold text-white leading-none">
-                  {s.value}
-                </div>
-                <div className="text-xs sm:text-sm text-[#A8C0D6] mt-2">{s.label}</div>
-              </div>
-            ))}
           </div>
         </div>
       </div>
