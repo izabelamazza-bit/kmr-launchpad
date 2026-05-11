@@ -116,6 +116,66 @@ export type Database = {
         }
         Relationships: []
       }
+      contratos_pessoas: {
+        Row: {
+          aviso_desocupacao: boolean
+          codigo: string
+          created_at: string
+          data_aviso_desocupacao: string | null
+          data_fim: string
+          data_inicio: string
+          dia_vencimento: number
+          email: string
+          endereco: string
+          id: string
+          nome: string
+          proximo_reajuste: string
+          situacao: string
+          telefone1: string
+          telefone2: string | null
+          updated_at: string
+          valor_aluguel: number
+        }
+        Insert: {
+          aviso_desocupacao?: boolean
+          codigo: string
+          created_at?: string
+          data_aviso_desocupacao?: string | null
+          data_fim: string
+          data_inicio: string
+          dia_vencimento?: number
+          email: string
+          endereco: string
+          id?: string
+          nome: string
+          proximo_reajuste: string
+          situacao?: string
+          telefone1: string
+          telefone2?: string | null
+          updated_at?: string
+          valor_aluguel?: number
+        }
+        Update: {
+          aviso_desocupacao?: boolean
+          codigo?: string
+          created_at?: string
+          data_aviso_desocupacao?: string | null
+          data_fim?: string
+          data_inicio?: string
+          dia_vencimento?: number
+          email?: string
+          endereco?: string
+          id?: string
+          nome?: string
+          proximo_reajuste?: string
+          situacao?: string
+          telefone1?: string
+          telefone2?: string | null
+          updated_at?: string
+          valor_aluguel?: number
+        }
+        Relationships: []
+      }
       leads: {
         Row: {
           assigned_to: string | null
