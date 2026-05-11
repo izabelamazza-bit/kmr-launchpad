@@ -99,6 +99,9 @@ const NovoSinistro = () => {
     CHECKLIST_OCUPADO.map((l) => ({ label: l, checked: false, file: null })),
   );
 
+  // Observações
+  const [observacoes, setObservacoes] = useState("");
+
   useEffect(() => {
     const items = statusImovel === "ocupado" ? CHECKLIST_OCUPADO : CHECKLIST_DESOCUPADO;
     setChecklist((prev) => {
@@ -235,6 +238,7 @@ const NovoSinistro = () => {
             .map((c) => ({ label: c.label })),
           status: "em_analise",
           created_by: userData.user?.id ?? null,
+          observacoes: observacoes.trim() || null,
         })
         .select()
         .single();
@@ -663,6 +667,32 @@ const NovoSinistro = () => {
                 </div>
               );
             })}
+          </CardContent>
+        </Card>
+
+        {/* Observações */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Observações</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Adicione informações relevantes sobre o sinistro.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <textarea
+              value={observacoes}
+              onChange={(e) => setObservacoes(e.target.value)}
+              placeholder="Adicione informações relevantes sobre o sinistro..."
+              className="w-full font-sans"
+              style={{
+                minHeight: 120,
+                border: "1px solid #E8EDF2",
+                borderRadius: 8,
+                padding: 12,
+                fontSize: 14,
+                color: "#4F4F4F",
+              }}
+            />
           </CardContent>
         </Card>
 

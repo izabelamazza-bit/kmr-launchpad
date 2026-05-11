@@ -336,6 +336,33 @@ export type Database = {
           },
         ]
       }
+      sinistro_historico: {
+        Row: {
+          created_at: string
+          id: string
+          sinistro_id: string
+          texto: string
+          user_id: string | null
+          user_name: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          sinistro_id: string
+          texto: string
+          user_id?: string | null
+          user_name?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          sinistro_id?: string
+          texto?: string
+          user_id?: string | null
+          user_name?: string | null
+        }
+        Relationships: []
+      }
       sinistros: {
         Row: {
           checklist: Json
