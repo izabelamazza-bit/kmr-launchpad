@@ -1,48 +1,84 @@
-## Alterações solicitadas
+## Objetivo
 
-### 1. Tela `/novo-sinistro` — campo Observações no Checklist
+Reestruturar a seção **Pessoas** (`/cadastros/pessoas`) para representar contratos de garantia locatícia da KMR, com lista, tela de detalhe, formulário de cadastro e popular o banco com os 44 registros fornecidos.
 
-No card "Checklist de documentos" (`src/pages/sinistros/NovoSinistro.tsx`), adicionar abaixo da lista de itens (e antes dos botões "Cancelar"/"Continuar") um campo de Observações:
+## Decisão de modelagem
 
-- Label: **Observações**
-- Subtítulo: "Adicione informações relevantes sobre o sinistro."
-- `<textarea>` 100% width, min-h 120px, border `#E8EDF2`, radius 8px, padding 12px, Poppins 14px, color `#4F4F4F`
-- Placeholder: "Adicione informações relevantes sobre o sinistro..."
-- Novo state `observacoes` salvo em `sinistros.observacoes` no `insert` (a coluna já existe).
+A tabela `people` atual é orientada a "pessoa física" (CPF, endereço da pessoa, etc.) e não comporta os campos de contrato (código, valor de aluguel, datas, situação, aviso de desocupação). Para evitar quebrar quaisquer referências futuras à entidade "pessoa", vou **criar uma nova tabela `contratos_pessoas`** e apontar a rota `/cadastros/pessoas` para ela. O CRUD atual de `people` (CPF/endereço) sairá do menu mas o arquivo permanece intocado para histórico.
 
-### 2. Tela `/novo-sinistro/resumo/:id` — substituir Observações por Histórico
+### Nova tabela `contratos_pessoas`
 
-No `src/pages/sinistros/ResumoSinistro.tsx`, **remover** o card de Observações e adicionar um novo card **Histórico**:
+| Campo | Tipo | Obs |
+|---|---|---|
+| id | uuid PK | |
+| codigo | text UNIQUE | código do contrato |
+| nome | text | locatário |
+| telefone1 | text | |
+| telefone2 | text nullable | |
+| email | text | |
+| valor_aluguel | numeric(10,2) | |
+| endereco | text | |
+| situacao | text | `saudavel` \| `atrasado` |
+| data_inicio | date | |
+| data_fim | date | |
+| proximo_reajuste | date | |
+| dia_vencimento | int | 1–31 |
+| aviso_desocupacao | bool | default false |
+| data_aviso_desocupacao | date nullable | |
+| created_at / updated_at | timestamptz | |
 
-- Header: título "Histórico" + subtítulo "Atualizações e registros sobre o andamento do caso."
-- Lista (mais recente → mais antiga). Cada entrada em card `bg:#F5F7FA`, radius 8px, padding 12px, mb 8px:
-  - Data/hora (`DD/MM/AAAA às HH:MM`) e nome do autor — 12px, `#4F4F4F`
-  - Texto do update — 14px, `#0F2A44`
-- Vazio: "Nenhuma atualização registrada ainda."
-- Form de novo update: label "Adicionar atualização", textarea (100%, min-h 100px, placeholder "Descreva a atualização sobre este caso..."), botão "+ Adicionar update" (`#2F80ED`, branco, radius 8px, font-weight 600, alinhado à direita).
-- Ao clicar: insere com timestamp + usuário logado e atualiza a lista localmente (sem reload).
+RLS: SELECT/INSERT/UPDATE/DELETE para `authenticated` (mesmo padrão das outras tabelas do CRM).
 
-### Banco de dados (migration nova)
+## Implementação
 
-Criar tabela `public.sinistro_historico`:
+### 1. Migração + seed
+- Migration cria a tabela, RLS, trigger `update_updated_at_column`.
+- Seed (`supabase--insert`) popula os 44 contratos.
 
-- `id uuid pk default gen_random_uuid()`
-- `sinistro_id uuid not null` (referencia `sinistros.id`)
-- `user_id uuid` (autor — `auth.uid()`)
-- `user_name text` (snapshot do nome para exibição)
-- `texto text not null`
-- `created_at timestamptz default now()`
-- Índice em `sinistro_id`
-- RLS: ENABLE; políticas para `authenticated` em SELECT/INSERT (UPDATE/DELETE não necessários para histórico imutável).
+### 2. Tela de lista — `src/pages/cadastros/People.tsx` (substituída)
+- Reaproveita `CrudLayout` + `DataTable`.
+- Colunas: **Código**, **Locatário**, **Situação** (badge verde `Saudável` / vermelho `Atrasado`), **Vencimento** (`Dia XX de cada mês`).
+- Busca por nome ou código.
+- Filtro por situação: `Todos / Saudável / Atrasado` (Tabs ou Select acima da tabela).
+- Botão **+ Nova Pessoa** no header (já existe via `CrudLayout`).
+- Click na linha → navega para `/cadastros/pessoas/:id`.
 
-Para preencher `user_name`, ler de `users_registry` pelo `email` do usuário autenticado (fallback para email).
+### 3. Tela de detalhe — `src/pages/cadastros/PessoaDetalhe.tsx` (nova rota)
+4 blocos em cards:
+1. **Identificação**: código, nome, badge de situação.
+2. **Contato**: telefone1, telefone2 (se houver), e-mail.
+3. **Contrato**: data início, data fim, `Todo dia XX`, próximo reajuste, aviso de desocupação (`Sim — DD/MM/AAAA` ou `Não`).
+4. **Imóvel**: endereço, valor formatado `R$ 1.234,56`.
 
-### Arquivos afetados
+Botão **← Voltar para lista** no topo. Botões **Editar** e **Excluir** secundários.
 
-- `src/pages/sinistros/NovoSinistro.tsx` — novo campo + insert da observação
-- `src/pages/sinistros/ResumoSinistro.tsx` — remove Observações, adiciona Histórico (fetch + form + insert otimista)
-- Nova migration SQL para `sinistro_historico`
+### 4. Formulário — Nova/Editar (`FormSheet`)
+Campos na ordem solicitada, com validação Zod-like inline (mesmo padrão de `People.tsx` atual):
+- Código (obrigatório, único — checagem antes do insert)
+- Nome, Telefone 1 (mask `(99) 99999-9999`), Telefone 2 (opcional, mesma mask), E-mail
+- Valor do aluguel (`CurrencyInput` já existente)
+- Endereço (textarea)
+- Situação (`SearchableSelect`: Saudável / Atrasado)
+- Data início, Data fim, Próximo reajuste (`<Input type="date">`)
+- Dia de vencimento (number 1–31)
+- Aviso de desocupação (`Switch`)
+- Data do aviso (condicional ao Switch)
 
-### Pontos a confirmar
+Botões **Cancelar** / **Salvar** já vêm do `FormSheet`.
 
-- Manter a coluna `sinistros.observacoes` no banco (apenas deixar de editar pela tela de resumo) — assim o valor capturado em `/novo-sinistro` continua acessível. Confirma?
+### 5. Roteamento
+`src/App.tsx`: adicionar `<Route path="/cadastros/pessoas/:id" element={<PessoaDetalhe />} />`.
+
+## Detalhes técnicos
+
+- Tipos do Supabase regenerados automaticamente após a migration.
+- `CurrencyInput` existente em `src/components/sinistros/CurrencyInput.tsx` será reutilizado.
+- Formatadores: `Intl.NumberFormat('pt-BR', {style:'currency', currency:'BRL'})` e `date-fns/format` com `dd/MM/yyyy`.
+- Badges: usar tokens `--primary` (verde de aprovação `#27AE60` já no design system) e `destructive` para atrasado.
+
+## Arquivos
+- ➕ migration `contratos_pessoas`
+- ➕ seed (44 inserts)
+- ✏️ `src/pages/cadastros/People.tsx` — reescrita para contratos
+- ➕ `src/pages/cadastros/PessoaDetalhe.tsx`
+- ✏️ `src/App.tsx` — rota de detalhe

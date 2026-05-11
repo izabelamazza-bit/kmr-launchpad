@@ -21,6 +21,7 @@ interface DataTableProps<T> {
   noResultsMessage?: string;
   isFiltered?: boolean;
   getItemName?: (item: T) => string;
+  onRowClick?: (item: T) => void;
 }
 
 function DataTable<T extends { id: string }>({
@@ -33,6 +34,7 @@ function DataTable<T extends { id: string }>({
   noResultsMessage = "Nenhum resultado encontrado para a busca.",
   isFiltered = false,
   getItemName,
+  onRowClick,
 }: DataTableProps<T>) {
   const isMobile = useIsMobile();
 
@@ -58,7 +60,11 @@ function DataTable<T extends { id: string }>({
     return (
       <div className="space-y-3">
         {data.map((item) => (
-          <div key={item.id} className="bg-card rounded-lg border shadow-sm p-4 space-y-2">
+          <div
+            key={item.id}
+            onClick={onRowClick ? () => onRowClick(item) : undefined}
+            className={`bg-card rounded-lg border shadow-sm p-4 space-y-2 ${onRowClick ? "cursor-pointer hover:bg-accent/40" : ""}`}
+          >
             {columns.map((col) => {
               const value = col.render ? col.render(item) : (item as any)[col.key];
               return (
@@ -69,10 +75,10 @@ function DataTable<T extends { id: string }>({
               );
             })}
             <div className="flex gap-2 pt-2 border-t">
-              <Button variant="outline" size="sm" className="flex-1 min-h-[44px]" onClick={() => onEdit(item)}>
+              <Button variant="outline" size="sm" className="flex-1 min-h-[44px]" onClick={(e) => { e.stopPropagation(); onEdit(item); }}>
                 <Pencil className="h-4 w-4 mr-1" /> Editar
               </Button>
-              <Button variant="outline" size="sm" className="flex-1 min-h-[44px] text-destructive hover:text-destructive" onClick={() => onDelete(item)}>
+              <Button variant="outline" size="sm" className="flex-1 min-h-[44px] text-destructive hover:text-destructive" onClick={(e) => { e.stopPropagation(); onDelete(item); }}>
                 <Trash2 className="h-4 w-4 mr-1" /> Excluir
               </Button>
             </div>
@@ -95,14 +101,18 @@ function DataTable<T extends { id: string }>({
         </TableHeader>
         <TableBody>
           {data.map((item) => (
-            <TableRow key={item.id}>
+            <TableRow
+              key={item.id}
+              onClick={onRowClick ? () => onRowClick(item) : undefined}
+              className={onRowClick ? "cursor-pointer" : undefined}
+            >
               {columns.filter(c => !c.hideOnMobile).map((col) => (
                 <TableCell key={col.key}>
                   {col.render ? col.render(item) : (item as any)[col.key] ?? "—"}
                 </TableCell>
               ))}
               <TableCell>
-                <div className="flex gap-1">
+                <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                   <Button variant="ghost" size="icon" onClick={() => onEdit(item)}>
                     <Pencil className="h-4 w-4" />
                   </Button>
