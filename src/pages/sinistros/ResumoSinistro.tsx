@@ -7,7 +7,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/validators";
@@ -41,6 +40,14 @@ interface Anexo {
   file_path: string;
 }
 
+interface HistoricoEntry {
+  id: string;
+  user_id: string | null;
+  user_name: string | null;
+  texto: string;
+  created_at: string;
+}
+
 const ResumoSinistro = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -49,9 +56,11 @@ const ResumoSinistro = () => {
   const [sinistro, setSinistro] = useState<Sinistro | null>(null);
   const [debitos, setDebitos] = useState<Debito[]>([]);
   const [anexos, setAnexos] = useState<Anexo[]>([]);
-  const [observacoes, setObservacoes] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [historico, setHistorico] = useState<HistoricoEntry[]>([]);
+  const [novoUpdate, setNovoUpdate] = useState("");
+  const [savingUpdate, setSavingUpdate] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -62,17 +71,22 @@ const ResumoSinistro = () => {
   const fetchData = async () => {
     if (!id) return;
     setLoading(true);
-    const [{ data: s }, { data: d }, { data: a }] = await Promise.all([
+    const [{ data: s }, { data: d }, { data: a }, { data: h }] = await Promise.all([
       supabase.from("sinistros").select("*").eq("id", id).maybeSingle(),
       supabase.from("sinistro_debitos").select("*").eq("sinistro_id", id).order("created_at"),
       supabase.from("sinistro_anexos").select("*").eq("sinistro_id", id).order("created_at"),
+      supabase
+        .from("sinistro_historico")
+        .select("*")
+        .eq("sinistro_id", id)
+        .order("created_at", { ascending: false }),
     ]);
     if (s) {
       setSinistro(s as Sinistro);
-      setObservacoes(s.observacoes ?? "");
     }
     setDebitos((d ?? []) as Debito[]);
     setAnexos((a ?? []) as Anexo[]);
+    setHistorico((h ?? []) as HistoricoEntry[]);
     setLoading(false);
   };
 
@@ -99,17 +113,12 @@ const ResumoSinistro = () => {
     window.open(data.signedUrl, "_blank");
   };
 
-  const saveObservacoes = async () => {
-    if (!sinistro) return;
-    await supabase.from("sinistros").update({ observacoes }).eq("id", sinistro.id);
-  };
-
   const abrirSinistro = async () => {
     if (!sinistro) return;
     setSaving(true);
     const { error } = await supabase
       .from("sinistros")
-      .update({ status: "em_analise", observacoes })
+      .update({ status: "em_analise" })
       .eq("id", sinistro.id);
     setSaving(false);
     if (error) {
@@ -118,6 +127,39 @@ const ResumoSinistro = () => {
     }
     toast({ title: "Sinistro aberto com sucesso" });
     navigate("/sinistros");
+  };
+
+  const adicionarUpdate = async () => {
+    if (!sinistro || !novoUpdate.trim()) return;
+    setSavingUpdate(true);
+    const { data: userData } = await supabase.auth.getUser();
+    const user = userData.user;
+    let userName: string | null = user?.email ?? null;
+    if (user?.email) {
+      const { data: reg } = await supabase
+        .from("users_registry")
+        .select("full_name")
+        .eq("email", user.email)
+        .maybeSingle();
+      if (reg?.full_name) userName = reg.full_name;
+    }
+    const { data, error } = await supabase
+      .from("sinistro_historico")
+      .insert({
+        sinistro_id: sinistro.id,
+        user_id: user?.id ?? null,
+        user_name: userName,
+        texto: novoUpdate.trim(),
+      })
+      .select()
+      .single();
+    setSavingUpdate(false);
+    if (error || !data) {
+      toast({ title: "Erro ao adicionar atualização", variant: "destructive" });
+      return;
+    }
+    setHistorico((prev) => [data as HistoricoEntry, ...prev]);
+    setNovoUpdate("");
   };
 
   if (loading) {
@@ -303,20 +345,76 @@ const ResumoSinistro = () => {
 
         <Card>
           <CardHeader>
-            <CardTitle>Observações</CardTitle>
+            <CardTitle>Histórico</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Atualizações e registros sobre o andamento do caso.
+            </p>
           </CardHeader>
-          <CardContent>
-            <Label htmlFor="obs" className="sr-only">
-              Observações
-            </Label>
-            <Textarea
-              id="obs"
-              value={observacoes}
-              onChange={(e) => setObservacoes(e.target.value)}
-              onBlur={saveObservacoes}
-              rows={4}
-              placeholder="Adicione informações relevantes sobre o sinistro..."
-            />
+          <CardContent className="space-y-4">
+            {historico.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Nenhuma atualização registrada ainda.
+              </p>
+            ) : (
+              <div>
+                {historico.map((h) => (
+                  <div
+                    key={h.id}
+                    style={{
+                      background: "#F5F7FA",
+                      borderRadius: 8,
+                      padding: 12,
+                      marginBottom: 8,
+                    }}
+                  >
+                    <div style={{ fontSize: 12, color: "#4F4F4F" }}>
+                      {format(new Date(h.created_at), "dd/MM/yyyy 'às' HH:mm")}
+                      {h.user_name ? ` — ${h.user_name}` : ""}
+                    </div>
+                    <div style={{ fontSize: 14, color: "#0F2A44", marginTop: 4, whiteSpace: "pre-wrap" }}>
+                      {h.texto}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="space-y-2 pt-2">
+              <Label htmlFor="novo-update">Adicionar atualização</Label>
+              <textarea
+                id="novo-update"
+                value={novoUpdate}
+                onChange={(e) => setNovoUpdate(e.target.value)}
+                placeholder="Descreva a atualização sobre este caso..."
+                className="w-full font-sans"
+                style={{
+                  minHeight: 100,
+                  border: "1px solid #E8EDF2",
+                  borderRadius: 8,
+                  padding: 12,
+                  fontSize: 14,
+                  color: "#4F4F4F",
+                }}
+              />
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={adicionarUpdate}
+                  disabled={savingUpdate || !novoUpdate.trim()}
+                  style={{
+                    background: "#2F80ED",
+                    color: "#FFFFFF",
+                    borderRadius: 8,
+                    fontWeight: 600,
+                    padding: "10px 16px",
+                    fontSize: 14,
+                    opacity: savingUpdate || !novoUpdate.trim() ? 0.6 : 1,
+                  }}
+                >
+                  + Adicionar update
+                </button>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
