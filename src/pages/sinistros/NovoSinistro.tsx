@@ -99,6 +99,9 @@ const NovoSinistro = () => {
     CHECKLIST_OCUPADO.map((l) => ({ label: l, checked: false, file: null })),
   );
 
+  // Observações
+  const [observacoes, setObservacoes] = useState("");
+
   useEffect(() => {
     const items = statusImovel === "ocupado" ? CHECKLIST_OCUPADO : CHECKLIST_DESOCUPADO;
     setChecklist((prev) => {
@@ -235,6 +238,7 @@ const NovoSinistro = () => {
             .map((c) => ({ label: c.label })),
           status: "em_analise",
           created_by: userData.user?.id ?? null,
+          observacoes: observacoes.trim() || null,
         })
         .select()
         .single();
