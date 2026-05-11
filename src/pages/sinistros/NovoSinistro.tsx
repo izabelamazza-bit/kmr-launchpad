@@ -670,6 +670,32 @@ const NovoSinistro = () => {
           </CardContent>
         </Card>
 
+        {/* Observações */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Observações</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Adicione informações relevantes sobre o sinistro.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <textarea
+              value={observacoes}
+              onChange={(e) => setObservacoes(e.target.value)}
+              placeholder="Adicione informações relevantes sobre o sinistro..."
+              className="w-full font-sans"
+              style={{
+                minHeight: 120,
+                border: "1px solid #E8EDF2",
+                borderRadius: 8,
+                padding: 12,
+                fontSize: 14,
+                color: "#4F4F4F",
+              }}
+            />
+          </CardContent>
+        </Card>
+
         <div className="flex flex-col sm:flex-row gap-3 justify-end">
           <Button variant="outline" onClick={() => navigate("/dashboard")} disabled={loading}>
             Cancelar
