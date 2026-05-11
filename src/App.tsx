@@ -11,6 +11,7 @@ import Components from "./pages/Components.tsx";
 import Users from "./pages/cadastros/Users.tsx";
 import Companies from "./pages/cadastros/Companies.tsx";
 import People from "./pages/cadastros/People.tsx";
+import PessoaDetalhe from "./pages/cadastros/PessoaDetalhe.tsx";
 import ProductsServices from "./pages/cadastros/ProductsServices.tsx";
 import Leads from "./pages/cadastros/Leads.tsx";
 import AgentConfig from "./pages/AgentConfig.tsx";
@@ -36,6 +37,7 @@ const App = () => (
           <Route path="/cadastros/usuarios" element={<Users />} />
           <Route path="/cadastros/empresas" element={<Companies />} />
           <Route path="/cadastros/pessoas" element={<People />} />
+          <Route path="/cadastros/pessoas/:id" element={<PessoaDetalhe />} />
           <Route path="/cadastros/produtos-servicos" element={<ProductsServices />} />
           <Route path="/cadastros/leads" element={<Leads />} />
           <Route path="/agente" element={<AgentConfig />} />
