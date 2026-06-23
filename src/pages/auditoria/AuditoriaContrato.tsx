@@ -494,7 +494,7 @@ const AuditoriaContrato = () => {
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 space-y-6 relative">
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 pb-28 space-y-6 relative">
         {extracting && (
           <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center">
             <div className="bg-card border rounded-lg p-6 shadow-lg flex items-center gap-3">
@@ -799,6 +799,40 @@ const AuditoriaContrato = () => {
           </>
         )}
       </main>
+
+      {/* Barra fixa de rodapé */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-card border-t shadow-[0_-2px_8px_rgba(0,0,0,0.05)]">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3">
+          <Button variant="outline" onClick={handleBackClick} disabled={savingAll}>
+            <ArrowLeft className="h-4 w-4 mr-1" /> Voltar para Auditoria
+          </Button>
+          <Button onClick={handleSaveAndBack} disabled={savingAll}>
+            {savingAll ? "Salvando..." : "Salvar e voltar"}
+          </Button>
+        </div>
+      </div>
+
+      <AlertDialog open={confirmLeaveOpen} onOpenChange={setConfirmLeaveOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
+            <AlertDialogDescription>
+              As alterações não salvas serão perdidas.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setConfirmLeaveOpen(false);
+                navigate("/auditoria");
+              }}
+            >
+              Sair sem salvar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
