@@ -14,6 +14,16 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { CurrencyInput } from "@/components/sinistros/CurrencyInput";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { GarantidoraBadge } from "./components/GarantidoraBadge";
 import { AlertasExtracao } from "./components/AlertasExtracao";
 import { ChecklistItem, ChecklistRow } from "./components/ChecklistItem";
@@ -86,6 +96,9 @@ const AuditoriaContrato = () => {
   const [extracting, setExtracting] = useState(false);
   const [savedHint, setSavedHint] = useState(false);
   const [analistas, setAnalistas] = useState<{ value: string; label: string }[]>([]);
+  const [isDirty, setIsDirty] = useState(false);
+  const [savingAll, setSavingAll] = useState(false);
+  const [confirmLeaveOpen, setConfirmLeaveOpen] = useState(false);
 
   // form (Section A)
   const [form, setForm] = useState({
@@ -172,6 +185,7 @@ const AuditoriaContrato = () => {
     }
     setChecklist((items ?? []) as ChecklistRow[]);
     setLoading(false);
+    setIsDirty(false);
   };
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [id]);
 
@@ -299,8 +313,14 @@ const AuditoriaContrato = () => {
 
   // debounce extracted fields
   const exDebounce = useRef<number | null>(null);
+  const exInit = useRef(true);
   useEffect(() => {
     if (!extracted) return;
+    if (exInit.current) {
+      exInit.current = false;
+      return;
+    }
+    setIsDirty(true);
     if (exDebounce.current) window.clearTimeout(exDebounce.current);
     exDebounce.current = window.setTimeout(() => {
       saveExtractedField({
@@ -315,12 +335,113 @@ const AuditoriaContrato = () => {
         indice_reajuste: ex.indice_reajuste,
         dia_vencimento: ex.dia_vencimento || null,
       });
+      setIsDirty(false);
     }, 700);
     return () => {
       if (exDebounce.current) window.clearTimeout(exDebounce.current);
     };
     // eslint-disable-next-line
   }, [ex]);
+
+  useEffect(() => {
+    exInit.current = true;
+  }, [extracted?.id]);
+
+  const formInit = useRef(true);
+  useEffect(() => {
+    if (formInit.current) {
+      formInit.current = false;
+      return;
+    }
+    setIsDirty(true);
+  }, [form]);
+
+  const flushExtracted = async () => {
+    if (!extracted) return;
+    if (exDebounce.current) {
+      window.clearTimeout(exDebounce.current);
+      exDebounce.current = null;
+    }
+    await supabase
+      .from("audit_contract_extracted_data")
+      .update({
+        locadores: ex.locadores,
+        locatarios: ex.locatarios,
+        cpf_locatarios: ex.cpf_locatarios,
+        endereco_imovel: ex.endereco_imovel,
+        data_inicio: ex.data_inicio || null,
+        data_termino: ex.data_termino || null,
+        prazo_meses: ex.prazo_meses || null,
+        valor_aluguel: ex.valor_aluguel || null,
+        indice_reajuste: ex.indice_reajuste,
+        dia_vencimento: ex.dia_vencimento || null,
+      })
+      .eq("id", extracted.id);
+  };
+
+  const handleSaveAndBack = async () => {
+    if (!validateA()) return;
+    setSavingAll(true);
+    const analyst = analistas.find((a) => a.value === form.analyst_id);
+    const payload: any = {
+      imoview_number: form.imoview_number.trim(),
+      garantidora: form.garantidora || null,
+      ocupacao: form.ocupacao || null,
+      status_contrato: form.status_contrato || null,
+      analyst_id: form.analyst_id || null,
+      analyst_name: analyst?.label ?? null,
+      general_notes: form.general_notes.trim() || null,
+    };
+
+    if (isNew) {
+      const { data: existing } = await supabase
+        .from("audit_contracts")
+        .select("id")
+        .eq("imoview_number", payload.imoview_number)
+        .limit(1);
+      if (existing && existing.length) {
+        setErrors((p) => ({ ...p, imoview_number: "Já existe um contrato com este número." }));
+        setSavingAll(false);
+        return;
+      }
+      const { data: userRes } = await supabase.auth.getUser();
+      payload.created_by = userRes.user?.id;
+      if (!payload.analyst_id) {
+        payload.analyst_id = userRes.user?.id;
+        payload.analyst_name = userRes.user?.email ?? null;
+      }
+      const { error } = await supabase.from("audit_contracts").insert(payload).select().single();
+      setSavingAll(false);
+      if (error) {
+        toast({ variant: "destructive", title: "Erro ao salvar", description: error.message });
+        return;
+      }
+      setIsDirty(false);
+      toast({ title: "Contrato salvo com sucesso!" });
+      navigate("/auditoria");
+      return;
+    }
+
+    const { error } = await supabase.from("audit_contracts").update(payload).eq("id", id!);
+    if (error) {
+      setSavingAll(false);
+      toast({ variant: "destructive", title: "Erro ao salvar", description: error.message });
+      return;
+    }
+    await flushExtracted();
+    setSavingAll(false);
+    setIsDirty(false);
+    toast({ title: "Contrato salvo com sucesso!" });
+    navigate("/auditoria");
+  };
+
+  const handleBackClick = () => {
+    if (isDirty) {
+      setConfirmLeaveOpen(true);
+    } else {
+      navigate("/auditoria");
+    }
+  };
 
   const updateChecklist = async (itemId: string, patch: Partial<ChecklistRow>) => {
     setChecklist((prev) => prev.map((i) => (i.id === itemId ? { ...i, ...patch } : i)));
@@ -373,7 +494,7 @@ const AuditoriaContrato = () => {
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 space-y-6 relative">
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 pb-28 space-y-6 relative">
         {extracting && (
           <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center">
             <div className="bg-card border rounded-lg p-6 shadow-lg flex items-center gap-3">
@@ -678,6 +799,40 @@ const AuditoriaContrato = () => {
           </>
         )}
       </main>
+
+      {/* Barra fixa de rodapé */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-card border-t shadow-[0_-2px_8px_rgba(0,0,0,0.05)]">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3">
+          <Button variant="outline" onClick={handleBackClick} disabled={savingAll}>
+            <ArrowLeft className="h-4 w-4 mr-1" /> Voltar para Auditoria
+          </Button>
+          <Button onClick={handleSaveAndBack} disabled={savingAll}>
+            {savingAll ? "Salvando..." : "Salvar e voltar"}
+          </Button>
+        </div>
+      </div>
+
+      <AlertDialog open={confirmLeaveOpen} onOpenChange={setConfirmLeaveOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
+            <AlertDialogDescription>
+              As alterações não salvas serão perdidas.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setConfirmLeaveOpen(false);
+                navigate("/auditoria");
+              }}
+            >
+              Sair sem salvar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
