@@ -59,6 +59,175 @@ export type Database = {
         }
         Relationships: []
       }
+      audit_checklist_items: {
+        Row: {
+          contract_id: string
+          created_at: string
+          id: string
+          item_label: string
+          item_number: number
+          observation: string | null
+          section: string
+          status: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          contract_id: string
+          created_at?: string
+          id?: string
+          item_label: string
+          item_number: number
+          observation?: string | null
+          section: string
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          contract_id?: string
+          created_at?: string
+          id?: string
+          item_label?: string
+          item_number?: number
+          observation?: string | null
+          section?: string
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_checklist_items_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "audit_contracts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      audit_contract_extracted_data: {
+        Row: {
+          assinatura_digital: boolean | null
+          clausula_garantia_trecho: string | null
+          contract_id: string
+          cpf_locatarios: string | null
+          data_inicio: string | null
+          data_termino: string | null
+          dia_vencimento: number | null
+          endereco_imovel: string | null
+          extracted_at: string
+          garantidora_identificada_raw: string | null
+          garantidora_normalizada: string | null
+          id: string
+          indice_reajuste: string | null
+          locadores: string | null
+          locatarios: string | null
+          observacoes_extracao: string | null
+          pdf_url: string | null
+          prazo_meses: number | null
+          updated_at: string
+          valor_aluguel: number | null
+        }
+        Insert: {
+          assinatura_digital?: boolean | null
+          clausula_garantia_trecho?: string | null
+          contract_id: string
+          cpf_locatarios?: string | null
+          data_inicio?: string | null
+          data_termino?: string | null
+          dia_vencimento?: number | null
+          endereco_imovel?: string | null
+          extracted_at?: string
+          garantidora_identificada_raw?: string | null
+          garantidora_normalizada?: string | null
+          id?: string
+          indice_reajuste?: string | null
+          locadores?: string | null
+          locatarios?: string | null
+          observacoes_extracao?: string | null
+          pdf_url?: string | null
+          prazo_meses?: number | null
+          updated_at?: string
+          valor_aluguel?: number | null
+        }
+        Update: {
+          assinatura_digital?: boolean | null
+          clausula_garantia_trecho?: string | null
+          contract_id?: string
+          cpf_locatarios?: string | null
+          data_inicio?: string | null
+          data_termino?: string | null
+          dia_vencimento?: number | null
+          endereco_imovel?: string | null
+          extracted_at?: string
+          garantidora_identificada_raw?: string | null
+          garantidora_normalizada?: string | null
+          id?: string
+          indice_reajuste?: string | null
+          locadores?: string | null
+          locatarios?: string | null
+          observacoes_extracao?: string | null
+          pdf_url?: string | null
+          prazo_meses?: number | null
+          updated_at?: string
+          valor_aluguel?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_contract_extracted_data_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: true
+            referencedRelation: "audit_contracts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      audit_contracts: {
+        Row: {
+          analyst_id: string | null
+          analyst_name: string | null
+          audit_status: string
+          created_at: string
+          created_by: string | null
+          garantidora: string | null
+          general_notes: string | null
+          id: string
+          imoview_number: string
+          ocupacao: string | null
+          status_contrato: string | null
+          updated_at: string
+        }
+        Insert: {
+          analyst_id?: string | null
+          analyst_name?: string | null
+          audit_status?: string
+          created_at?: string
+          created_by?: string | null
+          garantidora?: string | null
+          general_notes?: string | null
+          id?: string
+          imoview_number: string
+          ocupacao?: string | null
+          status_contrato?: string | null
+          updated_at?: string
+        }
+        Update: {
+          analyst_id?: string | null
+          analyst_name?: string | null
+          audit_status?: string
+          created_at?: string
+          created_by?: string | null
+          garantidora?: string | null
+          general_notes?: string | null
+          id?: string
+          imoview_number?: string
+          ocupacao?: string | null
+          status_contrato?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       companies: {
         Row: {
           bairro: string | null
@@ -474,6 +643,27 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       users_registry: {
         Row: {
           access_profile: string
@@ -515,10 +705,21 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      ensure_user_role: {
+        Args: never
+        Returns: Database["public"]["Enums"]["app_role"]
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      is_supervisor_or_admin: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "supervisor" | "analista"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -645,6 +846,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "supervisor", "analista"],
+    },
   },
 } as const
