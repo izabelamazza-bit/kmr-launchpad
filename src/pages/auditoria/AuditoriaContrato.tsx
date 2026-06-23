@@ -313,8 +313,14 @@ const AuditoriaContrato = () => {
 
   // debounce extracted fields
   const exDebounce = useRef<number | null>(null);
+  const exInit = useRef(true);
   useEffect(() => {
     if (!extracted) return;
+    if (exInit.current) {
+      exInit.current = false;
+      return;
+    }
+    setIsDirty(true);
     if (exDebounce.current) window.clearTimeout(exDebounce.current);
     exDebounce.current = window.setTimeout(() => {
       saveExtractedField({
@@ -329,12 +335,26 @@ const AuditoriaContrato = () => {
         indice_reajuste: ex.indice_reajuste,
         dia_vencimento: ex.dia_vencimento || null,
       });
+      setIsDirty(false);
     }, 700);
     return () => {
       if (exDebounce.current) window.clearTimeout(exDebounce.current);
     };
     // eslint-disable-next-line
   }, [ex]);
+
+  useEffect(() => {
+    exInit.current = true;
+  }, [extracted?.id]);
+
+  const formInit = useRef(true);
+  useEffect(() => {
+    if (formInit.current) {
+      formInit.current = false;
+      return;
+    }
+    setIsDirty(true);
+  }, [form]);
 
   const flushExtracted = async () => {
     if (!extracted) return;
