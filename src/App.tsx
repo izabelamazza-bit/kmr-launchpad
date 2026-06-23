@@ -19,6 +19,8 @@ import Atendimento from "./pages/Atendimento.tsx";
 import NovoSinistro from "./pages/sinistros/NovoSinistro.tsx";
 import ResumoSinistro from "./pages/sinistros/ResumoSinistro.tsx";
 import Sinistros from "./pages/sinistros/Sinistros.tsx";
+import Auditoria from "./pages/auditoria/Auditoria.tsx";
+import AuditoriaContrato from "./pages/auditoria/AuditoriaContrato.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -45,6 +47,9 @@ const App = () => (
           <Route path="/sinistros" element={<Sinistros />} />
           <Route path="/novo-sinistro" element={<NovoSinistro />} />
           <Route path="/novo-sinistro/resumo/:id" element={<ResumoSinistro />} />
+          <Route path="/auditoria" element={<Auditoria />} />
+          <Route path="/auditoria/novo" element={<AuditoriaContrato />} />
+          <Route path="/auditoria/:id" element={<AuditoriaContrato />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
