@@ -1,84 +1,111 @@
-## Objetivo
+## Nova aba: Auditoria de Contratos de Garantidoras
 
-Reestruturar a seção **Pessoas** (`/cadastros/pessoas`) para representar contratos de garantia locatícia da KMR, com lista, tela de detalhe, formulário de cadastro e popular o banco com os 44 registros fornecidos.
+Adiciono uma seção completa de Auditoria ao painel: dashboard com KPIs, lista filtrada, cadastro/edição de contrato em 4 seções, upload de PDF com **extração mockada** (placeholder pronto para trocar pela API real depois) e checklist interativo com auto-save.
 
-## Decisão de modelagem
+### 1. Banco de dados (Lovable Cloud)
 
-A tabela `people` atual é orientada a "pessoa física" (CPF, endereço da pessoa, etc.) e não comporta os campos de contrato (código, valor de aluguel, datas, situação, aviso de desocupação). Para evitar quebrar quaisquer referências futuras à entidade "pessoa", vou **criar uma nova tabela `contratos_pessoas`** e apontar a rota `/cadastros/pessoas` para ela. O CRUD atual de `people` (CPF/endereço) sairá do menu mas o arquivo permanece intocado para histórico.
+Três tabelas + bucket de storage privado `audit-contracts`:
 
-### Nova tabela `contratos_pessoas`
+- **`audit_contracts`** — nº Imoview (único), garantidora, ocupação, status_contrato, analyst_id, observações, audit_status calculado, timestamps.
+- **`audit_contract_extracted_data`** — 1:1 com contrato; todos os campos do JSON de extração + `pdf_url` + `extracted_at`.
+- **`audit_checklist_items`** — item_number, item_label, section, status (`pending`/`ok`/`nok`), observation, updated_by, updated_at.
 
-| Campo | Tipo | Obs |
-|---|---|---|
-| id | uuid PK | |
-| codigo | text UNIQUE | código do contrato |
-| nome | text | locatário |
-| telefone1 | text | |
-| telefone2 | text nullable | |
-| email | text | |
-| valor_aluguel | numeric(10,2) | |
-| endereco | text | |
-| situacao | text | `saudavel` \| `atrasado` |
-| data_inicio | date | |
-| data_fim | date | |
-| proximo_reajuste | date | |
-| dia_vencimento | int | 1–31 |
-| aviso_desocupacao | bool | default false |
-| data_aviso_desocupacao | date nullable | |
-| created_at / updated_at | timestamptz | |
+**Perfis e RLS:**
+- Enum `app_role` (`admin`, `supervisor`, `analista`) + tabela `user_roles` + função security-definer `has_role` (padrão obrigatório do projeto).
+- Analista: vê/edita só onde `analyst_id = auth.uid()`. Supervisor/Admin: tudo.
+- Trigger recalcula `audit_status` automaticamente conforme estados do checklist mudam.
+- Trigger no insert de contrato popula os 22 itens base do checklist; quando garantidora vira "Loft" adiciona itens 23/24 (e remove se ainda pending ao trocar para outra).
+- Primeiro usuário (`FIRST_USER_EMAIL`) recebe role `admin`; novos usuários entram como `analista`.
 
-RLS: SELECT/INSERT/UPDATE/DELETE para `authenticated` (mesmo padrão das outras tabelas do CRM).
+### 2. Extração por IA — MOCK primeiro
 
-## Implementação
+Conforme a Seção 7 do briefing: **sem chamada à Anthropic agora**.
 
-### 1. Migração + seed
-- Migration cria a tabela, RLS, trigger `update_updated_at_column`.
-- Seed (`supabase--insert`) popula os 44 contratos.
+A edge function `extract-contract`:
+- Recebe `{ contractId, pdfPath }`, valida JWT, confirma que o PDF está no bucket.
+- Aguarda 2 s simulando processamento.
+- Retorna o JSON fixo de exemplo do briefing (Maria Ana / Ivani / Credpago → Loft, prazo expirado etc.).
+- Faz upsert do JSON em `audit_contract_extracted_data` para o front renderizar tudo (alertas inclusos: Credpago normalizado, prazo expirado).
+- Bloco do mock fica isolado com comentário exato pedido:
+  ```
+  // MOCK: substituir este bloco pela chamada real à API da Anthropic quando a chave estiver disponível
+  // Modelo: claude-sonnet-4-6
+  // Endpoint: https://api.anthropic.com/v1/messages
+  ```
+- Quando a chave existir, troca-se só esse bloco — schema do banco, UI, alertas e fluxo de upload continuam idênticos.
 
-### 2. Tela de lista — `src/pages/cadastros/People.tsx` (substituída)
-- Reaproveita `CrudLayout` + `DataTable`.
-- Colunas: **Código**, **Locatário**, **Situação** (badge verde `Saudável` / vermelho `Atrasado`), **Vencimento** (`Dia XX de cada mês`).
-- Busca por nome ou código.
-- Filtro por situação: `Todos / Saudável / Atrasado` (Tabs ou Select acima da tabela).
-- Botão **+ Nova Pessoa** no header (já existe via `CrudLayout`).
-- Click na linha → navega para `/cadastros/pessoas/:id`.
+### 3. Frontend — rotas e navegação
 
-### 3. Tela de detalhe — `src/pages/cadastros/PessoaDetalhe.tsx` (nova rota)
-4 blocos em cards:
-1. **Identificação**: código, nome, badge de situação.
-2. **Contato**: telefone1, telefone2 (se houver), e-mail.
-3. **Contrato**: data início, data fim, `Todo dia XX`, próximo reajuste, aviso de desocupação (`Sim — DD/MM/AAAA` ou `Não`).
-4. **Imóvel**: endereço, valor formatado `R$ 1.234,56`.
+Novas rotas em `App.tsx`:
+- `/auditoria` — Dashboard + Lista
+- `/auditoria/novo` — Novo contrato
+- `/auditoria/:id` — Edição do contrato
 
-Botão **← Voltar para lista** no topo. Botões **Editar** e **Excluir** secundários.
+Novo item "Auditoria" no menu lateral (DashboardLayout existente), com ícone de escudo/check.
 
-### 4. Formulário — Nova/Editar (`FormSheet`)
-Campos na ordem solicitada, com validação Zod-like inline (mesmo padrão de `People.tsx` atual):
-- Código (obrigatório, único — checagem antes do insert)
-- Nome, Telefone 1 (mask `(99) 99999-9999`), Telefone 2 (opcional, mesma mask), E-mail
-- Valor do aluguel (`CurrencyInput` já existente)
-- Endereço (textarea)
-- Situação (`SearchableSelect`: Saudável / Atrasado)
-- Data início, Data fim, Próximo reajuste (`<Input type="date">`)
-- Dia de vencimento (number 1–31)
-- Aviso de desocupação (`Switch`)
-- Data do aviso (condicional ao Switch)
+### 4. Tela `/auditoria` — Dashboard + Lista
 
-Botões **Cancelar** / **Salvar** já vêm do `FormSheet`.
+**Cards superiores:** Total, Auditoria completa, Com pendências, Com alerta, e breakdown por garantidora (Loft/Credaluga/KMR).
 
-### 5. Roteamento
-`src/App.tsx`: adicionar `<Route path="/cadastros/pessoas/:id" element={<PessoaDetalhe />} />`.
+**Tabela (DataTable existente):** Nº Imoview · Locatário · Endereço · Garantidora (badge colorido) · Ocupação · Status · Progresso (`X/Y` + mini barra) · Última atualização · Analista (só supervisor/admin) · Ação "Abrir".
 
-## Detalhes técnicos
+**Filtros:** Garantidora · Status · Ocupação · Progresso (Completo/Incompleto/Com alerta) · Analista (só supervisor/admin).
 
-- Tipos do Supabase regenerados automaticamente após a migration.
-- `CurrencyInput` existente em `src/components/sinistros/CurrencyInput.tsx` será reutilizado.
-- Formatadores: `Intl.NumberFormat('pt-BR', {style:'currency', currency:'BRL'})` e `date-fns/format` com `dd/MM/yyyy`.
-- Badges: usar tokens `--primary` (verde de aprovação `#27AE60` já no design system) e `destructive` para atrasado.
+Botão "+ Novo contrato" no header.
 
-## Arquivos
-- ➕ migration `contratos_pessoas`
-- ➕ seed (44 inserts)
-- ✏️ `src/pages/cadastros/People.tsx` — reescrita para contratos
-- ➕ `src/pages/cadastros/PessoaDetalhe.tsx`
-- ✏️ `src/App.tsx` — rota de detalhe
+### 5. Tela `/auditoria/:id` (e `/auditoria/novo`)
+
+Layout em 4 seções (accordion em mobile, expandidas em desktop):
+
+**Seção A — Dados manuais:** Nº Imoview (validação de unicidade), Garantidora, Ocupação, Status, Analista (select de `users_registry`), Observações. Em "novo", salva A para gerar `id` e liberar B/C.
+
+**Seção B — Upload + extração (mock):**
+- Dropzone PDF (≤20 MB) → upload ao bucket → chama `extract-contract` → overlay "Analisando contrato com IA…" por ~2 s.
+- Após retorno: campos editáveis (locadores, locatários, CPFs, endereço, datas, prazo, valor, índice, dia vencimento) + read-only (garantidora_identificada raw, normalizada como badge, trecho da cláusula, assinatura digital, observações de extração).
+- Botão "Reanalisar PDF".
+
+**Bloco de Alertas** (entre B e C, derivado do JSON extraído + Seção A):
+- 🔴 Quintocred detectada
+- 🟠 "Outra" / "Não identificada"
+- 🟡 Divergência manual × extraída
+- 🟡 Prazo expirado
+- 🔵 Vencendo em ≤90 dias
+
+**Seção C — Checklist:**
+- Barra de progresso + "X de Y verificados".
+- Itens agrupados nas 6 seções.
+- Cada item: 3 botões (⬜ ✅ ❌) + textarea de observação (auto-abre em NOK; botão "Adicionar observação" em OK).
+- **Auto-save** a cada mudança (upsert imediato; debounce 500 ms para texto livre), com indicador "Salvo".
+- Itens 23/24 só visíveis quando garantidora = Loft.
+
+**Seção D — Metadados:** Data cadastro, última atualização, último editor, badge do `audit_status` geral.
+
+### 6. Componentes e branding
+
+Reaproveita `DataTable`, `FormSheet`, `MaskedInput` (CPF), `CurrencyInput`, `Badge`, Accordion do design system em `/componentes`. Cores KMR (azul profundo, azul tech, verde aprovação, cinza). Badges de garantidora: Loft azul `#2F80ED`, Credaluga verde `#27AE60`, KMR amarelo, Quintocred/alerta vermelho.
+
+### 7. Fora do escopo
+
+Sem integração Imoview/garantidoras, sem cobrança/inadimplência, sem e-mails, sem exportação, sem chamada real à Anthropic (mock por enquanto).
+
+---
+
+### Detalhes técnicos
+
+**Arquivos novos:**
+- `supabase/migrations/<ts>_audit_contracts.sql` — enum role, `user_roles`, `has_role`, três tabelas com grants, RLS por role, triggers de seed/recalcular status, seed do admin.
+- `supabase/functions/extract-contract/index.ts` — mock com bloco comentado pronto para virar chamada Anthropic.
+- `src/pages/auditoria/Auditoria.tsx` — dashboard + lista.
+- `src/pages/auditoria/AuditoriaContrato.tsx` — edição com 4 seções.
+- `src/pages/auditoria/components/{SecaoDadosManuais,SecaoUploadExtracao,SecaoChecklist,SecaoMetadados,AlertasExtracao,GarantidoraBadge}.tsx`
+- `src/pages/auditoria/lib/checklistItems.ts` — definição dos 24 itens.
+- `src/pages/auditoria/lib/useAuditoria.ts` — hooks React Query (lista, KPIs, contrato, checklist, upload).
+- `src/hooks/useUserRole.ts` — lê role do usuário logado.
+
+**Arquivos editados:**
+- `src/App.tsx` — 3 rotas novas.
+- Componente de menu do DashboardLayout — item "Auditoria".
+
+**Storage:** bucket privado `audit-contracts` + policies (analista lê/escreve só seus PDFs via prefixo `<contractId>/`; supervisor/admin leem tudo).
+
+**Pendente para virar produção real (quando a chave Anthropic vier):** trocar o bloco mock na edge function pela chamada `https://api.anthropic.com/v1/messages` com o prompt já especificado — todo o resto (UI, schema, alertas) continua sem mexer.
