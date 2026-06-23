@@ -14,6 +14,16 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { CurrencyInput } from "@/components/sinistros/CurrencyInput";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { GarantidoraBadge } from "./components/GarantidoraBadge";
 import { AlertasExtracao } from "./components/AlertasExtracao";
 import { ChecklistItem, ChecklistRow } from "./components/ChecklistItem";
@@ -86,6 +96,9 @@ const AuditoriaContrato = () => {
   const [extracting, setExtracting] = useState(false);
   const [savedHint, setSavedHint] = useState(false);
   const [analistas, setAnalistas] = useState<{ value: string; label: string }[]>([]);
+  const [isDirty, setIsDirty] = useState(false);
+  const [savingAll, setSavingAll] = useState(false);
+  const [confirmLeaveOpen, setConfirmLeaveOpen] = useState(false);
 
   // form (Section A)
   const [form, setForm] = useState({
@@ -172,6 +185,7 @@ const AuditoriaContrato = () => {
     }
     setChecklist((items ?? []) as ChecklistRow[]);
     setLoading(false);
+    setIsDirty(false);
   };
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [id]);
 
@@ -321,6 +335,93 @@ const AuditoriaContrato = () => {
     };
     // eslint-disable-next-line
   }, [ex]);
+
+  const flushExtracted = async () => {
+    if (!extracted) return;
+    if (exDebounce.current) {
+      window.clearTimeout(exDebounce.current);
+      exDebounce.current = null;
+    }
+    await supabase
+      .from("audit_contract_extracted_data")
+      .update({
+        locadores: ex.locadores,
+        locatarios: ex.locatarios,
+        cpf_locatarios: ex.cpf_locatarios,
+        endereco_imovel: ex.endereco_imovel,
+        data_inicio: ex.data_inicio || null,
+        data_termino: ex.data_termino || null,
+        prazo_meses: ex.prazo_meses || null,
+        valor_aluguel: ex.valor_aluguel || null,
+        indice_reajuste: ex.indice_reajuste,
+        dia_vencimento: ex.dia_vencimento || null,
+      })
+      .eq("id", extracted.id);
+  };
+
+  const handleSaveAndBack = async () => {
+    if (!validateA()) return;
+    setSavingAll(true);
+    const analyst = analistas.find((a) => a.value === form.analyst_id);
+    const payload: any = {
+      imoview_number: form.imoview_number.trim(),
+      garantidora: form.garantidora || null,
+      ocupacao: form.ocupacao || null,
+      status_contrato: form.status_contrato || null,
+      analyst_id: form.analyst_id || null,
+      analyst_name: analyst?.label ?? null,
+      general_notes: form.general_notes.trim() || null,
+    };
+
+    if (isNew) {
+      const { data: existing } = await supabase
+        .from("audit_contracts")
+        .select("id")
+        .eq("imoview_number", payload.imoview_number)
+        .limit(1);
+      if (existing && existing.length) {
+        setErrors((p) => ({ ...p, imoview_number: "Já existe um contrato com este número." }));
+        setSavingAll(false);
+        return;
+      }
+      const { data: userRes } = await supabase.auth.getUser();
+      payload.created_by = userRes.user?.id;
+      if (!payload.analyst_id) {
+        payload.analyst_id = userRes.user?.id;
+        payload.analyst_name = userRes.user?.email ?? null;
+      }
+      const { error } = await supabase.from("audit_contracts").insert(payload).select().single();
+      setSavingAll(false);
+      if (error) {
+        toast({ variant: "destructive", title: "Erro ao salvar", description: error.message });
+        return;
+      }
+      setIsDirty(false);
+      toast({ title: "Contrato salvo com sucesso!" });
+      navigate("/auditoria");
+      return;
+    }
+
+    const { error } = await supabase.from("audit_contracts").update(payload).eq("id", id!);
+    if (error) {
+      setSavingAll(false);
+      toast({ variant: "destructive", title: "Erro ao salvar", description: error.message });
+      return;
+    }
+    await flushExtracted();
+    setSavingAll(false);
+    setIsDirty(false);
+    toast({ title: "Contrato salvo com sucesso!" });
+    navigate("/auditoria");
+  };
+
+  const handleBackClick = () => {
+    if (isDirty) {
+      setConfirmLeaveOpen(true);
+    } else {
+      navigate("/auditoria");
+    }
+  };
 
   const updateChecklist = async (itemId: string, patch: Partial<ChecklistRow>) => {
     setChecklist((prev) => prev.map((i) => (i.id === itemId ? { ...i, ...patch } : i)));
