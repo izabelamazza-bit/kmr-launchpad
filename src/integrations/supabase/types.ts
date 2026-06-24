@@ -190,13 +190,20 @@ export type Database = {
           audit_status: string
           created_at: string
           created_by: string | null
+          data_fim: string | null
+          data_inicio: string | null
+          data_proximo_reajuste: string | null
+          empresa: string | null
           garantidora: string | null
           general_notes: string | null
           id: string
           imoview_number: string
+          import_batch_id: string | null
+          indice_reajuste: string | null
           ocupacao: string | null
           status_contrato: string | null
           updated_at: string
+          valor_aluguel: number | null
         }
         Insert: {
           analyst_id?: string | null
@@ -204,13 +211,20 @@ export type Database = {
           audit_status?: string
           created_at?: string
           created_by?: string | null
+          data_fim?: string | null
+          data_inicio?: string | null
+          data_proximo_reajuste?: string | null
+          empresa?: string | null
           garantidora?: string | null
           general_notes?: string | null
           id?: string
           imoview_number: string
+          import_batch_id?: string | null
+          indice_reajuste?: string | null
           ocupacao?: string | null
           status_contrato?: string | null
           updated_at?: string
+          valor_aluguel?: number | null
         }
         Update: {
           analyst_id?: string | null
@@ -218,13 +232,20 @@ export type Database = {
           audit_status?: string
           created_at?: string
           created_by?: string | null
+          data_fim?: string | null
+          data_inicio?: string | null
+          data_proximo_reajuste?: string | null
+          empresa?: string | null
           garantidora?: string | null
           general_notes?: string | null
           id?: string
           imoview_number?: string
+          import_batch_id?: string | null
+          indice_reajuste?: string | null
           ocupacao?: string | null
           status_contrato?: string | null
           updated_at?: string
+          valor_aluguel?: number | null
         }
         Relationships: []
       }

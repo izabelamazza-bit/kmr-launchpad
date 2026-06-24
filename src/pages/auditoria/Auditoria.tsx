@@ -11,6 +11,9 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { GarantidoraBadge } from "./components/GarantidoraBadge";
+import { ImportImoviewModal } from "./components/ImportImoviewModal";
+import { Button } from "@/components/ui/button";
+import { FileUp } from "lucide-react";
 
 interface ContractRow {
   id: string;
@@ -22,6 +25,7 @@ interface ContractRow {
   analyst_name: string | null;
   audit_status: string;
   updated_at: string;
+  empresa: string | null;
   locatarios: string | null;
   endereco_imovel: string | null;
   garantidora_normalizada: string | null;
@@ -41,7 +45,9 @@ const Auditoria = () => {
   const [filtroOcup, setFiltroOcup] = useState("todos");
   const [filtroProg, setFiltroProg] = useState("todos");
   const [filtroAnalista, setFiltroAnalista] = useState("todos");
+  const [filtroEmpresa, setFiltroEmpresa] = useState("todos");
   const [analistas, setAnalistas] = useState<{ value: string; label: string }[]>([]);
+  const [importOpen, setImportOpen] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -49,8 +55,7 @@ const Auditoria = () => {
     });
   }, [navigate]);
 
-  useEffect(() => {
-    const load = async () => {
+  const load = async () => {
       setLoading(true);
       const { data: contracts } = await supabase
         .from("audit_contracts")
@@ -92,6 +97,7 @@ const Auditoria = () => {
         const divergente =
           gNorm && c.garantidora && gNorm !== c.garantidora && gNorm !== "Quintocred";
         const has_alert =
+          c.garantidora === "Alerta" ||
           gNorm === "Quintocred" ||
           gNorm === "Outra" ||
           gNorm === "Não identificada" ||
@@ -106,6 +112,7 @@ const Auditoria = () => {
           analyst_name: c.analyst_name,
           audit_status: c.audit_status,
           updated_at: c.updated_at,
+          empresa: c.empresa ?? null,
           locatarios: ex?.locatarios ?? null,
           endereco_imovel: ex?.endereco_imovel ?? null,
           garantidora_normalizada: gNorm,
@@ -126,6 +133,8 @@ const Auditoria = () => {
       );
       setLoading(false);
     };
+
+  useEffect(() => {
     load();
   }, []);
 
@@ -139,6 +148,7 @@ const Auditoria = () => {
       if (filtroGar !== "todos" && r.garantidora !== filtroGar) return false;
       if (filtroStatus !== "todos" && r.status_contrato !== filtroStatus) return false;
       if (filtroOcup !== "todos" && r.ocupacao !== filtroOcup) return false;
+      if (filtroEmpresa !== "todos" && r.empresa !== filtroEmpresa) return false;
       if (filtroProg === "completo" && r.audit_status !== "Completa") return false;
       if (
         filtroProg === "incompleto" &&
@@ -155,7 +165,7 @@ const Auditoria = () => {
         return false;
       return true;
     });
-  }, [rows, search, filtroGar, filtroStatus, filtroOcup, filtroProg, filtroAnalista, isSupervisorOrAdmin]);
+  }, [rows, search, filtroGar, filtroStatus, filtroOcup, filtroEmpresa, filtroProg, filtroAnalista, isSupervisorOrAdmin]);
 
   const totals = useMemo(() => {
     const t = {
@@ -167,7 +177,9 @@ const Auditoria = () => {
       credaluga: 0,
       kmr: 0,
     };
-    rows.forEach((r) => {
+    const scope = rows.filter((r) => filtroEmpresa === "todos" || r.empresa === filtroEmpresa);
+    t.total = scope.length;
+    scope.forEach((r) => {
       if (r.audit_status === "Completa") t.completa += 1;
       if (r.audit_status === "Com pendencia" || (r.audit_status !== "Completa" && r.total_items > 0 && r.ok_items < r.total_items)) t.pendencia += 1;
       if (r.has_alert) t.alerta += 1;
@@ -176,7 +188,7 @@ const Auditoria = () => {
       if (r.garantidora === "KMR") t.kmr += 1;
     });
     return t;
-  }, [rows]);
+  }, [rows, filtroEmpresa]);
 
   const columns: Column<ContractRow>[] = [
     {
@@ -200,9 +212,14 @@ const Auditoria = () => {
       label: "Garantidora",
       render: (r) => (
         <div className="flex items-center gap-2">
-          <GarantidoraBadge value={r.has_alert ? "Quintocred" : r.garantidora} />
+          <GarantidoraBadge value={r.garantidora === "Alerta" ? "Alerta" : r.has_alert ? "Quintocred" : r.garantidora} />
         </div>
       ),
+    },
+    {
+      key: "empresa",
+      label: "Empresa",
+      render: (r) => r.empresa ?? "—",
     },
     {
       key: "ocupacao",
@@ -261,7 +278,18 @@ const Auditoria = () => {
       onSearchChange={setSearch}
       onNewClick={() => navigate("/auditoria/novo")}
       newLabel="Novo contrato"
+      extraActions={
+        <Button
+          variant="outline"
+          className="min-h-[44px] w-full sm:w-auto"
+          onClick={() => setImportOpen(true)}
+        >
+          <FileUp className="h-4 w-4 mr-1" />
+          Importar planilha Imoview
+        </Button>
+      }
     >
+      <ImportImoviewModal open={importOpen} onOpenChange={setImportOpen} onDone={load} />
       {roleLoading ? null : (
         <>
           {/* KPI cards */}
@@ -279,7 +307,20 @@ const Auditoria = () => {
 
           {/* Filters */}
           <Card className="mb-4">
-            <CardContent className="pt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+            <CardContent className="pt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
+              <div>
+                <div className="text-xs text-muted-foreground mb-1">Empresa</div>
+                <SearchableSelect
+                  value={filtroEmpresa}
+                  onChange={setFiltroEmpresa}
+                  options={[
+                    { value: "todos", label: "Todas" },
+                    { value: "Rotina", label: "Rotina" },
+                    { value: "Alugar", label: "Alugar" },
+                  ]}
+                  placeholder="Todas"
+                />
+              </div>
               <div>
                 <div className="text-xs text-muted-foreground mb-1">Garantidora</div>
                 <SearchableSelect

@@ -11,6 +11,8 @@ export function garantidoraColor(g: string | null | undefined) {
       return { bg: "#F2C94C", text: "#0F2A44", label: "KMR" };
     case "Quintocred":
       return { bg: "#EB5757", text: "#FFFFFF", label: "Quintocred" };
+    case "Alerta":
+      return { bg: "#EB5757", text: "#FFFFFF", label: "Alerta" };
     case "Outra":
     case "Não identificada":
       return { bg: "#F2994A", text: "#FFFFFF", label: g };
