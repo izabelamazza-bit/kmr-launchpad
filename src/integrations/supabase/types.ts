@@ -201,6 +201,7 @@ export type Database = {
           imoview_number: string
           import_batch_id: string | null
           indice_reajuste: string | null
+          locador_cpf: string | null
           locador_nome: string | null
           locatario_cpf: string | null
           locatario_nome: string | null
@@ -226,6 +227,7 @@ export type Database = {
           imoview_number: string
           import_batch_id?: string | null
           indice_reajuste?: string | null
+          locador_cpf?: string | null
           locador_nome?: string | null
           locatario_cpf?: string | null
           locatario_nome?: string | null
@@ -251,6 +253,7 @@ export type Database = {
           imoview_number?: string
           import_batch_id?: string | null
           indice_reajuste?: string | null
+          locador_cpf?: string | null
           locador_nome?: string | null
           locatario_cpf?: string | null
           locatario_nome?: string | null

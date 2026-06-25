@@ -1,48 +1,45 @@
 ## Objetivo
-Mover os dados vindos da planilha Imoview para a Seção A do contrato. Deixar a Seção B exclusivamente para os dados extraídos do PDF pela IA — vazia e bloqueada até o upload.
 
-## 1. Banco de dados (migration)
-Adicionar à tabela `audit_contracts` os campos que hoje só existem na tabela de extração:
-- `locatario_nome text`
-- `locatario_cpf text`
-- `locador_nome text` (em branco — preenchimento manual)
-- `endereco_imovel text`
+Reenviar a mesma planilha do Imoview no modo **merge**: em vez de pular contratos duplicados, atualizar apenas os campos vazios dos registros já existentes — sem mexer em checklist, audit_status, histórico, dados extraídos do PDF (Seção B) ou anotações manuais. Também passar a extrair **nome e CPF do locador** do campo `Imoveis`.
 
-Os outros campos já existem em `audit_contracts`: `valor_aluguel`, `data_inicio`, `data_fim`, `data_proximo_reajuste`, `indice_reajuste`, `empresa`.
+## 1. Banco — nova coluna
 
-Limpeza pontual: remover linhas de `audit_contract_extracted_data` criadas pela importação anterior (linhas cujo contrato tem `import_batch_id` e `pdf_url IS NULL`), para que a Seção B fique vazia até o upload real do PDF.
+Migration adicionando `locador_cpf text` em `audit_contracts` (nullable, sem constraint). Nenhum outro schema muda.
 
-## 2. Importação (`ImportImoviewModal.tsx` + `imoviewImport.ts`)
-- O parser permanece como está (já extrai todos os campos da planilha).
-- No `insert` em `audit_contracts`, passar também: `locatario_nome`, `locatario_cpf`, `endereco_imovel`. `locador_nome` fica `null`.
-- Remover por completo o `upsert` em `audit_contract_extracted_data`. A importação não toca mais a Seção B em hipótese alguma.
+## 2. Parser (`src/pages/auditoria/lib/imoviewImport.ts`)
 
-## 3. Tela de contrato (`AuditoriaContrato.tsx`)
-Seção A passa a conter os novos campos editáveis (sempre editáveis, mesmo para contratos novos):
+- Adicionar `locador_nome` e `locador_cpf` em `ParsedRow`.
+- Nova função `extractLocador(imoveis)` que isola o primeiro par de parênteses e roda regex:
+  - Nome: `/Locador\s+([^|)]+?)\s*(?:\||CPF|\))/i`
+  - CPF: `/CPF[:\s]*([\d.\-]{11,14})/i` (normaliza para `XXX.XXX.XXX-XX`)
+- `parseImoviewFile` retorna os dois novos campos por linha. Endereço continua extraído como hoje.
 
-```text
-[ Nº do Imoview * ]   [ Garantidora * ]
-[ Empresa ]           [ Situação ]
-[ Status contrato ]   [ Analista ]
-[ Nome do locatário ]            [ CPF do locatário ]
-[ Nome do locador (manual) ]     [ Valor atual do aluguel ]
-[ Data início ]                  [ Data fim ]
-[ Data próximo reajuste ]        [ Índice de reajuste ]
-[ Endereço do imóvel (textarea, full width) ]
-[ Observações gerais (textarea, full width) ]
-```
+## 3. Importador (`ImportImoviewModal.tsx`)
 
-- Estado `form` ganha os novos campos; `load()` os carrega de `audit_contracts`; `saveSectionA()` e `handleSaveAndBack()` os gravam em `audit_contracts`.
-- `empresa` no formulário (Rotina/Alugar) — hoje só vem da importação; permitir edição manual.
+Trocar o bloco "se duplicado, pula" por um **merge condicional**:
 
-Seção B continua existindo, mas:
-- Renderiza apenas quando existe linha em `audit_contract_extracted_data` (ou seja, após upload + extração). Antes disso, mostrar apenas o uploader + mensagem "A leitura automática preenche esta seção após o envio do PDF."
-- Continua editável após extração (sem mudança no comportamento atual de debounce/salvamento).
-- Não é tocada pela importação.
+- Buscar os existentes com `select("id, locador_nome, locador_cpf, locatario_nome, locatario_cpf, endereco_imovel, valor_aluguel, data_inicio, data_fim, data_proximo_reajuste, indice_reajuste, empresa, analyst_name")` em vez de só `imoview_number`.
+- Para cada linha da planilha:
+  - Se **não existe**: `insert` como hoje (agora incluindo `locador_nome`, `locador_cpf`).
+  - Se **existe**: montar um patch só com as chaves cujo valor atual no banco é `null`/`""` **e** cuja linha da planilha traz valor. Se o patch ficar vazio → contar como "sem alterações". Caso contrário `update().eq("id", existing.id)` e contar como "atualizado".
+- Campos elegíveis para merge (todos da Seção A): `locador_nome`, `locador_cpf`, `locatario_nome`, `locatario_cpf`, `endereco_imovel`, `valor_aluguel`, `data_inicio`, `data_fim`, `data_proximo_reajuste`, `indice_reajuste`, `empresa`, `analyst_name`.
+- **Nunca** sobrescrever valores já preenchidos. **Nunca** tocar em `audit_status`, `garantidora`, `ocupacao`, `status_contrato`, `general_notes`, checklist, extracted_data, histórico, `created_by`, `created_at`.
 
-## 4. Tipos
-Após a migration aprovada, os tipos do Supabase serão regerados automaticamente para incluir os novos campos.
+## 4. Resumo do modal
 
-## Fora do escopo
-- Sem mudanças no edge function `extract-contract`, no checklist, nos alertas, no upload de PDF, ou na lista/filtros da tela principal de Auditoria.
-- Sem migração de dados retroativa dos campos já gravados em `audit_contract_extracted_data` para `audit_contracts` (apenas remoção das linhas órfãs de extração para a Seção B ficar vazia).
+Trocar a linha "Ignorados (já existentes)" por duas:
+- **Atualizados (campos preenchidos)**: nº de updates aplicados
+- **Já completos (sem alterações)**: nº de existentes que não precisaram de patch
+
+Manter `Importados com sucesso`, `Ignorados (sem código)`, `Ignorados (status fora de Saudável/Atrasado)` e `Erros`.
+
+## 5. UI da Seção A (`AuditoriaContrato.tsx`)
+
+Adicionar o input "CPF do locador" ao lado de "Nome do locador" (usar `MaskedInput` máscara CPF, igual ao locatário). Incluir `locador_cpf` em `Contract`, `form` state, `load` e payloads de `save` / `handleSaveAndBack`.
+
+## Detalhes técnicos
+
+- Regex roda só no primeiro par de parênteses (`imoveis.match(/\(([^)]*)\)/)`) para evitar pegar o bloco "(Captador ...)".
+- CPF inválido (não bater 11 dígitos após limpar) → grava `null`.
+- Update do supabase respeita RLS existente (`is_supervisor_or_admin OR analyst_id OR created_by`); contratos criados pelo próprio usuário continuam editáveis.
+- Sem alteração em edge functions, sem alteração no trigger `seed_audit_checklist` (só roda em insert, então merge não dispara).

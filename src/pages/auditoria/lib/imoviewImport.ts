@@ -16,6 +16,8 @@ export interface ParsedRow {
   garantidora: "Loft" | "Credaluga" | "KMR" | "Alerta";
   garantidora_raw: string | null;
   endereco_imovel: string | null;
+  locador_nome: string | null;
+  locador_cpf: string | null;
   analista_nome: string | null;
 }
 
@@ -97,6 +99,26 @@ function extractEndereco(imoveis: any): string | null {
   return first || null;
 }
 
+function formatCpf(digits: string): string | null {
+  const d = digits.replace(/\D/g, "");
+  if (d.length !== 11) return null;
+  return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`;
+}
+
+function extractLocador(imoveis: any): { nome: string | null; cpf: string | null } {
+  if (!imoveis) return { nome: null, cpf: null };
+  const s = String(imoveis);
+  // Isolate first parenthesised block — Locador info lives there; later (Captador ...) is ignored
+  const paren = s.match(/\(([^)]*)\)/);
+  if (!paren) return { nome: null, cpf: null };
+  const block = paren[1];
+  const nomeM = block.match(/Locador\s+([^|)]+?)\s*(?:\||CPF|$)/i);
+  const cpfM = block.match(/CPF[:\s]*([\d.\-]{11,14})/i);
+  const nome = nomeM ? nomeM[1].trim().replace(/\s+/g, " ") : null;
+  const cpf = cpfM ? formatCpf(cpfM[1]) : null;
+  return { nome: nome || null, cpf };
+}
+
 function normalizeStatus(v: any): "Saudavel" | "Inadimplente" | null {
   const s = (v ?? "").toString().trim().toLowerCase();
   if (!s) return null;
@@ -138,6 +160,9 @@ export async function parseImoviewFile(file: File): Promise<ParseResult> {
     const ocup: ParsedRow["ocupacao"] =
       situacao === "ativo" || situacao === "ocupado" ? "Ocupado" : situacao ? "Desocupado" : null;
 
+    const imoveisRaw = pick(row, "Imoveis");
+    const locador = extractLocador(imoveisRaw);
+
     valid.push({
       imoview_number: String(codigo).trim(),
       locatario_nome: (pick(row, "LocatarioNome") ?? "").toString().trim() || null,
@@ -151,7 +176,9 @@ export async function parseImoviewFile(file: File): Promise<ParseResult> {
       indice_reajuste: (pick(row, "IndiceReajuste") ?? "").toString().trim() || null,
       garantidora: gar.value,
       garantidora_raw: gar.raw,
-      endereco_imovel: extractEndereco(pick(row, "Imoveis")),
+      endereco_imovel: extractEndereco(imoveisRaw),
+      locador_nome: locador.nome,
+      locador_cpf: locador.cpf,
       analista_nome: (pick(row, "Responsavel") ?? "").toString().trim() || null,
     });
   }

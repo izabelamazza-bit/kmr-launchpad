@@ -46,6 +46,7 @@ interface Contract {
   locatario_nome: string | null;
   locatario_cpf: string | null;
   locador_nome: string | null;
+  locador_cpf: string | null;
   endereco_imovel: string | null;
   valor_aluguel: number | null;
   data_inicio: string | null;
@@ -126,6 +127,7 @@ const AuditoriaContrato = () => {
     locatario_nome: "",
     locatario_cpf: "",
     locador_nome: "",
+    locador_cpf: "",
     endereco_imovel: "",
     valor_aluguel: 0,
     data_inicio: "",
@@ -194,6 +196,7 @@ const AuditoriaContrato = () => {
         locatario_nome: (c as any).locatario_nome ?? "",
         locatario_cpf: (c as any).locatario_cpf ?? "",
         locador_nome: (c as any).locador_nome ?? "",
+        locador_cpf: (c as any).locador_cpf ?? "",
         endereco_imovel: (c as any).endereco_imovel ?? "",
         valor_aluguel: Number((c as any).valor_aluguel ?? 0),
         data_inicio: (c as any).data_inicio ?? "",
@@ -252,6 +255,7 @@ const AuditoriaContrato = () => {
       locatario_nome: form.locatario_nome.trim() || null,
       locatario_cpf: form.locatario_cpf.trim() || null,
       locador_nome: form.locador_nome.trim() || null,
+      locador_cpf: form.locador_cpf.trim() || null,
       endereco_imovel: form.endereco_imovel.trim() || null,
       valor_aluguel: form.valor_aluguel || null,
       data_inicio: form.data_inicio || null,
@@ -439,6 +443,7 @@ const AuditoriaContrato = () => {
       locatario_nome: form.locatario_nome.trim() || null,
       locatario_cpf: form.locatario_cpf.trim() || null,
       locador_nome: form.locador_nome.trim() || null,
+      locador_cpf: form.locador_cpf.trim() || null,
       endereco_imovel: form.endereco_imovel.trim() || null,
       valor_aluguel: form.valor_aluguel || null,
       data_inicio: form.data_inicio || null,
@@ -660,6 +665,13 @@ const AuditoriaContrato = () => {
                     value={form.locador_nome}
                     onChange={(e) => setForm({ ...form, locador_nome: e.target.value })}
                     placeholder="Preenchimento manual"
+                  />
+                </FieldWrap>
+                <FieldWrap label="CPF do locador">
+                  <Input
+                    value={form.locador_cpf}
+                    onChange={(e) => setForm({ ...form, locador_cpf: e.target.value })}
+                    placeholder="000.000.000-00"
                   />
                 </FieldWrap>
                 <FieldWrap label="Valor atual do aluguel">
