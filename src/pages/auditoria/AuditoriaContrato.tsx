@@ -766,6 +766,12 @@ const AuditoriaContrato = () => {
                       </div>
                     </div>
 
+                    {!extracted && (
+                      <p className="text-sm text-muted-foreground text-center">
+                        Os campos abaixo são preenchidos automaticamente após o envio e leitura do PDF do contrato.
+                      </p>
+                    )}
+
                     {extracted && (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <FieldWrap label="Locador(es)">
