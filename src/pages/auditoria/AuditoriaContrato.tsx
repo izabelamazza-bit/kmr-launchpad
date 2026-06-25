@@ -190,6 +190,16 @@ const AuditoriaContrato = () => {
         status_contrato: c.status_contrato ?? "",
         analyst_id: c.analyst_id ?? "",
         general_notes: c.general_notes ?? "",
+        empresa: (c as any).empresa ?? "",
+        locatario_nome: (c as any).locatario_nome ?? "",
+        locatario_cpf: (c as any).locatario_cpf ?? "",
+        locador_nome: (c as any).locador_nome ?? "",
+        endereco_imovel: (c as any).endereco_imovel ?? "",
+        valor_aluguel: Number((c as any).valor_aluguel ?? 0),
+        data_inicio: (c as any).data_inicio ?? "",
+        data_fim: (c as any).data_fim ?? "",
+        data_proximo_reajuste: (c as any).data_proximo_reajuste ?? "",
+        indice_reajuste: (c as any).indice_reajuste ?? "",
       });
     }
     if (e) {
