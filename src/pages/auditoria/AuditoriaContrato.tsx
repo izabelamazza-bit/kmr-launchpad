@@ -609,6 +609,14 @@ const AuditoriaContrato = () => {
                     placeholder="Selecione..."
                   />
                 </FieldWrap>
+                <FieldWrap label="Empresa">
+                  <SearchableSelect
+                    options={empresaOptions}
+                    value={form.empresa}
+                    onChange={(v) => setForm({ ...form, empresa: v })}
+                    placeholder="Selecione..."
+                  />
+                </FieldWrap>
                 <FieldWrap label="Situação do imóvel">
                   <SearchableSelect
                     options={ocupacaoOptions}
@@ -625,14 +633,75 @@ const AuditoriaContrato = () => {
                     placeholder="Selecione..."
                   />
                 </FieldWrap>
-                <div className="sm:col-span-2">
-                  <FieldWrap label="Analista responsável">
+                <FieldWrap label="Analista responsável">
                     <SearchableSelect
                       options={analistas}
                       value={form.analyst_id}
                       onChange={(v) => setForm({ ...form, analyst_id: v })}
                       placeholder={isSupervisorOrAdmin ? "Selecione um analista" : "Você"}
                       disabled={!isSupervisorOrAdmin && !isNew}
+                    />
+                </FieldWrap>
+
+                <FieldWrap label="Nome do locatário">
+                  <Input
+                    value={form.locatario_nome}
+                    onChange={(e) => setForm({ ...form, locatario_nome: e.target.value })}
+                  />
+                </FieldWrap>
+                <FieldWrap label="CPF do locatário">
+                  <Input
+                    value={form.locatario_cpf}
+                    onChange={(e) => setForm({ ...form, locatario_cpf: e.target.value })}
+                  />
+                </FieldWrap>
+                <FieldWrap label="Nome do locador">
+                  <Input
+                    value={form.locador_nome}
+                    onChange={(e) => setForm({ ...form, locador_nome: e.target.value })}
+                    placeholder="Preenchimento manual"
+                  />
+                </FieldWrap>
+                <FieldWrap label="Valor atual do aluguel">
+                  <CurrencyInput
+                    value={form.valor_aluguel}
+                    onChange={(v) => setForm({ ...form, valor_aluguel: v })}
+                  />
+                </FieldWrap>
+                <FieldWrap label="Data de início">
+                  <Input
+                    type="date"
+                    value={form.data_inicio}
+                    onChange={(e) => setForm({ ...form, data_inicio: e.target.value })}
+                  />
+                </FieldWrap>
+                <FieldWrap label="Data de fim">
+                  <Input
+                    type="date"
+                    value={form.data_fim}
+                    onChange={(e) => setForm({ ...form, data_fim: e.target.value })}
+                  />
+                </FieldWrap>
+                <FieldWrap label="Data do próximo reajuste">
+                  <Input
+                    type="date"
+                    value={form.data_proximo_reajuste}
+                    onChange={(e) => setForm({ ...form, data_proximo_reajuste: e.target.value })}
+                  />
+                </FieldWrap>
+                <FieldWrap label="Índice de reajuste">
+                  <Input
+                    value={form.indice_reajuste}
+                    onChange={(e) => setForm({ ...form, indice_reajuste: e.target.value })}
+                    placeholder="Ex.: IGP-M, IPCA"
+                  />
+                </FieldWrap>
+                <div className="sm:col-span-2">
+                  <FieldWrap label="Endereço do imóvel">
+                    <Textarea
+                      rows={2}
+                      value={form.endereco_imovel}
+                      onChange={(e) => setForm({ ...form, endereco_imovel: e.target.value })}
                     />
                   </FieldWrap>
                 </div>
