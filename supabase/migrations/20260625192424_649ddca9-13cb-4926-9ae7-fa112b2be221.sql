@@ -1,0 +1,1 @@
+ALTER TABLE public.audit_contracts ADD COLUMN IF NOT EXISTS locador_cpf text;
