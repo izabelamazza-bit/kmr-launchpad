@@ -248,6 +248,16 @@ const AuditoriaContrato = () => {
       analyst_id: form.analyst_id || null,
       analyst_name: analyst?.label ?? null,
       general_notes: form.general_notes.trim() || null,
+      empresa: form.empresa || null,
+      locatario_nome: form.locatario_nome.trim() || null,
+      locatario_cpf: form.locatario_cpf.trim() || null,
+      locador_nome: form.locador_nome.trim() || null,
+      endereco_imovel: form.endereco_imovel.trim() || null,
+      valor_aluguel: form.valor_aluguel || null,
+      data_inicio: form.data_inicio || null,
+      data_fim: form.data_fim || null,
+      data_proximo_reajuste: form.data_proximo_reajuste || null,
+      indice_reajuste: form.indice_reajuste.trim() || null,
     };
 
     if (isNew) {
