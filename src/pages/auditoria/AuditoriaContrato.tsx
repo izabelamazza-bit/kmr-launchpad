@@ -46,6 +46,7 @@ interface Contract {
   locatario_nome: string | null;
   locatario_cpf: string | null;
   locador_nome: string | null;
+  locador_cpf: string | null;
   endereco_imovel: string | null;
   valor_aluguel: number | null;
   data_inicio: string | null;
@@ -126,6 +127,7 @@ const AuditoriaContrato = () => {
     locatario_nome: "",
     locatario_cpf: "",
     locador_nome: "",
+    locador_cpf: "",
     endereco_imovel: "",
     valor_aluguel: 0,
     data_inicio: "",
@@ -194,6 +196,7 @@ const AuditoriaContrato = () => {
         locatario_nome: (c as any).locatario_nome ?? "",
         locatario_cpf: (c as any).locatario_cpf ?? "",
         locador_nome: (c as any).locador_nome ?? "",
+        locador_cpf: (c as any).locador_cpf ?? "",
         endereco_imovel: (c as any).endereco_imovel ?? "",
         valor_aluguel: Number((c as any).valor_aluguel ?? 0),
         data_inicio: (c as any).data_inicio ?? "",
