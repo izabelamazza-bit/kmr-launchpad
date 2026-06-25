@@ -42,6 +42,16 @@ interface Contract {
   created_at: string;
   updated_at: string;
   created_by: string | null;
+  empresa: string | null;
+  locatario_nome: string | null;
+  locatario_cpf: string | null;
+  locador_nome: string | null;
+  endereco_imovel: string | null;
+  valor_aluguel: number | null;
+  data_inicio: string | null;
+  data_fim: string | null;
+  data_proximo_reajuste: string | null;
+  indice_reajuste: string | null;
 }
 
 interface Extracted {
@@ -79,6 +89,10 @@ const statusContratoOptions = [
   { value: "Saudavel", label: "Saudável" },
   { value: "Inadimplente", label: "Inadimplente" },
 ];
+const empresaOptions = [
+  { value: "Rotina", label: "Rotina" },
+  { value: "Alugar", label: "Alugar" },
+];
 
 const AuditoriaContrato = () => {
   const { id } = useParams<{ id: string }>();
@@ -108,6 +122,16 @@ const AuditoriaContrato = () => {
     status_contrato: "",
     analyst_id: "",
     general_notes: "",
+    empresa: "",
+    locatario_nome: "",
+    locatario_cpf: "",
+    locador_nome: "",
+    endereco_imovel: "",
+    valor_aluguel: 0,
+    data_inicio: "",
+    data_fim: "",
+    data_proximo_reajuste: "",
+    indice_reajuste: "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
