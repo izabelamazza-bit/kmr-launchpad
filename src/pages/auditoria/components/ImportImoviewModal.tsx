@@ -18,7 +18,8 @@ interface Props {
 interface Summary {
   total: number;
   imported: number;
-  duplicated: string[];
+  updated: string[];
+  unchanged: string[];
   ignoredStatus: string[];
   ignoredInvalid: number;
   errors: { codigo: string; error: string }[];
@@ -54,24 +55,60 @@ export function ImportImoviewModal({ open, onOpenChange, onDone }: Props) {
       if (!userId) throw new Error("Sessão inválida");
 
       const batchId = crypto.randomUUID();
-      const duplicated: string[] = [];
+      const updated: string[] = [];
+      const unchanged: string[] = [];
       const errors: { codigo: string; error: string }[] = [];
       let imported = 0;
 
-      // existing numbers
+      // existing records (full Section A snapshot for merge)
       const numbers = parsed.valid.map((r) => r.imoview_number);
-      let existing = new Set<string>();
+      const existing = new Map<string, any>();
       if (numbers.length) {
         const { data: ex } = await supabase
           .from("audit_contracts")
-          .select("imoview_number")
+          .select(
+            "id, imoview_number, locador_nome, locador_cpf, locatario_nome, locatario_cpf, endereco_imovel, valor_aluguel, data_inicio, data_fim, data_proximo_reajuste, indice_reajuste, empresa, analyst_name"
+          )
           .in("imoview_number", numbers);
-        existing = new Set((ex ?? []).map((e: any) => e.imoview_number));
+        (ex ?? []).forEach((e: any) => existing.set(e.imoview_number, e));
       }
 
+      const isEmpty = (v: any) => v === null || v === undefined || v === "";
+
       for (const r of parsed.valid) {
-        if (existing.has(r.imoview_number)) {
-          duplicated.push(r.imoview_number);
+        const current = existing.get(r.imoview_number);
+        if (current) {
+          const candidate: Record<string, any> = {
+            locador_nome: r.locador_nome,
+            locador_cpf: r.locador_cpf,
+            locatario_nome: r.locatario_nome,
+            locatario_cpf: r.locatario_cpf,
+            endereco_imovel: r.endereco_imovel,
+            valor_aluguel: r.valor_aluguel,
+            data_inicio: r.data_inicio,
+            data_fim: r.data_fim,
+            data_proximo_reajuste: r.data_proximo_reajuste,
+            indice_reajuste: r.indice_reajuste,
+            empresa,
+            analyst_name: r.analista_nome,
+          };
+          const patch: Record<string, any> = {};
+          for (const [k, v] of Object.entries(candidate)) {
+            if (!isEmpty(v) && isEmpty(current[k])) patch[k] = v;
+          }
+          if (Object.keys(patch).length === 0) {
+            unchanged.push(r.imoview_number);
+            continue;
+          }
+          const { error: upErr } = await supabase
+            .from("audit_contracts")
+            .update(patch as any)
+            .eq("id", current.id);
+          if (upErr) {
+            errors.push({ codigo: r.imoview_number, error: upErr.message });
+            continue;
+          }
+          updated.push(r.imoview_number);
           continue;
         }
         const { data: ins, error } = await supabase
@@ -90,6 +127,8 @@ export function ImportImoviewModal({ open, onOpenChange, onDone }: Props) {
             indice_reajuste: r.indice_reajuste,
             locatario_nome: r.locatario_nome,
             locatario_cpf: r.locatario_cpf,
+            locador_nome: r.locador_nome,
+            locador_cpf: r.locador_cpf,
             endereco_imovel: r.endereco_imovel,
             import_batch_id: batchId,
             created_by: userId,
@@ -109,12 +148,15 @@ export function ImportImoviewModal({ open, onOpenChange, onDone }: Props) {
       setSummary({
         total: parsed.total,
         imported,
-        duplicated,
+        updated,
+        unchanged,
         ignoredStatus: parsed.ignoredStatus,
         ignoredInvalid: parsed.ignoredInvalid,
         errors,
       });
-      toast.success(`${imported} contrato(s) importado(s)`);
+      toast.success(
+        `${imported} novo(s) · ${updated.length} atualizado(s) · ${unchanged.length} sem alterações`
+      );
     } catch (e: any) {
       toast.error(e?.message ?? "Falha na importação");
     } finally {
@@ -172,7 +214,8 @@ export function ImportImoviewModal({ open, onOpenChange, onDone }: Props) {
           <div className="space-y-3 text-sm">
             <Row label="Total de linhas lidas" value={summary.total} />
             <Row label="Importados com sucesso" value={summary.imported} highlight="green" />
-            <Row label="Ignorados (já existentes)" value={summary.duplicated.length} />
+            <Row label="Atualizados (campos preenchidos)" value={summary.updated.length} highlight="green" />
+            <Row label="Já completos (sem alterações)" value={summary.unchanged.length} />
             <Row
               label="Ignorados (status fora de Saudável/Atrasado)"
               value={summary.ignoredStatus.length}
@@ -181,11 +224,11 @@ export function ImportImoviewModal({ open, onOpenChange, onDone }: Props) {
             {summary.errors.length > 0 && (
               <Row label="Erros" value={summary.errors.length} highlight="red" />
             )}
-            {summary.duplicated.length > 0 && (
+            {summary.updated.length > 0 && (
               <details className="text-xs text-muted-foreground">
-                <summary className="cursor-pointer">Ver duplicados</summary>
+                <summary className="cursor-pointer">Ver atualizados</summary>
                 <div className="mt-1 max-h-32 overflow-auto font-mono">
-                  {summary.duplicated.join(", ")}
+                  {summary.updated.join(", ")}
                 </div>
               </details>
             )}
