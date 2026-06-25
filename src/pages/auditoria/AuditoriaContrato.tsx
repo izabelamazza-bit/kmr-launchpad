@@ -42,6 +42,16 @@ interface Contract {
   created_at: string;
   updated_at: string;
   created_by: string | null;
+  empresa: string | null;
+  locatario_nome: string | null;
+  locatario_cpf: string | null;
+  locador_nome: string | null;
+  endereco_imovel: string | null;
+  valor_aluguel: number | null;
+  data_inicio: string | null;
+  data_fim: string | null;
+  data_proximo_reajuste: string | null;
+  indice_reajuste: string | null;
 }
 
 interface Extracted {
@@ -79,6 +89,10 @@ const statusContratoOptions = [
   { value: "Saudavel", label: "Saudável" },
   { value: "Inadimplente", label: "Inadimplente" },
 ];
+const empresaOptions = [
+  { value: "Rotina", label: "Rotina" },
+  { value: "Alugar", label: "Alugar" },
+];
 
 const AuditoriaContrato = () => {
   const { id } = useParams<{ id: string }>();
@@ -108,6 +122,16 @@ const AuditoriaContrato = () => {
     status_contrato: "",
     analyst_id: "",
     general_notes: "",
+    empresa: "",
+    locatario_nome: "",
+    locatario_cpf: "",
+    locador_nome: "",
+    endereco_imovel: "",
+    valor_aluguel: 0,
+    data_inicio: "",
+    data_fim: "",
+    data_proximo_reajuste: "",
+    indice_reajuste: "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -166,6 +190,16 @@ const AuditoriaContrato = () => {
         status_contrato: c.status_contrato ?? "",
         analyst_id: c.analyst_id ?? "",
         general_notes: c.general_notes ?? "",
+        empresa: (c as any).empresa ?? "",
+        locatario_nome: (c as any).locatario_nome ?? "",
+        locatario_cpf: (c as any).locatario_cpf ?? "",
+        locador_nome: (c as any).locador_nome ?? "",
+        endereco_imovel: (c as any).endereco_imovel ?? "",
+        valor_aluguel: Number((c as any).valor_aluguel ?? 0),
+        data_inicio: (c as any).data_inicio ?? "",
+        data_fim: (c as any).data_fim ?? "",
+        data_proximo_reajuste: (c as any).data_proximo_reajuste ?? "",
+        indice_reajuste: (c as any).indice_reajuste ?? "",
       });
     }
     if (e) {
@@ -214,6 +248,16 @@ const AuditoriaContrato = () => {
       analyst_id: form.analyst_id || null,
       analyst_name: analyst?.label ?? null,
       general_notes: form.general_notes.trim() || null,
+      empresa: form.empresa || null,
+      locatario_nome: form.locatario_nome.trim() || null,
+      locatario_cpf: form.locatario_cpf.trim() || null,
+      locador_nome: form.locador_nome.trim() || null,
+      endereco_imovel: form.endereco_imovel.trim() || null,
+      valor_aluguel: form.valor_aluguel || null,
+      data_inicio: form.data_inicio || null,
+      data_fim: form.data_fim || null,
+      data_proximo_reajuste: form.data_proximo_reajuste || null,
+      indice_reajuste: form.indice_reajuste.trim() || null,
     };
 
     if (isNew) {
@@ -391,6 +435,16 @@ const AuditoriaContrato = () => {
       analyst_id: form.analyst_id || null,
       analyst_name: analyst?.label ?? null,
       general_notes: form.general_notes.trim() || null,
+      empresa: form.empresa || null,
+      locatario_nome: form.locatario_nome.trim() || null,
+      locatario_cpf: form.locatario_cpf.trim() || null,
+      locador_nome: form.locador_nome.trim() || null,
+      endereco_imovel: form.endereco_imovel.trim() || null,
+      valor_aluguel: form.valor_aluguel || null,
+      data_inicio: form.data_inicio || null,
+      data_fim: form.data_fim || null,
+      data_proximo_reajuste: form.data_proximo_reajuste || null,
+      indice_reajuste: form.indice_reajuste.trim() || null,
     };
 
     if (isNew) {
@@ -555,6 +609,14 @@ const AuditoriaContrato = () => {
                     placeholder="Selecione..."
                   />
                 </FieldWrap>
+                <FieldWrap label="Empresa">
+                  <SearchableSelect
+                    options={empresaOptions}
+                    value={form.empresa}
+                    onChange={(v) => setForm({ ...form, empresa: v })}
+                    placeholder="Selecione..."
+                  />
+                </FieldWrap>
                 <FieldWrap label="Situação do imóvel">
                   <SearchableSelect
                     options={ocupacaoOptions}
@@ -571,14 +633,75 @@ const AuditoriaContrato = () => {
                     placeholder="Selecione..."
                   />
                 </FieldWrap>
-                <div className="sm:col-span-2">
-                  <FieldWrap label="Analista responsável">
+                <FieldWrap label="Analista responsável">
                     <SearchableSelect
                       options={analistas}
                       value={form.analyst_id}
                       onChange={(v) => setForm({ ...form, analyst_id: v })}
                       placeholder={isSupervisorOrAdmin ? "Selecione um analista" : "Você"}
                       disabled={!isSupervisorOrAdmin && !isNew}
+                    />
+                </FieldWrap>
+
+                <FieldWrap label="Nome do locatário">
+                  <Input
+                    value={form.locatario_nome}
+                    onChange={(e) => setForm({ ...form, locatario_nome: e.target.value })}
+                  />
+                </FieldWrap>
+                <FieldWrap label="CPF do locatário">
+                  <Input
+                    value={form.locatario_cpf}
+                    onChange={(e) => setForm({ ...form, locatario_cpf: e.target.value })}
+                  />
+                </FieldWrap>
+                <FieldWrap label="Nome do locador">
+                  <Input
+                    value={form.locador_nome}
+                    onChange={(e) => setForm({ ...form, locador_nome: e.target.value })}
+                    placeholder="Preenchimento manual"
+                  />
+                </FieldWrap>
+                <FieldWrap label="Valor atual do aluguel">
+                  <CurrencyInput
+                    value={form.valor_aluguel}
+                    onChange={(v) => setForm({ ...form, valor_aluguel: v })}
+                  />
+                </FieldWrap>
+                <FieldWrap label="Data de início">
+                  <Input
+                    type="date"
+                    value={form.data_inicio}
+                    onChange={(e) => setForm({ ...form, data_inicio: e.target.value })}
+                  />
+                </FieldWrap>
+                <FieldWrap label="Data de fim">
+                  <Input
+                    type="date"
+                    value={form.data_fim}
+                    onChange={(e) => setForm({ ...form, data_fim: e.target.value })}
+                  />
+                </FieldWrap>
+                <FieldWrap label="Data do próximo reajuste">
+                  <Input
+                    type="date"
+                    value={form.data_proximo_reajuste}
+                    onChange={(e) => setForm({ ...form, data_proximo_reajuste: e.target.value })}
+                  />
+                </FieldWrap>
+                <FieldWrap label="Índice de reajuste">
+                  <Input
+                    value={form.indice_reajuste}
+                    onChange={(e) => setForm({ ...form, indice_reajuste: e.target.value })}
+                    placeholder="Ex.: IGP-M, IPCA"
+                  />
+                </FieldWrap>
+                <div className="sm:col-span-2">
+                  <FieldWrap label="Endereço do imóvel">
+                    <Textarea
+                      rows={2}
+                      value={form.endereco_imovel}
+                      onChange={(e) => setForm({ ...form, endereco_imovel: e.target.value })}
                     />
                   </FieldWrap>
                 </div>
@@ -642,6 +765,12 @@ const AuditoriaContrato = () => {
                         )}
                       </div>
                     </div>
+
+                    {!extracted && (
+                      <p className="text-sm text-muted-foreground text-center">
+                        Os campos abaixo são preenchidos automaticamente após o envio e leitura do PDF do contrato.
+                      </p>
+                    )}
 
                     {extracted && (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

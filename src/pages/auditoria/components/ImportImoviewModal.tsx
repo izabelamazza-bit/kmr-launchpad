@@ -88,6 +88,9 @@ export function ImportImoviewModal({ open, onOpenChange, onDone }: Props) {
             data_fim: r.data_fim,
             data_proximo_reajuste: r.data_proximo_reajuste,
             indice_reajuste: r.indice_reajuste,
+            locatario_nome: r.locatario_nome,
+            locatario_cpf: r.locatario_cpf,
+            endereco_imovel: r.endereco_imovel,
             import_batch_id: batchId,
             created_by: userId,
             audit_status: "Nao iniciada",
@@ -98,24 +101,8 @@ export function ImportImoviewModal({ open, onOpenChange, onDone }: Props) {
           errors.push({ codigo: r.imoview_number, error: error?.message ?? "erro desconhecido" });
           continue;
         }
-        const exPayload: any = {
-          contract_id: ins.id,
-          locatarios: r.locatario_nome,
-          cpf_locatarios: r.locatario_cpf,
-          endereco_imovel: r.endereco_imovel,
-          garantidora_normalizada: r.garantidora === "Alerta" ? "Outra" : r.garantidora,
-          garantidora_identificada_raw: r.garantidora_raw,
-          valor_aluguel: r.valor_aluguel,
-          data_inicio: r.data_inicio,
-          data_termino: r.data_fim,
-          indice_reajuste: r.indice_reajuste,
-        };
-        const { error: exErr } = await supabase
-          .from("audit_contract_extracted_data")
-          .upsert(exPayload, { onConflict: "contract_id" });
-        if (exErr) {
-          errors.push({ codigo: r.imoview_number, error: `extracted: ${exErr.message}` });
-        }
+        // Seção B (audit_contract_extracted_data) NÃO é tocada na importação.
+        // Ela só é preenchida após o upload + leitura automática do PDF.
         imported += 1;
       }
 

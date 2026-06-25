@@ -194,12 +194,16 @@ export type Database = {
           data_inicio: string | null
           data_proximo_reajuste: string | null
           empresa: string | null
+          endereco_imovel: string | null
           garantidora: string | null
           general_notes: string | null
           id: string
           imoview_number: string
           import_batch_id: string | null
           indice_reajuste: string | null
+          locador_nome: string | null
+          locatario_cpf: string | null
+          locatario_nome: string | null
           ocupacao: string | null
           status_contrato: string | null
           updated_at: string
@@ -215,12 +219,16 @@ export type Database = {
           data_inicio?: string | null
           data_proximo_reajuste?: string | null
           empresa?: string | null
+          endereco_imovel?: string | null
           garantidora?: string | null
           general_notes?: string | null
           id?: string
           imoview_number: string
           import_batch_id?: string | null
           indice_reajuste?: string | null
+          locador_nome?: string | null
+          locatario_cpf?: string | null
+          locatario_nome?: string | null
           ocupacao?: string | null
           status_contrato?: string | null
           updated_at?: string
@@ -236,12 +244,16 @@ export type Database = {
           data_inicio?: string | null
           data_proximo_reajuste?: string | null
           empresa?: string | null
+          endereco_imovel?: string | null
           garantidora?: string | null
           general_notes?: string | null
           id?: string
           imoview_number?: string
           import_batch_id?: string | null
           indice_reajuste?: string | null
+          locador_nome?: string | null
+          locatario_cpf?: string | null
+          locatario_nome?: string | null
           ocupacao?: string | null
           status_contrato?: string | null
           updated_at?: string
