@@ -113,8 +113,8 @@ const Auditoria = () => {
           audit_status: c.audit_status,
           updated_at: c.updated_at,
           empresa: c.empresa ?? null,
-          locatarios: ex?.locatarios ?? null,
-          endereco_imovel: ex?.endereco_imovel ?? null,
+          locatarios: c.locatario_nome ?? ex?.locatarios ?? null,
+          endereco_imovel: c.endereco_imovel ?? ex?.endereco_imovel ?? null,
           garantidora_normalizada: gNorm,
           total_items: counts.total,
           ok_items: counts.ok,
@@ -260,15 +260,6 @@ const Auditoria = () => {
       render: (r) => format(new Date(r.updated_at), "dd/MM/yyyy HH:mm"),
       hideOnMobile: true,
     },
-    ...(isSupervisorOrAdmin
-      ? [
-          {
-            key: "analyst",
-            label: "Analista",
-            render: (r: ContractRow) => r.analyst_name ?? "—",
-          } as Column<ContractRow>,
-        ]
-      : []),
   ];
 
   return (
