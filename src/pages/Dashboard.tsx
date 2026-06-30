@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import logoKMR from "@/assets/Logo_KMR.png";
-import { LogOut, Users, Building2, UserCircle, Package, MessageSquare, Bot, Headset, AlertTriangle, FileWarning, ShieldCheck } from "lucide-react";
+import { LogOut, Users, Building2, UserCircle, Package, MessageSquare, Bot, Headset, AlertTriangle, FileWarning, ShieldCheck, Settings } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 
 const menuItems = [
@@ -16,6 +16,7 @@ const menuItems = [
   { label: "Atendimento", icon: Headset, path: "/atendimento", desc: "Acompanhe e gerencie conversas em tempo real" },
   { label: "Sinistros", icon: FileWarning, path: "/sinistros", desc: "Acompanhar inadimplências registradas" },
   { label: "Auditoria", icon: ShieldCheck, path: "/auditoria", desc: "Auditoria de contratos de garantidoras" },
+  { label: "Configurações", icon: Settings, path: "/configuracoes", desc: "Integrações de IA e chaves de API" },
 ];
 
 const Dashboard = () => {
