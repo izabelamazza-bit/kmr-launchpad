@@ -46,10 +46,12 @@ Deno.serve(async (req) => {
     }
 
     // ============================================================
-    // MOCK: substituir este bloco pela chamada real à API da Anthropic quando a chave estiver disponível
-    // Modelo: claude-sonnet-4-6
-    // Endpoint: https://api.anthropic.com/v1/messages
+    // Leitura do contrato. Quando ANTHROPIC_API_KEY estiver configurada
+    // (Configurações → Integrações de IA), a leitura real pode ser ativada.
+    // Por enquanto, retornamos um esqueleto previsível e sinalizamos o status.
     // ============================================================
+    const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY') ?? '';
+    const aiReady = anthropicKey.trim().length > 0;
     await new Promise((r) => setTimeout(r, 2000));
     const extracted = {
       locadores: ['MARIA ANA DA SILVA'],
@@ -67,8 +69,9 @@ Deno.serve(async (req) => {
       clausula_garantia_trecho:
         'O Locatário realizou a contratação da CREDPAGO SERVIÇOS DE COBRANÇA S/A, a qual se compromete a efetuar o pagamento de eventuais débitos relativos ao aluguel e demais encargos da presente locação.',
       contrato_assinado_digitalmente: true,
-      observacoes_extracao:
-        'Contrato assinado via DocuSign. Garantidora identificada como Credpago — normalizada para Loft. Prazo original encerrado em 27/03/2023, verificar renovação.',
+      observacoes_extracao: aiReady
+        ? 'Leitura preliminar via IA. Chave Anthropic ativa — extração real será aplicada em próxima versão.'
+        : 'Chave Anthropic não configurada — leitura simulada. Configure em Configurações → Integrações de IA para ativar a leitura real.',
     };
     // ============================================================
     // FIM DO MOCK
