@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { GarantidoraBadge } from "./components/GarantidoraBadge";
 import { ImportImoviewModal } from "./components/ImportImoviewModal";
+import { reprocessAddressNok } from "./lib/reprocessAddress";
 import { Button } from "@/components/ui/button";
 import { FileUp } from "lucide-react";
 
@@ -54,6 +55,7 @@ const Auditoria = () => {
       if (!session) navigate("/login");
     });
   }, [navigate]);
+
 
   const load = async () => {
       setLoading(true);
@@ -135,7 +137,10 @@ const Auditoria = () => {
     };
 
   useEffect(() => {
-    load();
+    (async () => {
+      await reprocessAddressNok();
+      await load();
+    })();
   }, []);
 
   const filtered = useMemo(() => {

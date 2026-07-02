@@ -40,6 +40,16 @@ const norm = (s: string | null | undefined) =>
     .trim()
     .toLowerCase();
 
+export const normAddress = (s: string | null | undefined) =>
+  (s ?? "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .replace(/\s*([,\-])\s*/g, "$1")
+    .replace(/\.+/g, "")
+    .trim();
+
 const splitMulti = (s: string | null | undefined) =>
   (s ?? "")
     .split(/[;\n]/)
@@ -57,6 +67,11 @@ const setEqualIgnoreOrder = (a: string[], b: string[]) => {
 function cmpSingle(a: string | null, b: string | null): boolean | null {
   if (!a || !b) return null;
   return norm(a) === norm(b);
+}
+
+function cmpAddress(a: string | null, b: string | null): boolean | null {
+  if (!a || !b) return null;
+  return normAddress(a) === normAddress(b);
 }
 
 function cmpMulti(a: string | null, b: string | null): boolean | null {
@@ -101,8 +116,8 @@ export function buildAutoPatches(
   push(4, cmpMulti(contract.locatario_nome, extracted.locatarios), "Locatário", contract.locatario_nome, extracted.locatarios);
   // Item 5 — locador
   push(5, cmpMulti(contract.locador_nome, extracted.locadores), "Locador", contract.locador_nome, extracted.locadores);
-  // Item 6 — endereço
-  push(6, cmpSingle(contract.endereco_imovel, extracted.endereco_imovel), "Endereço", contract.endereco_imovel, extracted.endereco_imovel);
+  // Item 6 — endereço (normalização tolerante a espaços/pontuação)
+  push(6, cmpAddress(contract.endereco_imovel, extracted.endereco_imovel), "Endereço", contract.endereco_imovel, extracted.endereco_imovel);
   // Item 25 — índice de reajuste
   push(25, cmpSingle(contract.indice_reajuste, extracted.indice_reajuste), "Índice", contract.indice_reajuste, extracted.indice_reajuste);
 
