@@ -866,6 +866,17 @@ const AuditoriaContrato = () => {
                             onChange={(v) => setEx({ ...ex, valor_aluguel: v })}
                           />
                         </FieldWrap>
+                        <div className="sm:col-span-2 -mt-2 text-xs text-muted-foreground bg-muted/50 border rounded-md p-2">
+                          Valor no contrato:{" "}
+                          <span className="font-medium text-foreground">
+                            {(ex.valor_aluguel || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                          </span>{" "}
+                          · Valor atual no Imoview:{" "}
+                          <span className="font-medium text-foreground">
+                            {(form.valor_aluguel || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                          </span>{" "}
+                          — confira no portal da garantidora.
+                        </div>
                         <FieldWrap label="Dia de vencimento">
                           <Input
                             type="number"
