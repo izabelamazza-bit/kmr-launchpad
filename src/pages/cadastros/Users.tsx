@@ -112,7 +112,7 @@ const Users = () => {
       if (error) { toast({ variant: "destructive", title: "Erro ao salvar.", description: error.message }); setSaving(false); return; }
 
       // Sync role if user_id available
-      const target = data.find((u) => u.id === editingId) as (UserRecord & { user_id?: string }) | undefined;
+      const target = data.find((u) => u.id === editingId);
       if (target?.user_id) {
         await supabase.from("user_roles").delete().eq("user_id", target.user_id);
         await supabase.from("user_roles").insert({
