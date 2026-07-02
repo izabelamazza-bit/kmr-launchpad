@@ -1,81 +1,32 @@
-# Plano — 3 ajustes
+## Causa raiz
 
-## 1. Renomear Seção A na auditoria de contrato
+A correção de segurança anterior habilitou o **HIBP (HaveIBeenPwned)** no Supabase Auth — o servidor agora rejeita qualquer senha que apareça em vazamentos públicos conhecidos. Quando o analista tenta definir uma senha comum ("senha123", "kmr2025", data de nascimento, etc.), o `supabase.auth.updateUser({ password })` retorna um erro do tipo `weak_password / pwned password`. A tela `TrocarSenha.tsx` hoje só ecoa `error.message`, que aparece traduzido/genérico como **"a senha já foi usada"**, dando a falsa impressão de que é histórico de senhas.
 
-**Arquivo:** `src/pages/auditoria/AuditoriaContrato.tsx` (linha 712)
+Como o `updateUser` falha, o código retorna antes de chamar `clear_must_change_password` e antes do `navigate('/dashboard')` → a flag continua `true` no `users_registry` e no `user_metadata`, e o `RequirePasswordChange` mantém o usuário preso em `/trocar-senha`. Não é loop nem race condition — é o servidor recusando toda tentativa por serem senhas fracas conhecidas.
 
-Trocar o título do card de:
-- `Seção A — Dados manuais`
+Verificações feitas:
+- `users_registry` do analista atual: `must_change_password = true` (correto — nunca conseguiu trocar).
+- Policy `Admins or self can update users_registry` permite `user_id = auth.uid()` → a RPC `clear_must_change_password` (agora `SECURITY INVOKER`) funciona sem problema quando executada.
+- `RequirePasswordChange` já escuta `onAuthStateChange`, então quando `USER_UPDATED` disparar (após um `updateUser` bem-sucedido), o metadata `must_change_password: false` chega e libera o dashboard — não precisa mexer.
 
-para:
-- `Seção A — Dados do Imoview`
+## Correção
 
-Nenhum campo, lógica ou funcionalidade é alterado.
+Ajustar **apenas** `src/pages/TrocarSenha.tsx`:
 
-## 2. Limpar cards do Dashboard
+1. **Mensagens claras**: mapear o erro do Supabase e mostrar título específico quando a senha for rejeitada pelo HIBP ("Escolha uma senha mais forte — esta aparece em vazamentos públicos"), diferenciando de "nova precisa ser diferente da atual".
+2. **Requisitos visíveis em tempo real**: checklist embaixo do campo (mínimo 8 chars, uma letra, um número, símbolo recomendado) e aviso sobre senhas comuns bloqueadas.
+3. **Botão desabilitado** enquanto os requisitos mínimos não forem atendidos — reduz tentativas rejeitadas.
+4. **RPC resiliente**: envolver `clear_must_change_password` em `try/catch` — se falhar, o `user_metadata: { must_change_password: false }` já basta para o `RequirePasswordChange` liberar o acesso; sem travar o redirecionamento.
 
-**Arquivo:** `src/pages/Dashboard.tsx`
+Nada muda no backend (policies, funções, edge functions) — a lógica está correta; o que faltava era comunicação e UX.
 
-No array `menuItems`, remover as 3 entradas: **Empresas**, **Pessoas** e **Produtos e Serviços**.
+## Teste após aplicar
 
-Manter intactos: Usuários, Leads, Agente de IA, Atendimento, Sinistros, Auditoria, Configurações, o bloco "Registrar novo sinistro" e o resto da tela. As rotas (`/cadastros/empresas`, `/cadastros/pessoas`, `/cadastros/produtos-servicos`) e os dados no banco permanecem.
+1. Login com o usuário `operacao01@siscob.tec.br`.
+2. Tentar "senha123" → erro específico "Escolha uma senha mais forte…".
+3. Definir uma senha forte (ex.: `Kmr@2026!Ok`) → sucesso, redirecionamento automático ao dashboard.
+4. Confirmar no banco que `users_registry.must_change_password = false` para esse usuário.
 
-## 3. Cadastro de usuário com senha inicial e troca obrigatória no 1º login
+## Detalhes técnicos
 
-Hoje `src/pages/cadastros/Users.tsx` grava apenas em `users_registry` (tabela informativa) e não cria usuário real em `auth.users`. Vamos passar a criar o usuário de verdade e forçar troca de senha no primeiro login.
-
-### 3.1 Backend
-
-**Migração**
-- Adicionar coluna `must_change_password boolean not null default true` em `public.users_registry`.
-- Ajustar a lista de perfis usada na UI para apenas **Analista** e **Supervisor** (a coluna `access_profile` continua text, sem CHECK novo — apenas o front restringe).
-- RPC `public.clear_must_change_password()` (security definer) que faz `update users_registry set must_change_password = false where user_id = auth.uid()`.
-
-**Edge Function `admin-create-user`** (`verify_jwt = false`, validação em código)
-- Recebe `{ full_name, email, password, access_profile }`.
-- Valida JWT do chamador via `SUPABASE_ANON_KEY` client e confirma que o solicitante tem role `admin` ou `supervisor` (via `has_role`).
-- Zod: email válido, senha ≥ 8 chars, `access_profile ∈ {analista, supervisor}`.
-- Usa `service_role` para:
-  1. `auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { full_name, must_change_password: true } })`.
-  2. `insert` em `users_registry` com `user_id = data.user.id`, `must_change_password = true`, `status = 'ativo'`.
-  3. `insert` em `user_roles` com o role escolhido (mapeando `analista`/`supervisor` para o enum `app_role`).
-- Retorna 200 ou erro estruturado (email duplicado → mensagem clara).
-
-### 3.2 Frontend — tela `/cadastros/usuarios`
-
-Simplificar o form "Novo usuário" para os campos pedidos:
-- Nome completo
-- E-mail
-- Perfil: **Analista** ou **Supervisor** (default Analista)
-- Senha inicial (com toggle mostrar/ocultar, mínimo 8)
-- Confirmar senha
-
-Ao submeter (modo criação): chamar `supabase.functions.invoke("admin-create-user", ...)` em vez de inserir direto. Toast de sucesso: "Usuário criado. Ele poderá logar com o e-mail e a senha informados."
-
-Edição continua editando `users_registry` + permitindo trocar `access_profile` entre Analista/Supervisor (o role também é atualizado via a mesma edge function em modo update — ou uma segunda função `admin-update-user-role`). Mantemos o comportamento existente para os demais campos.
-
-Remover a lista antiga de perfis (admin/user/manager) da UI — passa a exibir só Analista/Supervisor.
-
-### 3.3 Troca obrigatória de senha no 1º login
-
-**Nova rota pública-autenticada:** `/trocar-senha` (`src/pages/TrocarSenha.tsx`)
-- Campos: nova senha + confirmação (mín. 8).
-- Chama `supabase.auth.updateUser({ password, data: { must_change_password: false } })` e depois RPC `clear_must_change_password`.
-- Sucesso → redireciona para `/dashboard`.
-- Sem link "voltar"/"pular"; logout disponível.
-
-**Guard global:** criar `src/components/RequirePasswordChange.tsx` que envolve as rotas protegidas em `App.tsx`. Ele lê `session.user.user_metadata.must_change_password` (ou consulta `users_registry.must_change_password`) e:
-- Se `true` e rota atual ≠ `/trocar-senha` → `<Navigate to="/trocar-senha" replace />`.
-- Se `false` e rota = `/trocar-senha` → redireciona para `/dashboard`.
-
-Isso garante que o usuário não consegue acessar nenhuma outra tela antes de trocar.
-
-### 3.4 Acesso completo por padrão
-
-Todas as telas já são acessíveis a qualquer usuário autenticado (não há gating por role hoje, exceto `useUserRole` usado pontualmente em auditoria). Portanto basta garantir que:
-- O novo usuário recebe uma entrada em `user_roles` com o perfil escolhido.
-- Nenhuma rota nova é restringida.
-
-## Fora de escopo
-- Não mexer em dados existentes, RLS de outras tabelas, ou nas telas Empresas/Pessoas/Produtos (só some do dashboard).
-- Não trocar o enum `app_role` (mantemos `admin`/`supervisor`/`analista`).
+Arquivo alterado: `src/pages/TrocarSenha.tsx`. Adiciona checklist reativo, mapeamento de mensagens de erro (`pwned`, `weak`, `leaked`, `compromised`, `data breach`, `different from the old`) e `try/catch` na RPC. Sem novas dependências, sem migração.
