@@ -1,91 +1,85 @@
 ## Objetivo
 
-Depois que a IA extrair os dados do PDF (Seção B), comparar automaticamente com a Seção A (Imoview) e preencher os itens correspondentes do checklist do Bloco 1 — com marcação de "Verificado pela IA".
+Preencher automaticamente os itens 1, 2 e 3 do checklist ao abrir qualquer contrato de auditoria, usando apenas os dados já importados do Imoview (Seção A) — sem depender de upload de PDF. Renderizar badges informativos dentro de cada item e marcar "Verificado pela IA".
 
-## Regras de comparação
+## Regras por item
 
-Pares Seção A × Seção B mapeados por número do item do checklist do Bloco 1 ("Dados das partes" / "Status do imóvel e contrato"):
+**Item 1 — Imóvel ocupado ou desocupado** (campo `ocupacao`)
+- Sempre `status = 'ok'` quando `ocupacao` existir.
+- Badge dentro do item:
+  - `Ocupado` → verde (#27AE60)
+  - `Desocupado` → cinza (#9CA3AF)
 
-| Item # | Rótulo | Campo A (`audit_contracts`) | Campo B (`extracted`) |
-|---|---|---|---|
-| 4 | Nome do locatário | `locatario_nome` | `locatarios` (split por `;`) |
-| 5 | Nome do locador | `locador_nome` | `locadores` |
-| 6 | Endereço do imóvel | `endereco_imovel` | `endereco_imovel` |
-| — | Índice de reajuste | `indice_reajuste` | `indice_reajuste` |
-| — | Garantidora | `garantidora` | `garantidora_normalizada` |
+**Item 2 — Contrato saudável ou inadimplente** (campo `status_contrato`)
+- Sempre `status = 'ok'` quando `status_contrato` existir.
+- Badge dentro do item:
+  - `Saudavel` → verde, texto "Saudável"
+  - `Inadimplente` → vermelho (#EB5757)
 
-Índice e garantidora ainda não têm item dedicado no seed — adicionamos dois itens novos no Bloco "Consistência no Imoview" (números 25 e 26) via migração + backfill para contratos já existentes.
+**Item 3 — Prazo do contrato** (campo `data_proximo_reajuste`)
+- Calcular `diffDays = data_proximo_reajuste - hoje`.
+- Badge + status:
+  - `> 90 dias` → verde, "Próximo reajuste em DD/MM/AAAA · X dias" → `ok`
+  - `31–90 dias` → amarelo (#F2C94C), "Reajuste se aproximando · DD/MM/AAAA · X dias" → `ok`
+  - `1–30 dias` → laranja (#F2994A), "Reajuste iminente · DD/MM/AAAA · X dias" → `nok`
+  - `≤ 0 dias` → vermelho (#EB5757), "Reajuste em atraso desde DD/MM/AAAA" → `nok`
+- Sem `data_proximo_reajuste` → não tocar no item.
 
-### Normalização para comparação
-Função utilitária `normalize(s)`: lowercase, `NFD` sem acentos, colapsar espaços, trim. Para campos multi-valor (`locatarios`, `locadores`), split por `;` e comparar como conjunto (todos os nomes da Seção A devem aparecer na Seção B, ignorando ordem).
+Todos os três recebem `verified_by_ai = true`. Alteração manual continua limpando o selo (fluxo existente no `updateChecklist`).
 
-### Resultado por item
-- Iguais após normalização → `status = 'ok'`.
-- Diferentes → `status = 'nok'` + `observation` = `"IA: Imoview = '<A>' · Contrato = '<B>'"`.
-- Um dos lados vazio → mantém `pending` (sem badge).
+## Fluxo
 
-### Exceção KMR × Quintocred
-Se `garantidora = 'KMR'` (A) e `garantidora_normalizada = 'Quintocred'` (B): **não** marcar NOK. Item de garantidora vira `ok` com observação `"Contrato tombado Quintocred"`. Adicionalmente, ao lado do nome da garantidora na Seção A da UI, renderizar um badge neutro cinza "Contrato tombado Quintocred".
+1. Ao final do `load()` em `AuditoriaContrato.tsx` (após carregar contrato + checklist), disparar `applyImoviewChecklist(contract, checklist)`.
+2. Função retorna patches por `item_number` (1, 2, 3), cada um com `status`, `observation` (string curta usada pelo componente para renderizar o badge) e `verified_by_ai: true`.
+3. `UPDATE` em lote em `audit_checklist_items` (apenas itens que mudaram — comparar com estado atual para evitar writes redundantes a cada abertura).
+4. `setChecklist(...)` local para refletir imediatamente.
+5. Trigger `recalc_audit_status` já cuida do status geral.
 
-### Valor do aluguel
-**Não** comparar nem tocar em item de checklist. Na Seção B, abaixo do campo `valor_aluguel` extraído, exibir linha informativa:
-`Valor no contrato: R$ X,XX · Valor atual no Imoview: R$ Y,YY — confira no portal da garantidora.`
+Idempotência: só grava se `status/observation/verified_by_ai` diferirem do que já está no banco. Assim reabrir a página não gera writes repetidos.
 
-## Marca "Verificado pela IA"
+## Renderização do badge dentro do item
 
-Adicionar coluna `verified_by_ai boolean not null default false` em `audit_checklist_items` (migração). Comparações automáticas gravam `verified_by_ai = true`. Se o analista mudar o status manualmente depois, o `updateChecklist` existente passa a enviar `verified_by_ai: false` no patch.
+Estender `ChecklistItem.tsx` para reconhecer um `observation` prefixado com um marcador estruturado e renderizar o badge colorido em vez do textarea de observação. Formato proposto:
 
-No `ChecklistItem.tsx`, quando `verified_by_ai` for `true`, exibir um `Badge` roxo pequeno "Verificado pela IA" ao lado dos botões de status.
-
-## Fluxo de execução
-
-1. Ao final de `runExtract` (o handler que chama `extract-contract` e recebe o `extracted`), disparar `applyAutoComparison(contract, extracted, checklist)`.
-2. `applyAutoComparison`:
-   - Monta patches por `item_number` conforme a tabela acima.
-   - Faz um único `upsert`/`update` em lote por item alterado em `audit_checklist_items` (status, observation, verified_by_ai, updated_by).
-   - Atualiza estado local `setChecklist(...)` para refletir sem reload.
-   - Dispara um toast: "Checklist atualizado pela IA (N itens verificados)".
-3. Trigger `recalc_audit_status` já existente recalcula o `audit_status` automaticamente.
-4. Como cada item é salvo individualmente, não é preciso o analista clicar em salvar.
-
-## Migração
-
-```sql
-ALTER TABLE public.audit_checklist_items
-  ADD COLUMN verified_by_ai boolean NOT NULL DEFAULT false;
-
--- Novos itens de checklist para contratos existentes
-INSERT INTO public.audit_checklist_items (contract_id, item_number, section, item_label)
-SELECT id, 25, 'Consistência no Imoview', 'Índice de reajuste: contrato × Imoview'
-FROM public.audit_contracts
-ON CONFLICT (contract_id, item_number) DO NOTHING;
-
-INSERT INTO public.audit_checklist_items (contract_id, item_number, section, item_label)
-SELECT id, 26, 'Consistência no Imoview', 'Garantidora: contrato × Imoview'
-FROM public.audit_contracts
-ON CONFLICT (contract_id, item_number) DO NOTHING;
+```
+@@badge:<cor>:<texto>
 ```
 
-Atualizar `seed_audit_checklist()` para incluir os itens 25 e 26 no array `items` para contratos futuros.
+- `applyImoviewChecklist` grava, por ex., `@@badge:green:Ocupado` no campo `observation`.
+- `ChecklistItem` detecta o prefixo `@@badge:`, extrai cor/texto e renderiza um `<Badge>` inline ao lado do label do item; nesse caso não exibe o textarea de observação nem o botão "+ Adicionar observação".
+- Se o analista trocar o status manualmente, `updateChecklist` já envia `verified_by_ai=false` e limpa `observation`, então o badge desaparece.
+
+Paleta dos badges (mapeada em `ChecklistItem`):
+
+| cor    | bg        | fg      |
+|--------|-----------|---------|
+| green  | #E8F7EE   | #1E7F3E |
+| gray   | #EEF1F5   | #4F4F4F |
+| red    | #FDECEC   | #B93030 |
+| yellow | #FFF6D6   | #8A6D00 |
+| orange | #FFE7CF   | #A8500C |
 
 ## Arquivos tocados
 
-- Migração (schema + backfill + update da função `seed_audit_checklist`).
-- `src/pages/auditoria/AuditoriaContrato.tsx`:
-  - Novo helper `applyAutoComparison` chamado após `runExtract`.
-  - `updateChecklist` passa `verified_by_ai: false` quando o usuário altera manualmente.
-  - Badge cinza "Contrato tombado Quintocred" ao lado do campo Garantidora na Seção A.
-  - Linha informativa de valor de aluguel na Seção B.
-- `src/pages/auditoria/components/ChecklistItem.tsx`:
-  - Aceitar `verified_by_ai` no tipo `ChecklistRow`.
-  - Renderizar badge roxo quando `true`.
+- **Novo:** `src/pages/auditoria/lib/imoviewChecklist.ts`
+  - `buildImoviewPatches(contract, checklist): AutoPatch[]`
+  - `applyImoviewChecklist(contract, checklist): Promise<AutoPatch[]>` (com diff/idempotência)
+- **`src/pages/auditoria/AuditoriaContrato.tsx`**
+  - Import do novo helper.
+  - Chamada após `load()` (e após `applyAutoComparison` quando também roda extração, para não haver conflito nos itens 1/2/3 — esses itens não fazem parte do `applyAutoComparison` atual, então não há sobreposição).
+- **`src/pages/auditoria/components/ChecklistItem.tsx`**
+  - Parser do prefixo `@@badge:` no `observation`.
+  - Renderização inline do badge colorido em vez do textarea quando o marcador estiver presente.
+  - Mantém badge roxo "Verificado pela IA" já existente.
 
-Sem mudanças em `extract-contract` (a comparação roda no cliente com dados já retornados).
+Sem migração de banco (colunas `status`, `observation`, `verified_by_ai` já existem).
 
 ## Verificação
 
-- Reprocessar um contrato com dados iguais → itens 4/5/6/25/26 ficam ✅ com badge roxo.
-- Reprocessar com nome divergente → item vira ❌ com observação IA mostrando os dois valores.
-- Contrato KMR cujo PDF é Quintocred → item 26 fica ✅ com observação de tombamento e badge cinza aparece na Seção A.
-- Alterar manualmente um item marcado pela IA → badge roxo some.
-- Item de aluguel (`item 22` — valor no Imoview) permanece pendente e a linha informativa aparece na Seção B.
+- Abrir contrato ocupado + saudável + reajuste em 120 dias → itens 1, 2 e 3 ficam ✅ com badges verde/verde/verde.
+- Contrato desocupado → item 1 ✅ com badge cinza "Desocupado".
+- Contrato inadimplente → item 2 ✅ com badge vermelho "Inadimplente".
+- Contrato com reajuste em 20 dias → item 3 ❌ com badge laranja "Reajuste iminente".
+- Contrato com reajuste vencido → item 3 ❌ com badge vermelho "em atraso desde…".
+- Alterar manualmente qualquer um dos três → badge roxo some, badge colorido some, observação limpa.
+- Reabrir a mesma página duas vezes seguidas → nenhum `UPDATE` disparado na segunda abertura (idempotência).
