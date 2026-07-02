@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, LogOut, Upload, Loader2, RefreshCw, Check } from "lucide-react";
+import { ArrowLeft, LogOut, Upload, Loader2, RefreshCw, Check, Download } from "lucide-react";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -870,6 +870,30 @@ const AuditoriaContrato = () => {
                             </p>
                           </div>
                         </div>
+                      </div>
+                    )}
+
+                    {extracted?.pdf_url && (
+                      <div className="pt-2 border-t">
+                        <Button
+                          variant="outline"
+                          onClick={async () => {
+                            const { data, error } = await supabase.storage
+                              .from("audit-contracts")
+                              .createSignedUrl(extracted.pdf_url!, 60);
+                            if (error || !data?.signedUrl) {
+                              toast({
+                                variant: "destructive",
+                                title: "Não foi possível abrir o PDF",
+                                description: error?.message,
+                              });
+                              return;
+                            }
+                            window.open(data.signedUrl, "_blank");
+                          }}
+                        >
+                          <Download className="h-4 w-4 mr-2" /> Baixar contrato PDF
+                        </Button>
                       </div>
                     )}
                   </CardContent>
