@@ -617,12 +617,20 @@ const AuditoriaContrato = () => {
   };
 
   const checklistGrouped = useMemo(() => {
+    const ORDER = [
+      "Status do imóvel e contrato",
+      "Dados das partes: contrato × Imoview",
+      "Documentação",
+      "Cobertura e contrato da garantidora",
+      "Específico garantidora",
+    ];
     const groups = new Map<string, ChecklistRow[]>();
     checklist.forEach((i) => {
       if (!groups.has(i.section)) groups.set(i.section, []);
       groups.get(i.section)!.push(i);
     });
-    return Array.from(groups.entries());
+    groups.forEach((list) => list.sort((a, b) => a.item_number - b.item_number));
+    return ORDER.filter((s) => groups.has(s)).map((s) => [s, groups.get(s)!] as [string, ChecklistRow[]]);
   }, [checklist]);
 
   const totalItems = checklist.length;
@@ -1043,47 +1051,85 @@ const AuditoriaContrato = () => {
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-6">
-                    {checklistGrouped.map(([section, items]) => (
-                      <div key={section}>
-                        <h3 className="text-sm font-semibold text-[#0F2A44] mb-2 uppercase tracking-wide">
-                          {section}
-                        </h3>
-                        <div className="space-y-2">
-                          {items.map((it) => (
-                            <ChecklistItem key={it.id} item={it} onChange={updateChecklist} />
-                          ))}
+                    {checklistGrouped.map(([section, items]) => {
+                      const ok = items.filter((i) => i.status === "ok").length;
+                      const totalBloco = items.length;
+                      const badgeColor =
+                        ok === totalBloco
+                          ? { bg: "#E8F7EE", fg: "#1E7F3E" }
+                          : ok > 0
+                          ? { bg: "#FFF6D6", fg: "#8A6D00" }
+                          : { bg: "#FDECEC", fg: "#B93030" };
+                      return (
+                        <div key={section}>
+                          <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+                            <h3 className="text-sm font-semibold text-[#0F2A44] uppercase tracking-wide">
+                              {section}
+                            </h3>
+                            <Badge
+                              className="text-[11px] font-semibold"
+                              style={{
+                                background: badgeColor.bg,
+                                color: badgeColor.fg,
+                                borderColor: "transparent",
+                              }}
+                            >
+                              {ok}/{totalBloco} corretos
+                            </Badge>
+                          </div>
+                          <div className="space-y-2">
+                            {items.map((it) => (
+                              <ChecklistItem key={it.id} item={it} onChange={updateChecklist} />
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </CardContent>
                 </Card>
 
                 {/* ============= SEÇÃO D ============= */}
                 <Card>
-                  <CardHeader>
-                    <CardTitle>Seção D — Metadados</CardTitle>
-                  </CardHeader>
-                  <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Data do cadastro</Label>
-                      <p>{format(new Date(contract.created_at), "dd/MM/yyyy HH:mm")}</p>
-                    </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Última atualização</Label>
-                      <p>{format(new Date(contract.updated_at), "dd/MM/yyyy HH:mm")}</p>
-                    </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Analista responsável</Label>
-                      <p>{contract.analyst_name ?? "—"}</p>
-                    </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Status geral</Label>
-                      <p>
-                        <Badge>{contract.audit_status}</Badge>
-                      </p>
-                    </div>
-                  </CardContent>
+                  <Collapsible open={metadataOpen} onOpenChange={setMetadataOpen}>
+                    <CollapsibleTrigger className="w-full">
+                      <CardHeader className="flex flex-row items-center justify-between space-y-0 cursor-pointer">
+                        <CardTitle className="text-base">Metadados</CardTitle>
+                        <ChevronDown
+                          className={`h-5 w-5 text-muted-foreground transition-transform ${metadataOpen ? "rotate-180" : ""}`}
+                        />
+                      </CardHeader>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                        <div>
+                          <Label className="text-xs text-muted-foreground">Data do cadastro</Label>
+                          <p>{format(new Date(contract.created_at), "dd/MM/yyyy HH:mm")}</p>
+                        </div>
+                        <div>
+                          <Label className="text-xs text-muted-foreground">Última atualização</Label>
+                          <p>{format(new Date(contract.updated_at), "dd/MM/yyyy HH:mm")}</p>
+                        </div>
+                        <div>
+                          <Label className="text-xs text-muted-foreground">Analista responsável</Label>
+                          <p>{contract.analyst_name ?? "—"}</p>
+                        </div>
+                        <div>
+                          <Label className="text-xs text-muted-foreground">Status geral</Label>
+                          <p>
+                            <Badge>{contract.audit_status}</Badge>
+                          </p>
+                        </div>
+                      </CardContent>
+                    </CollapsibleContent>
+                  </Collapsible>
                 </Card>
+
+                {/* ============= RESULTADO DA AUDITORIA ============= */}
+                <ResultadoAuditoria
+                  checklist={checklist}
+                  garantidoraForm={form.garantidora || null}
+                  garantidoraExtraida={extracted?.garantidora_normalizada ?? null}
+                />
               </>
             )}
           </>
