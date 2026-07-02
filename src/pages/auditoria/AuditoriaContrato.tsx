@@ -27,6 +27,7 @@ import {
 import { GarantidoraBadge } from "./components/GarantidoraBadge";
 import { AlertasExtracao } from "./components/AlertasExtracao";
 import { ChecklistItem, ChecklistRow } from "./components/ChecklistItem";
+import { applyAutoComparison, isTombadoQuintocred } from "./lib/autoCompare";
 import logoKMR from "@/assets/Logo_KMR.png";
 
 interface Contract {
