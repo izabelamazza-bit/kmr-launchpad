@@ -872,6 +872,30 @@ const AuditoriaContrato = () => {
                         </div>
                       </div>
                     )}
+
+                    {extracted?.pdf_url && (
+                      <div className="pt-2 border-t">
+                        <Button
+                          variant="outline"
+                          onClick={async () => {
+                            const { data, error } = await supabase.storage
+                              .from("audit-contracts")
+                              .createSignedUrl(extracted.pdf_url!, 60);
+                            if (error || !data?.signedUrl) {
+                              toast({
+                                variant: "destructive",
+                                title: "Não foi possível abrir o PDF",
+                                description: error?.message,
+                              });
+                              return;
+                            }
+                            window.open(data.signedUrl, "_blank");
+                          }}
+                        >
+                          <Download className="h-4 w-4 mr-2" /> Baixar contrato PDF
+                        </Button>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
 
