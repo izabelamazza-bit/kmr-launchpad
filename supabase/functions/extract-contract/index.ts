@@ -95,6 +95,29 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Ownership check: user-scoped client must be able to SELECT the contract
+    // (audit_contracts RLS restricts access to analyst_id/created_by or admin/supervisor).
+    const { data: ownedContract, error: ownErr } = await supabase
+      .from('audit_contracts')
+      .select('id')
+      .eq('id', contractId)
+      .maybeSingle();
+    if (ownErr || !ownedContract) {
+      return new Response(JSON.stringify({ error: 'Forbidden' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Also require the supplied pdfPath to live under this contract's folder,
+    // preventing path traversal to another contract's PDF.
+    if (!pdfPath.startsWith(`${contractId}/`)) {
+      return new Response(JSON.stringify({ error: 'Invalid pdfPath for contract' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const anthropicKey = (Deno.env.get('ANTHROPIC_API_KEY') ?? '').trim();
     if (!anthropicKey) {
       return new Response(

@@ -224,7 +224,29 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, leadId } = await req.json();
+    const body = await req.json().catch(() => ({}));
+    const rawMessages = Array.isArray(body?.messages) ? body.messages : [];
+    const leadId = typeof body?.leadId === "string" ? body.leadId : null;
+
+    // Input validation: only allow user/assistant roles from client, cap counts and lengths.
+    const MAX_MESSAGES = 50;
+    const MAX_CONTENT_CHARS = 4000;
+    const messages = rawMessages
+      .filter((m: unknown): m is { role: string; content: unknown } => {
+        if (!m || typeof m !== "object") return false;
+        const role = (m as { role?: unknown }).role;
+        return role === "user" || role === "assistant";
+      })
+      .slice(-MAX_MESSAGES)
+      .map((m) => {
+        const content = typeof m.content === "string" ? m.content : "";
+        return { role: m.role, content: content.slice(0, MAX_CONTENT_CHARS) };
+      });
+
+    if (messages.length === 0) {
+      return errorResponse(400, "Nenhuma mensagem válida enviada.");
+    }
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
@@ -232,7 +254,8 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Check if lead's channel_status is ai_active (if leadId exists)
+    // Validate leadId: must exist and be in ai_active state.
+    let validatedLeadId: string | null = null;
     if (leadId) {
       const { data: leadData } = await supabase
         .from("leads")
@@ -240,10 +263,13 @@ serve(async (req) => {
         .eq("id", leadId)
         .single();
 
-      if (leadData && leadData.channel_status !== "ai_active") {
-        // AI should not respond - human has taken over or it's in queue
+      if (!leadData) {
+        return errorResponse(404, "Lead não encontrado.");
+      }
+      if (leadData.channel_status !== "ai_active") {
         return errorResponse(403, "Atendimento assumido por um humano.");
       }
+      validatedLeadId = leadId;
     }
 
     const agentConfig = await loadAgentConfig(supabase);
@@ -258,8 +284,8 @@ serve(async (req) => {
 
     const allMessages = [
       { role: "system", content: systemPrompt },
-      ...(leadId
-        ? [{ role: "system", content: `O lead atual já está salvo com ID: ${leadId}. Use este ID para agendar reunião ou transferir.` }]
+      ...(validatedLeadId
+        ? [{ role: "system", content: `O lead atual já está salvo com ID: ${validatedLeadId}. Use este ID para agendar reunião ou transferir.` }]
         : []),
       ...messages,
     ];
@@ -285,14 +311,23 @@ serve(async (req) => {
 
     if (choice?.message?.tool_calls?.length > 0) {
       const toolMessages = [...allMessages, choice.message];
-      let currentLeadId = leadId;
+      let currentLeadId: string | null = validatedLeadId;
 
       for (const toolCall of choice.message.tool_calls) {
         const fnName = toolCall.function.name;
         let fnArgs: Record<string, unknown>;
         try { fnArgs = JSON.parse(toolCall.function.arguments); } catch { fnArgs = {}; }
 
-        if ((fnName === "schedule_meeting" || fnName === "transfer_to_human") && !fnArgs.lead_id && currentLeadId) {
+        // Never trust an AI-supplied lead_id — always force the server-validated one.
+        if (fnName === "schedule_meeting" || fnName === "transfer_to_human") {
+          if (!currentLeadId) {
+            toolMessages.push({
+              role: "tool",
+              tool_call_id: toolCall.id,
+              content: "Lead ainda não foi salvo — chame save_lead antes.",
+            });
+            continue;
+          }
           fnArgs.lead_id = currentLeadId;
         }
 

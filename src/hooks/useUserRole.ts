@@ -19,9 +19,9 @@ export function useUserRole() {
         }
         return;
       }
-      // Ensure role exists (first user becomes admin)
-      const { data: ensured } = await supabase.rpc("ensure_user_role" as never);
-      let r = (ensured as AppRole | null) ?? null;
+      // Ensure role exists (first user becomes admin) — via edge function
+      const { data: ensured } = await supabase.functions.invoke("ensure-user-role");
+      let r = ((ensured as { role?: AppRole } | null)?.role) ?? null;
       if (!r) {
         const { data: existing } = await supabase
           .from("user_roles")

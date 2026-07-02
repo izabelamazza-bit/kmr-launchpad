@@ -12,6 +12,16 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Require pre-shared setup token — this bootstrap endpoint is not public.
+    const providedToken = req.headers.get("x-setup-token") ?? "";
+    const expectedToken = Deno.env.get("FIRST_USER_SETUP_TOKEN") ?? "";
+    if (!expectedToken || providedToken !== expectedToken) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const email = Deno.env.get("FIRST_USER_EMAIL")!;
@@ -35,7 +45,7 @@ Deno.serve(async (req) => {
 
     if (userExists) {
       return new Response(
-        JSON.stringify({ message: "User already exists", email }),
+        JSON.stringify({ message: "User already exists" }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -55,7 +65,7 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ message: "User created successfully", user_id: data.user.id, email }),
+      JSON.stringify({ message: "User created successfully" }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
