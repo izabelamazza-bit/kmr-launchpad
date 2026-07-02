@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, LogOut, Upload, Loader2, RefreshCw, Check, Download } from "lucide-react";
+import { ArrowLeft, LogOut, Upload, Loader2, RefreshCw, Check, Download, ChevronDown } from "lucide-react";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -27,6 +27,8 @@ import {
 import { GarantidoraBadge } from "./components/GarantidoraBadge";
 import { AlertasExtracao } from "./components/AlertasExtracao";
 import { ChecklistItem, ChecklistRow } from "./components/ChecklistItem";
+import { ResultadoAuditoria } from "./components/ResultadoAuditoria";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { applyAutoComparison, isTombadoQuintocred } from "./lib/autoCompare";
 import { applyImoviewChecklist } from "./lib/imoviewChecklist";
 import logoKMR from "@/assets/Logo_KMR.png";
@@ -116,6 +118,7 @@ const AuditoriaContrato = () => {
   const [isDirty, setIsDirty] = useState(false);
   const [savingAll, setSavingAll] = useState(false);
   const [confirmLeaveOpen, setConfirmLeaveOpen] = useState(false);
+  const [metadataOpen, setMetadataOpen] = useState(false);
 
   // form (Section A)
   const [form, setForm] = useState({
@@ -234,6 +237,45 @@ const AuditoriaContrato = () => {
           ocupacao: (c as any).ocupacao ?? null,
           status_contrato: (c as any).status_contrato ?? null,
           data_proximo_reajuste: (c as any).data_proximo_reajuste ?? null,
+        },
+        initialChecklist.map((i) => ({
+          id: i.id,
+          item_number: i.item_number,
+          status: i.status,
+          observation: i.observation,
+          verified_by_ai: i.verified_by_ai,
+        }))
+      );
+      if (patches.length) {
+        setChecklist((prev) =>
+          prev.map((row) => {
+            const p = patches.find((x) => x.id === row.id);
+            return p
+              ? { ...row, status: p.status, observation: p.observation, verified_by_ai: true }
+              : row;
+          })
+        );
+      }
+    }
+
+    // Comparação automática Imoview × contrato para itens 4, 5, 6, 7 se já houver extração
+    if (c && e) {
+      const patches = await applyAutoComparison(
+        {
+          garantidora: (c as any).garantidora ?? null,
+          locatario_nome: (c as any).locatario_nome ?? null,
+          locador_nome: (c as any).locador_nome ?? null,
+          endereco_imovel: (c as any).endereco_imovel ?? null,
+          indice_reajuste: (c as any).indice_reajuste ?? null,
+          locatario_cpf: (c as any).locatario_cpf ?? null,
+        },
+        {
+          locadores: e.locadores ?? null,
+          locatarios: e.locatarios ?? null,
+          endereco_imovel: e.endereco_imovel ?? null,
+          indice_reajuste: e.indice_reajuste ?? null,
+          garantidora_normalizada: e.garantidora_normalizada ?? null,
+          cpf_locatarios: e.cpf_locatarios ?? null,
         },
         initialChecklist.map((i) => ({
           id: i.id,
@@ -381,6 +423,7 @@ const AuditoriaContrato = () => {
             locador_nome: form.locador_nome || null,
             endereco_imovel: form.endereco_imovel || null,
             indice_reajuste: form.indice_reajuste || null,
+            locatario_cpf: form.locatario_cpf || null,
           },
           {
             locadores: newExtracted.locadores ?? null,
@@ -388,6 +431,7 @@ const AuditoriaContrato = () => {
             endereco_imovel: newExtracted.endereco_imovel ?? null,
             indice_reajuste: newExtracted.indice_reajuste ?? null,
             garantidora_normalizada: newExtracted.garantidora_normalizada ?? null,
+            cpf_locatarios: newExtracted.cpf_locatarios ?? null,
           },
           checklist
         );
@@ -573,12 +617,20 @@ const AuditoriaContrato = () => {
   };
 
   const checklistGrouped = useMemo(() => {
+    const ORDER = [
+      "Status do imóvel e contrato",
+      "Dados das partes: contrato × Imoview",
+      "Documentação",
+      "Cobertura e contrato da garantidora",
+      "Específico garantidora",
+    ];
     const groups = new Map<string, ChecklistRow[]>();
     checklist.forEach((i) => {
       if (!groups.has(i.section)) groups.set(i.section, []);
       groups.get(i.section)!.push(i);
     });
-    return Array.from(groups.entries());
+    groups.forEach((list) => list.sort((a, b) => a.item_number - b.item_number));
+    return ORDER.filter((s) => groups.has(s)).map((s) => [s, groups.get(s)!] as [string, ChecklistRow[]]);
   }, [checklist]);
 
   const totalItems = checklist.length;
@@ -999,47 +1051,85 @@ const AuditoriaContrato = () => {
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-6">
-                    {checklistGrouped.map(([section, items]) => (
-                      <div key={section}>
-                        <h3 className="text-sm font-semibold text-[#0F2A44] mb-2 uppercase tracking-wide">
-                          {section}
-                        </h3>
-                        <div className="space-y-2">
-                          {items.map((it) => (
-                            <ChecklistItem key={it.id} item={it} onChange={updateChecklist} />
-                          ))}
+                    {checklistGrouped.map(([section, items]) => {
+                      const ok = items.filter((i) => i.status === "ok").length;
+                      const totalBloco = items.length;
+                      const badgeColor =
+                        ok === totalBloco
+                          ? { bg: "#E8F7EE", fg: "#1E7F3E" }
+                          : ok > 0
+                          ? { bg: "#FFF6D6", fg: "#8A6D00" }
+                          : { bg: "#FDECEC", fg: "#B93030" };
+                      return (
+                        <div key={section}>
+                          <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+                            <h3 className="text-sm font-semibold text-[#0F2A44] uppercase tracking-wide">
+                              {section}
+                            </h3>
+                            <Badge
+                              className="text-[11px] font-semibold"
+                              style={{
+                                background: badgeColor.bg,
+                                color: badgeColor.fg,
+                                borderColor: "transparent",
+                              }}
+                            >
+                              {ok}/{totalBloco} corretos
+                            </Badge>
+                          </div>
+                          <div className="space-y-2">
+                            {items.map((it) => (
+                              <ChecklistItem key={it.id} item={it} onChange={updateChecklist} />
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </CardContent>
                 </Card>
 
                 {/* ============= SEÇÃO D ============= */}
                 <Card>
-                  <CardHeader>
-                    <CardTitle>Seção D — Metadados</CardTitle>
-                  </CardHeader>
-                  <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Data do cadastro</Label>
-                      <p>{format(new Date(contract.created_at), "dd/MM/yyyy HH:mm")}</p>
-                    </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Última atualização</Label>
-                      <p>{format(new Date(contract.updated_at), "dd/MM/yyyy HH:mm")}</p>
-                    </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Analista responsável</Label>
-                      <p>{contract.analyst_name ?? "—"}</p>
-                    </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Status geral</Label>
-                      <p>
-                        <Badge>{contract.audit_status}</Badge>
-                      </p>
-                    </div>
-                  </CardContent>
+                  <Collapsible open={metadataOpen} onOpenChange={setMetadataOpen}>
+                    <CollapsibleTrigger className="w-full">
+                      <CardHeader className="flex flex-row items-center justify-between space-y-0 cursor-pointer">
+                        <CardTitle className="text-base">Metadados</CardTitle>
+                        <ChevronDown
+                          className={`h-5 w-5 text-muted-foreground transition-transform ${metadataOpen ? "rotate-180" : ""}`}
+                        />
+                      </CardHeader>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                        <div>
+                          <Label className="text-xs text-muted-foreground">Data do cadastro</Label>
+                          <p>{format(new Date(contract.created_at), "dd/MM/yyyy HH:mm")}</p>
+                        </div>
+                        <div>
+                          <Label className="text-xs text-muted-foreground">Última atualização</Label>
+                          <p>{format(new Date(contract.updated_at), "dd/MM/yyyy HH:mm")}</p>
+                        </div>
+                        <div>
+                          <Label className="text-xs text-muted-foreground">Analista responsável</Label>
+                          <p>{contract.analyst_name ?? "—"}</p>
+                        </div>
+                        <div>
+                          <Label className="text-xs text-muted-foreground">Status geral</Label>
+                          <p>
+                            <Badge>{contract.audit_status}</Badge>
+                          </p>
+                        </div>
+                      </CardContent>
+                    </CollapsibleContent>
+                  </Collapsible>
                 </Card>
+
+                {/* ============= RESULTADO DA AUDITORIA ============= */}
+                <ResultadoAuditoria
+                  checklist={checklist}
+                  garantidoraForm={form.garantidora || null}
+                  garantidoraExtraida={extracted?.garantidora_normalizada ?? null}
+                />
               </>
             )}
           </>
