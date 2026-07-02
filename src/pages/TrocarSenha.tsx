@@ -41,7 +41,7 @@ const TrocarSenha = () => {
       return;
     }
     setLoading(true);
-    const { error } = await supabase.auth.updateUser({
+    const { data: updateData, error } = await supabase.auth.updateUser({
       password,
       data: { must_change_password: false },
     });
@@ -82,9 +82,10 @@ const TrocarSenha = () => {
     const { data: registry, error: registryError } = await supabase
       .from("users_registry")
       .select("must_change_password")
+      .eq("user_id", updateData.user.id)
       .maybeSingle();
 
-    if (registryError || registry?.must_change_password) {
+    if (registryError || !registry || registry.must_change_password) {
       toast({
         variant: "destructive",
         title: "Senha atualizada, mas o acesso ainda não foi liberado",
