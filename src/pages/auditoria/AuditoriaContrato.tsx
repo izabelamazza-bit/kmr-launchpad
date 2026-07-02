@@ -709,7 +709,7 @@ const AuditoriaContrato = () => {
             {/* ============= SEÇÃO A ============= */}
             <Card>
               <CardHeader>
-                <CardTitle>Seção A — Dados manuais</CardTitle>
+                <CardTitle>Seção A — Dados do Imoview</CardTitle>
               </CardHeader>
               <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FieldWrap label="Nº do contrato no Imoview *" error={errors.imoview_number}>

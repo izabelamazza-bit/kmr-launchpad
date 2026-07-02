@@ -710,9 +710,11 @@ export type Database = {
           email: string
           full_name: string
           id: string
+          must_change_password: boolean
           phone: string | null
           status: string
           updated_at: string
+          user_id: string | null
           username: string
         }
         Insert: {
@@ -721,9 +723,11 @@ export type Database = {
           email: string
           full_name: string
           id?: string
+          must_change_password?: boolean
           phone?: string | null
           status?: string
           updated_at?: string
+          user_id?: string | null
           username: string
         }
         Update: {
@@ -732,9 +736,11 @@ export type Database = {
           email?: string
           full_name?: string
           id?: string
+          must_change_password?: boolean
           phone?: string | null
           status?: string
           updated_at?: string
+          user_id?: string | null
           username?: string
         }
         Relationships: []
@@ -744,6 +750,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      clear_must_change_password: { Args: never; Returns: undefined }
       ensure_user_role: {
         Args: never
         Returns: Database["public"]["Enums"]["app_role"]

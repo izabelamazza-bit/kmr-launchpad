@@ -8,9 +8,6 @@ import type { User } from "@supabase/supabase-js";
 
 const menuItems = [
   { label: "Usuários", icon: Users, path: "/cadastros/usuarios", desc: "Gerenciar usuários do sistema" },
-  { label: "Empresas", icon: Building2, path: "/cadastros/empresas", desc: "Gerenciar empresas cadastradas" },
-  { label: "Pessoas", icon: UserCircle, path: "/cadastros/pessoas", desc: "Gerenciar pessoas cadastradas" },
-  { label: "Produtos e Serviços", icon: Package, path: "/cadastros/produtos-servicos", desc: "Gerenciar produtos e serviços" },
   { label: "Leads", icon: MessageSquare, path: "/cadastros/leads", desc: "Leads qualificados pelo agente de IA" },
   { label: "Agente de IA", icon: Bot, path: "/agente", desc: "Configure e treine o assistente virtual" },
   { label: "Atendimento", icon: Headset, path: "/atendimento", desc: "Acompanhe e gerencie conversas em tempo real" },
