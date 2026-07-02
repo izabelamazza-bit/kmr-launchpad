@@ -1,54 +1,50 @@
-# Plano: Configurar a chave da Anthropic
 
-## Contexto importante
+## Problema
 
-No Lovable Cloud **não temos acesso à Service Role Key** nem à API de gerenciamento de secrets do Supabase a partir de uma Edge Function. Ou seja, **não é tecnicamente possível** criar uma Edge Function `save-api-key` que grave um secret no servidor a partir de um input do frontend — qualquer tentativa exigiria expor uma credencial de admin no backend, o que é inseguro e quebraria a política da plataforma.
+A Edge Function `supabase/functions/extract-contract/index.ts` retorna um objeto `extracted` **hardcoded** (contrato 206, Ivani dos Santos Simoes) — o `pdfPath` é recebido mas nunca é lido do Storage nem enviado à Anthropic. Por isso todo upload devolve os mesmos dados.
 
-A forma correta e segura de cadastrar `ANTHROPIC_API_KEY` é usar o **formulário seguro de secrets do Lovable** (ferramenta `add_secret`). Esse formulário:
+## Correções
 
-- abre direto no chat
-- o valor é digitado pelo usuário e enviado criptografado para o cofre de secrets
-- fica disponível como `Deno.env.get("ANTHROPIC_API_KEY")` em todas as Edge Functions
-- nunca passa pelo código do frontend nem fica logado
+### 1. Edge Function `extract-contract` — leitura real do PDF
 
-## O que será feito
+Reescrever o handler para:
 
-### 1. Provisionar o secret `ANTHROPIC_API_KEY`
-Disparar o formulário seguro de secret (ferramenta interna). Você cola a chave uma única vez, ela fica salva no cofre.
+1. Validar body: `contractId` (uuid) e `pdfPath` (string) via Zod. Rejeitar se `ANTHROPIC_API_KEY` ausente.
+2. Baixar o PDF exato que o usuário acabou de subir:
+   - Usar client `service_role` (`SUPABASE_SERVICE_ROLE_KEY`) para `storage.from('audit-contracts').download(pdfPath)`.
+   - Converter o `Blob` em base64 (chunked, para PDFs até 20MB, evitando stack overflow no `btoa`).
+3. Chamar a Anthropic Messages API (`https://api.anthropic.com/v1/messages`) com:
+   - `model: "claude-sonnet-4-5"` (fallback `claude-3-5-sonnet-latest`), `max_tokens: 4000`.
+   - Um único `user` message com dois blocos: `{type:"document", source:{type:"base64", media_type:"application/pdf", data:<base64>}}` + `{type:"text", text:<prompt>}`.
+   - Prompt em PT-BR pedindo **JSON estrito** com as chaves usadas hoje: `locadores[]`, `locatarios[]`, `cpf_locatarios[]`, `endereco_imovel`, `data_inicio` (dd/mm/aaaa), `data_termino` (dd/mm/aaaa), `prazo_meses`, `valor_aluguel` (number BRL), `indice_reajuste`, `dia_vencimento`, `garantidora_identificada`, `garantidora_normalizada` (um de: Loft, Credaluga, KMR, Quintocred, Outra, Não identificada), `clausula_garantia_trecho`, `contrato_assinado_digitalmente` (bool). Instruções: retorne APENAS o JSON, sem markdown, use `null` quando não identificado.
+4. Parsear a resposta: concatenar `content[].text` onde `type==="text"`, extrair o primeiro bloco `{...}` via regex balanceado simples (ou `JSON.parse` direto após strip de fences ```json). Em erro de parse, retornar 502 com mensagem clara e não gravar nada.
+5. Normalizar (`toIso` já existente, coerção de arrays→string separada por `;`, `garantidora_normalizada` restrita à lista) e `upsert` em `audit_contract_extracted_data` com `onConflict: 'contract_id'`, gravando `pdf_url: pdfPath` e `observacoes_extracao: "Extraído via Claude em <timestamp>"`.
+6. **Remover completamente** o objeto `extracted` mock e o `setTimeout(2000)`.
 
-### 2. Tela administrativa de status da chave (`/configuracoes`)
-Como a gravação não pode ser feita via UI custom, a tela vai servir para **visualizar o status** e **orientar a troca**:
+Tratamento de erros retorna 4xx/5xx com `{ error }` e mantém `corsHeaders`.
 
-- Nova rota `/configuracoes` no menu do Dashboard (ícone de engrenagem, restrita a `admin`/`supervisor` via `useUserRole`).
-- Card "Integrações de IA" com a linha **Chave da API Anthropic (ANTHROPIC_API_KEY)**:
-  - Se configurada: mostra `sk-ant-••••••••` + badge verde "Ativa — leitura de PDF habilitada".
-  - Se ausente: badge cinza "Não configurada" + alerta de que a leitura de PDF da Seção B fica inativa.
-  - Botão **"Configurar/Substituir chave"** que, ao ser clicado, exibe instruções curtas pedindo para você enviar no chat: *"quero atualizar a chave da Anthropic"* — isso dispara o formulário seguro do Lovable.
+### 2. Frontend — botão "Baixar contrato PDF"
 
-### 3. Edge Function `anthropic-key-status` (somente leitura)
-- Valida JWT e papel admin/supervisor.
-- Retorna `{ configured: boolean, masked: string | null }` lendo `Deno.env.get("ANTHROPIC_API_KEY")`.
-- **Nunca** retorna o valor real, apenas máscara dos últimos 4 caracteres.
-- Sem escrita — gravação é exclusiva via formulário seguro do Lovable.
+Em `src/pages/auditoria/AuditoriaContrato.tsx`, dentro do card da Seção B, logo abaixo do grid de campos extraídos e antes do bloco de observações/alertas:
 
-### 4. Atualizar `extract-contract` para usar a chave
-- Substituir o mock atual pela chamada real à Anthropic (`claude-sonnet-4`) quando `ANTHROPIC_API_KEY` estiver presente.
-- Se a chave estiver ausente, manter fallback de mensagem clara "Chave Anthropic não configurada — configure em /configuracoes".
+- Renderizar apenas quando `extracted?.pdf_url` existir.
+- Botão `variant="outline"` com ícone `Download` (lucide) e texto "Baixar contrato PDF".
+- `onClick`: `supabase.storage.from("audit-contracts").createSignedUrl(extracted.pdf_url, 60)` e abrir a URL em nova aba (`window.open(url, "_blank")`). Bucket é privado — usar signed URL, não `getPublicUrl`.
+- Toast de erro se a signed URL falhar.
 
-## Por que não fazer uma Edge Function `save-api-key` que grava o secret
+### 3. Sem migrações
 
-1. Exigiria a Service Role Key + API Management do Supabase no runtime, que **não estão disponíveis no Lovable Cloud**.
-2. Mesmo em projetos self-hosted, expor escrita de secrets via endpoint HTTP cria um vetor de privilege escalation (qualquer bug de autorização viraria comprometimento total).
-3. O formulário do Lovable cumpre exatamente o requisito ("inserir sem entrar no painel do Supabase") de forma segura.
+Nenhuma mudança de schema. Colunas já existem.
 
-## Arquivos a criar/editar
+## Verificação
 
-- `src/pages/Configuracoes.tsx` — nova tela de status + instruções.
-- `src/App.tsx` — registrar rota `/configuracoes`.
-- `src/pages/Dashboard.tsx` — adicionar card "Configurações" no menu.
-- `supabase/functions/anthropic-key-status/index.ts` — leitura de status.
-- `supabase/functions/extract-contract/index.ts` — integrar chamada real à Anthropic.
+Após deploy:
+1. Fazer upload de dois PDFs distintos em contratos distintos e conferir que os campos da Seção B refletem cada arquivo.
+2. Conferir `observacoes_extracao` com timestamp diferente a cada extração.
+3. Clicar em "Baixar contrato PDF" e confirmar que o arquivo aberto é o mesmo que foi subido.
+4. Testar PDF sem cláusula de garantia → campos devem vir `null`, sem crash.
 
-## Confirmação necessária
+## Arquivos tocados
 
-Confirma que posso seguir por esse caminho (formulário seguro do Lovable + tela de status), em vez de uma Edge Function de gravação que não é viável no Lovable Cloud?
+- `supabase/functions/extract-contract/index.ts` (reescrita do handler, remoção do mock)
+- `src/pages/auditoria/AuditoriaContrato.tsx` (botão de download na Seção B)
