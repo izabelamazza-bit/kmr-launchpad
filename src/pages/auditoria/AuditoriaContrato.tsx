@@ -637,12 +637,22 @@ const AuditoriaContrato = () => {
                   />
                 </FieldWrap>
                 <FieldWrap label="Garantidora *" error={errors.garantidora}>
-                  <SearchableSelect
-                    options={garantidoraOptions}
-                    value={form.garantidora}
-                    onChange={(v) => setForm({ ...form, garantidora: v })}
-                    placeholder="Selecione..."
-                  />
+                  <div className="space-y-2">
+                    <SearchableSelect
+                      options={garantidoraOptions}
+                      value={form.garantidora}
+                      onChange={(v) => setForm({ ...form, garantidora: v })}
+                      placeholder="Selecione..."
+                    />
+                    {isTombadoQuintocred(form.garantidora || null, extracted?.garantidora_normalizada ?? null) && (
+                      <Badge
+                        className="text-[11px] font-medium"
+                        style={{ background: "#E5E7EB", color: "#4F4F4F", borderColor: "transparent" }}
+                      >
+                        Contrato tombado Quintocred
+                      </Badge>
+                    )}
+                  </div>
                 </FieldWrap>
                 <FieldWrap label="Empresa">
                   <SearchableSelect
