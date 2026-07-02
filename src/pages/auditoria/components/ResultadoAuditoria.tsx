@@ -22,8 +22,7 @@ export function ResultadoAuditoria({ checklist, garantidoraForm, garantidoraExtr
   const aprovados = checklist.filter((i) => i.status === "ok").length;
   const reprovados = checklist.filter((i) => i.status === "nok").length;
   const pendentes = checklist.filter((i) => i.status === "pending").length;
-  const verificaveis = aprovados + reprovados;
-  const progressPct = verificaveis ? Math.round((aprovados / verificaveis) * 100) : 0;
+  const progressPct = total ? Math.round((aprovados / total) * 100) : 0;
   const pctPendentes = total ? pendentes / total : 0;
 
   const criticosReprovados = checklist.filter(
