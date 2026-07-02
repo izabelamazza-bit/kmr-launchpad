@@ -28,6 +28,7 @@ import { GarantidoraBadge } from "./components/GarantidoraBadge";
 import { AlertasExtracao } from "./components/AlertasExtracao";
 import { ChecklistItem, ChecklistRow } from "./components/ChecklistItem";
 import { applyAutoComparison, isTombadoQuintocred } from "./lib/autoCompare";
+import { applyImoviewChecklist } from "./lib/imoviewChecklist";
 import logoKMR from "@/assets/Logo_KMR.png";
 
 interface Contract {
@@ -221,9 +222,38 @@ const AuditoriaContrato = () => {
         dia_vencimento: e.dia_vencimento ?? 0,
       });
     }
-    setChecklist((items ?? []) as ChecklistRow[]);
+    const initialChecklist = (items ?? []) as ChecklistRow[];
+    setChecklist(initialChecklist);
     setLoading(false);
     setIsDirty(false);
+
+    // Preenchimento automático dos itens 1, 2 e 3 com base nos dados do Imoview
+    if (c) {
+      const patches = await applyImoviewChecklist(
+        {
+          ocupacao: (c as any).ocupacao ?? null,
+          status_contrato: (c as any).status_contrato ?? null,
+          data_proximo_reajuste: (c as any).data_proximo_reajuste ?? null,
+        },
+        initialChecklist.map((i) => ({
+          id: i.id,
+          item_number: i.item_number,
+          status: i.status,
+          observation: i.observation,
+          verified_by_ai: i.verified_by_ai,
+        }))
+      );
+      if (patches.length) {
+        setChecklist((prev) =>
+          prev.map((row) => {
+            const p = patches.find((x) => x.id === row.id);
+            return p
+              ? { ...row, status: p.status, observation: p.observation, verified_by_ai: true }
+              : row;
+          })
+        );
+      }
+    }
   };
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [id]);
 
