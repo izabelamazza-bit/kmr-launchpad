@@ -342,7 +342,34 @@ const AuditoriaContrato = () => {
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
       if (error) throw error;
-      toast({ title: "Extração concluída." });
+      const newExtracted = (data as any)?.extracted ?? null;
+      if (newExtracted && contract) {
+        const patches = await applyAutoComparison(
+          {
+            garantidora: form.garantidora || null,
+            locatario_nome: form.locatario_nome || null,
+            locador_nome: form.locador_nome || null,
+            endereco_imovel: form.endereco_imovel || null,
+            indice_reajuste: form.indice_reajuste || null,
+          },
+          {
+            locadores: newExtracted.locadores ?? null,
+            locatarios: newExtracted.locatarios ?? null,
+            endereco_imovel: newExtracted.endereco_imovel ?? null,
+            indice_reajuste: newExtracted.indice_reajuste ?? null,
+            garantidora_normalizada: newExtracted.garantidora_normalizada ?? null,
+          },
+          checklist
+        );
+        toast({
+          title: "Extração concluída.",
+          description: patches.length
+            ? `Checklist atualizado pela IA (${patches.length} ${patches.length === 1 ? "item verificado" : "itens verificados"}).`
+            : undefined,
+        });
+      } else {
+        toast({ title: "Extração concluída." });
+      }
       await load();
     } catch (err: any) {
       toast({ variant: "destructive", title: "Erro na extração", description: err?.message ?? String(err) });
@@ -504,11 +531,13 @@ const AuditoriaContrato = () => {
   };
 
   const updateChecklist = async (itemId: string, patch: Partial<ChecklistRow>) => {
-    setChecklist((prev) => prev.map((i) => (i.id === itemId ? { ...i, ...patch } : i)));
+    // Alterações manuais removem o selo "Verificado pela IA"
+    const fullPatch = { ...patch, verified_by_ai: false };
+    setChecklist((prev) => prev.map((i) => (i.id === itemId ? { ...i, ...fullPatch } : i)));
     const { data: userRes } = await supabase.auth.getUser();
     const { error } = await supabase
       .from("audit_checklist_items")
-      .update({ ...patch, updated_by: userRes.user?.id })
+      .update({ ...fullPatch, updated_by: userRes.user?.id })
       .eq("id", itemId);
     if (!error) flashSaved();
   };
