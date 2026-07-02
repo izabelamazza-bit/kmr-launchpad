@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, LogOut, Upload, Loader2, RefreshCw, Check, Download } from "lucide-react";
+import { ArrowLeft, LogOut, Upload, Loader2, RefreshCw, Check, Download, ChevronDown } from "lucide-react";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -27,6 +27,8 @@ import {
 import { GarantidoraBadge } from "./components/GarantidoraBadge";
 import { AlertasExtracao } from "./components/AlertasExtracao";
 import { ChecklistItem, ChecklistRow } from "./components/ChecklistItem";
+import { ResultadoAuditoria } from "./components/ResultadoAuditoria";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { applyAutoComparison, isTombadoQuintocred } from "./lib/autoCompare";
 import { applyImoviewChecklist } from "./lib/imoviewChecklist";
 import logoKMR from "@/assets/Logo_KMR.png";
@@ -116,6 +118,7 @@ const AuditoriaContrato = () => {
   const [isDirty, setIsDirty] = useState(false);
   const [savingAll, setSavingAll] = useState(false);
   const [confirmLeaveOpen, setConfirmLeaveOpen] = useState(false);
+  const [metadataOpen, setMetadataOpen] = useState(false);
 
   // form (Section A)
   const [form, setForm] = useState({
@@ -234,6 +237,45 @@ const AuditoriaContrato = () => {
           ocupacao: (c as any).ocupacao ?? null,
           status_contrato: (c as any).status_contrato ?? null,
           data_proximo_reajuste: (c as any).data_proximo_reajuste ?? null,
+        },
+        initialChecklist.map((i) => ({
+          id: i.id,
+          item_number: i.item_number,
+          status: i.status,
+          observation: i.observation,
+          verified_by_ai: i.verified_by_ai,
+        }))
+      );
+      if (patches.length) {
+        setChecklist((prev) =>
+          prev.map((row) => {
+            const p = patches.find((x) => x.id === row.id);
+            return p
+              ? { ...row, status: p.status, observation: p.observation, verified_by_ai: true }
+              : row;
+          })
+        );
+      }
+    }
+
+    // Comparação automática Imoview × contrato para itens 4, 5, 6, 7 se já houver extração
+    if (c && e) {
+      const patches = await applyAutoComparison(
+        {
+          garantidora: (c as any).garantidora ?? null,
+          locatario_nome: (c as any).locatario_nome ?? null,
+          locador_nome: (c as any).locador_nome ?? null,
+          endereco_imovel: (c as any).endereco_imovel ?? null,
+          indice_reajuste: (c as any).indice_reajuste ?? null,
+          locatario_cpf: (c as any).locatario_cpf ?? null,
+        },
+        {
+          locadores: e.locadores ?? null,
+          locatarios: e.locatarios ?? null,
+          endereco_imovel: e.endereco_imovel ?? null,
+          indice_reajuste: e.indice_reajuste ?? null,
+          garantidora_normalizada: e.garantidora_normalizada ?? null,
+          cpf_locatarios: e.cpf_locatarios ?? null,
         },
         initialChecklist.map((i) => ({
           id: i.id,
@@ -381,6 +423,7 @@ const AuditoriaContrato = () => {
             locador_nome: form.locador_nome || null,
             endereco_imovel: form.endereco_imovel || null,
             indice_reajuste: form.indice_reajuste || null,
+            locatario_cpf: form.locatario_cpf || null,
           },
           {
             locadores: newExtracted.locadores ?? null,
@@ -388,6 +431,7 @@ const AuditoriaContrato = () => {
             endereco_imovel: newExtracted.endereco_imovel ?? null,
             indice_reajuste: newExtracted.indice_reajuste ?? null,
             garantidora_normalizada: newExtracted.garantidora_normalizada ?? null,
+            cpf_locatarios: newExtracted.cpf_locatarios ?? null,
           },
           checklist
         );
