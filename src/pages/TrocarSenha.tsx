@@ -79,10 +79,21 @@ const TrocarSenha = () => {
       return;
     }
 
+    const userId = updateData.user?.id;
+    if (!userId) {
+      toast({
+        variant: "destructive",
+        title: "Senha atualizada, mas a sessão não foi confirmada",
+        description: "Entre novamente para concluir a liberação do acesso.",
+      });
+      setLoading(false);
+      return;
+    }
+
     const { data: registry, error: registryError } = await supabase
       .from("users_registry")
       .select("must_change_password")
-      .eq("user_id", updateData.user.id)
+      .eq("user_id", userId)
       .maybeSingle();
 
     if (registryError || !registry || registry.must_change_password) {
