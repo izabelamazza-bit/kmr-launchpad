@@ -1,32 +1,34 @@
-## Causa raiz
+## Diagnóstico confirmado
 
-A correção de segurança anterior habilitou o **HIBP (HaveIBeenPwned)** no Supabase Auth — o servidor agora rejeita qualquer senha que apareça em vazamentos públicos conhecidos. Quando o analista tenta definir uma senha comum ("senha123", "kmr2025", data de nascimento, etc.), o `supabase.auth.updateUser({ password })` retorna um erro do tipo `weak_password / pwned password`. A tela `TrocarSenha.tsx` hoje só ecoa `error.message`, que aparece traduzido/genérico como **"a senha já foi usada"**, dando a falsa impressão de que é histórico de senhas.
+- O registro do usuário `operacao01@siscob.tec.br` ainda está com `users_registry.must_change_password = true` no banco.
+- A tela anterior aceitava a nova senha e redirecionava mesmo que a persistência da flag no banco falhasse, porque a RPC `clear_must_change_password` estava dentro de um `try/catch` silencioso.
+- O `RequirePasswordChange` lê metadata e depois consulta o banco; como o banco continuava `true`, ele redirecionava o usuário de volta para `/trocar-senha`, criando o loop.
 
-Como o `updateUser` falha, o código retorna antes de chamar `clear_must_change_password` e antes do `navigate('/dashboard')` → a flag continua `true` no `users_registry` e no `user_metadata`, e o `RequirePasswordChange` mantém o usuário preso em `/trocar-senha`. Não é loop nem race condition — é o servidor recusando toda tentativa por serem senhas fracas conhecidas.
+## Plano de correção
 
-Verificações feitas:
-- `users_registry` do analista atual: `must_change_password = true` (correto — nunca conseguiu trocar).
-- Policy `Admins or self can update users_registry` permite `user_id = auth.uid()` → a RPC `clear_must_change_password` (agora `SECURITY INVOKER`) funciona sem problema quando executada.
-- `RequirePasswordChange` já escuta `onAuthStateChange`, então quando `USER_UPDATED` disparar (após um `updateUser` bem-sucedido), o metadata `must_change_password: false` chega e libera o dashboard — não precisa mexer.
+1. **Definir fonte única de verdade**
+   - Ajustar `RequirePasswordChange` para considerar o banco (`users_registry.must_change_password`) como fonte principal.
+   - Usar `user_metadata.must_change_password` apenas como fallback quando não houver registro no banco ou a consulta falhar.
 
-## Correção
+2. **Remover sucesso falso na troca de senha**
+   - Ajustar `TrocarSenha.tsx` para não mascarar erro da RPC.
+   - Após `updateUser`, executar `clear_must_change_password` e validar que a flag ficou `false` no banco antes de redirecionar.
+   - Se a persistência falhar, mostrar erro claro e não enviar o usuário para o dashboard, evitando o ciclo.
 
-Ajustar **apenas** `src/pages/TrocarSenha.tsx`:
+3. **Evitar corrida entre troca de senha e guard de rota**
+   - Fazer a página `/trocar-senha` persistir a flag no banco antes do `navigate('/dashboard')`.
+   - Fazer o guard tratar `/trocar-senha` como rota permitida durante a verificação, sem redirecionar prematuramente com metadata desatualizado.
 
-1. **Mensagens claras**: mapear o erro do Supabase e mostrar título específico quando a senha for rejeitada pelo HIBP ("Escolha uma senha mais forte — esta aparece em vazamentos públicos"), diferenciando de "nova precisa ser diferente da atual".
-2. **Requisitos visíveis em tempo real**: checklist embaixo do campo (mínimo 8 chars, uma letra, um número, símbolo recomendado) e aviso sobre senhas comuns bloqueadas.
-3. **Botão desabilitado** enquanto os requisitos mínimos não forem atendidos — reduz tentativas rejeitadas.
-4. **RPC resiliente**: envolver `clear_must_change_password` em `try/catch` — se falhar, o `user_metadata: { must_change_password: false }` já basta para o `RequirePasswordChange` liberar o acesso; sem travar o redirecionamento.
+4. **Corrigir a flag atual do usuário afetado**
+   - Criar uma migração pontual para marcar `must_change_password = false` para `operacao01@siscob.tec.br`, já que a senha forte foi aceita mas a flag ficou presa em `true`.
+   - Não alterar senha, permissões ou papéis do usuário.
 
-Nada muda no backend (policies, funções, edge functions) — a lógica está correta; o que faltava era comunicação e UX.
+5. **Validar estabilidade**
+   - Confirmar via banco que a flag permanece `false`.
+   - Verificar no app que o usuário autenticado não volta automaticamente para `/trocar-senha` quando a flag estiver `false`.
 
-## Teste após aplicar
+## Arquivos previstos
 
-1. Login com o usuário `operacao01@siscob.tec.br`.
-2. Tentar "senha123" → erro específico "Escolha uma senha mais forte…".
-3. Definir uma senha forte (ex.: `Kmr@2026!Ok`) → sucesso, redirecionamento automático ao dashboard.
-4. Confirmar no banco que `users_registry.must_change_password = false` para esse usuário.
-
-## Detalhes técnicos
-
-Arquivo alterado: `src/pages/TrocarSenha.tsx`. Adiciona checklist reativo, mapeamento de mensagens de erro (`pwned`, `weak`, `leaked`, `compromised`, `data breach`, `different from the old`) e `try/catch` na RPC. Sem novas dependências, sem migração.
+- `src/components/RequirePasswordChange.tsx`
+- `src/pages/TrocarSenha.tsx`
+- Nova migration para corrigir a flag do usuário afetado
