@@ -68,11 +68,32 @@ const TrocarSenha = () => {
       setLoading(false);
       return;
     }
-    try {
-      await supabase.rpc("clear_must_change_password" as never);
-    } catch {
-      // metadata já foi atualizado; RequirePasswordChange libera o acesso mesmo sem a RPC
+    const { error: rpcError } = await supabase.rpc("clear_must_change_password" as never);
+    if (rpcError) {
+      toast({
+        variant: "destructive",
+        title: "Senha atualizada, mas o acesso ainda não foi liberado",
+        description: "Não foi possível confirmar a troca obrigatória no cadastro. Tente novamente ou acione um supervisor.",
+      });
+      setLoading(false);
+      return;
     }
+
+    const { data: registry, error: registryError } = await supabase
+      .from("users_registry")
+      .select("must_change_password")
+      .maybeSingle();
+
+    if (registryError || registry?.must_change_password) {
+      toast({
+        variant: "destructive",
+        title: "Senha atualizada, mas o acesso ainda não foi liberado",
+        description: "A confirmação no cadastro não foi concluída. Tente novamente ou acione um supervisor.",
+      });
+      setLoading(false);
+      return;
+    }
+
     toast({ title: "Senha atualizada com sucesso." });
     navigate("/dashboard", { replace: true });
   };

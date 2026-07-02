@@ -28,22 +28,24 @@ const RequirePasswordChange = ({ children }: { children: React.ReactNode }) => {
     let cancelled = false;
 
     const run = async () => {
+      setChecked(false);
       try {
         if (!session) return;
 
         let mustChange = Boolean(session.user.user_metadata?.must_change_password);
 
-        if (!mustChange) {
-          try {
-            const { data: reg } = await supabase
-              .from("users_registry")
-              .select("must_change_password")
-              .eq("user_id", session.user.id)
-              .maybeSingle();
-            if (reg?.must_change_password) mustChange = true;
-          } catch {
-            // Aborted/failed fallback — treat as no forced change.
+        try {
+          const { data: reg, error } = await supabase
+            .from("users_registry")
+            .select("must_change_password")
+            .eq("user_id", session.user.id)
+            .maybeSingle();
+
+          if (!error && reg) {
+            mustChange = Boolean(reg.must_change_password);
           }
+        } catch {
+          // Se o banco estiver indisponível, usa metadata apenas como cache temporário.
         }
 
         if (cancelled) return;
