@@ -71,6 +71,7 @@ export type Database = {
           status: string
           updated_at: string
           updated_by: string | null
+          verified_by_ai: boolean
         }
         Insert: {
           contract_id: string
@@ -83,6 +84,7 @@ export type Database = {
           status?: string
           updated_at?: string
           updated_by?: string | null
+          verified_by_ai?: boolean
         }
         Update: {
           contract_id?: string
@@ -95,6 +97,7 @@ export type Database = {
           status?: string
           updated_at?: string
           updated_by?: string | null
+          verified_by_ai?: boolean
         }
         Relationships: [
           {

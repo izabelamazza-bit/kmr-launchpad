@@ -1,50 +1,91 @@
+## Objetivo
 
-## Problema
+Depois que a IA extrair os dados do PDF (Seção B), comparar automaticamente com a Seção A (Imoview) e preencher os itens correspondentes do checklist do Bloco 1 — com marcação de "Verificado pela IA".
 
-A Edge Function `supabase/functions/extract-contract/index.ts` retorna um objeto `extracted` **hardcoded** (contrato 206, Ivani dos Santos Simoes) — o `pdfPath` é recebido mas nunca é lido do Storage nem enviado à Anthropic. Por isso todo upload devolve os mesmos dados.
+## Regras de comparação
 
-## Correções
+Pares Seção A × Seção B mapeados por número do item do checklist do Bloco 1 ("Dados das partes" / "Status do imóvel e contrato"):
 
-### 1. Edge Function `extract-contract` — leitura real do PDF
+| Item # | Rótulo | Campo A (`audit_contracts`) | Campo B (`extracted`) |
+|---|---|---|---|
+| 4 | Nome do locatário | `locatario_nome` | `locatarios` (split por `;`) |
+| 5 | Nome do locador | `locador_nome` | `locadores` |
+| 6 | Endereço do imóvel | `endereco_imovel` | `endereco_imovel` |
+| — | Índice de reajuste | `indice_reajuste` | `indice_reajuste` |
+| — | Garantidora | `garantidora` | `garantidora_normalizada` |
 
-Reescrever o handler para:
+Índice e garantidora ainda não têm item dedicado no seed — adicionamos dois itens novos no Bloco "Consistência no Imoview" (números 25 e 26) via migração + backfill para contratos já existentes.
 
-1. Validar body: `contractId` (uuid) e `pdfPath` (string) via Zod. Rejeitar se `ANTHROPIC_API_KEY` ausente.
-2. Baixar o PDF exato que o usuário acabou de subir:
-   - Usar client `service_role` (`SUPABASE_SERVICE_ROLE_KEY`) para `storage.from('audit-contracts').download(pdfPath)`.
-   - Converter o `Blob` em base64 (chunked, para PDFs até 20MB, evitando stack overflow no `btoa`).
-3. Chamar a Anthropic Messages API (`https://api.anthropic.com/v1/messages`) com:
-   - `model: "claude-sonnet-4-5"` (fallback `claude-3-5-sonnet-latest`), `max_tokens: 4000`.
-   - Um único `user` message com dois blocos: `{type:"document", source:{type:"base64", media_type:"application/pdf", data:<base64>}}` + `{type:"text", text:<prompt>}`.
-   - Prompt em PT-BR pedindo **JSON estrito** com as chaves usadas hoje: `locadores[]`, `locatarios[]`, `cpf_locatarios[]`, `endereco_imovel`, `data_inicio` (dd/mm/aaaa), `data_termino` (dd/mm/aaaa), `prazo_meses`, `valor_aluguel` (number BRL), `indice_reajuste`, `dia_vencimento`, `garantidora_identificada`, `garantidora_normalizada` (um de: Loft, Credaluga, KMR, Quintocred, Outra, Não identificada), `clausula_garantia_trecho`, `contrato_assinado_digitalmente` (bool). Instruções: retorne APENAS o JSON, sem markdown, use `null` quando não identificado.
-4. Parsear a resposta: concatenar `content[].text` onde `type==="text"`, extrair o primeiro bloco `{...}` via regex balanceado simples (ou `JSON.parse` direto após strip de fences ```json). Em erro de parse, retornar 502 com mensagem clara e não gravar nada.
-5. Normalizar (`toIso` já existente, coerção de arrays→string separada por `;`, `garantidora_normalizada` restrita à lista) e `upsert` em `audit_contract_extracted_data` com `onConflict: 'contract_id'`, gravando `pdf_url: pdfPath` e `observacoes_extracao: "Extraído via Claude em <timestamp>"`.
-6. **Remover completamente** o objeto `extracted` mock e o `setTimeout(2000)`.
+### Normalização para comparação
+Função utilitária `normalize(s)`: lowercase, `NFD` sem acentos, colapsar espaços, trim. Para campos multi-valor (`locatarios`, `locadores`), split por `;` e comparar como conjunto (todos os nomes da Seção A devem aparecer na Seção B, ignorando ordem).
 
-Tratamento de erros retorna 4xx/5xx com `{ error }` e mantém `corsHeaders`.
+### Resultado por item
+- Iguais após normalização → `status = 'ok'`.
+- Diferentes → `status = 'nok'` + `observation` = `"IA: Imoview = '<A>' · Contrato = '<B>'"`.
+- Um dos lados vazio → mantém `pending` (sem badge).
 
-### 2. Frontend — botão "Baixar contrato PDF"
+### Exceção KMR × Quintocred
+Se `garantidora = 'KMR'` (A) e `garantidora_normalizada = 'Quintocred'` (B): **não** marcar NOK. Item de garantidora vira `ok` com observação `"Contrato tombado Quintocred"`. Adicionalmente, ao lado do nome da garantidora na Seção A da UI, renderizar um badge neutro cinza "Contrato tombado Quintocred".
 
-Em `src/pages/auditoria/AuditoriaContrato.tsx`, dentro do card da Seção B, logo abaixo do grid de campos extraídos e antes do bloco de observações/alertas:
+### Valor do aluguel
+**Não** comparar nem tocar em item de checklist. Na Seção B, abaixo do campo `valor_aluguel` extraído, exibir linha informativa:
+`Valor no contrato: R$ X,XX · Valor atual no Imoview: R$ Y,YY — confira no portal da garantidora.`
 
-- Renderizar apenas quando `extracted?.pdf_url` existir.
-- Botão `variant="outline"` com ícone `Download` (lucide) e texto "Baixar contrato PDF".
-- `onClick`: `supabase.storage.from("audit-contracts").createSignedUrl(extracted.pdf_url, 60)` e abrir a URL em nova aba (`window.open(url, "_blank")`). Bucket é privado — usar signed URL, não `getPublicUrl`.
-- Toast de erro se a signed URL falhar.
+## Marca "Verificado pela IA"
 
-### 3. Sem migrações
+Adicionar coluna `verified_by_ai boolean not null default false` em `audit_checklist_items` (migração). Comparações automáticas gravam `verified_by_ai = true`. Se o analista mudar o status manualmente depois, o `updateChecklist` existente passa a enviar `verified_by_ai: false` no patch.
 
-Nenhuma mudança de schema. Colunas já existem.
+No `ChecklistItem.tsx`, quando `verified_by_ai` for `true`, exibir um `Badge` roxo pequeno "Verificado pela IA" ao lado dos botões de status.
 
-## Verificação
+## Fluxo de execução
 
-Após deploy:
-1. Fazer upload de dois PDFs distintos em contratos distintos e conferir que os campos da Seção B refletem cada arquivo.
-2. Conferir `observacoes_extracao` com timestamp diferente a cada extração.
-3. Clicar em "Baixar contrato PDF" e confirmar que o arquivo aberto é o mesmo que foi subido.
-4. Testar PDF sem cláusula de garantia → campos devem vir `null`, sem crash.
+1. Ao final de `runExtract` (o handler que chama `extract-contract` e recebe o `extracted`), disparar `applyAutoComparison(contract, extracted, checklist)`.
+2. `applyAutoComparison`:
+   - Monta patches por `item_number` conforme a tabela acima.
+   - Faz um único `upsert`/`update` em lote por item alterado em `audit_checklist_items` (status, observation, verified_by_ai, updated_by).
+   - Atualiza estado local `setChecklist(...)` para refletir sem reload.
+   - Dispara um toast: "Checklist atualizado pela IA (N itens verificados)".
+3. Trigger `recalc_audit_status` já existente recalcula o `audit_status` automaticamente.
+4. Como cada item é salvo individualmente, não é preciso o analista clicar em salvar.
+
+## Migração
+
+```sql
+ALTER TABLE public.audit_checklist_items
+  ADD COLUMN verified_by_ai boolean NOT NULL DEFAULT false;
+
+-- Novos itens de checklist para contratos existentes
+INSERT INTO public.audit_checklist_items (contract_id, item_number, section, item_label)
+SELECT id, 25, 'Consistência no Imoview', 'Índice de reajuste: contrato × Imoview'
+FROM public.audit_contracts
+ON CONFLICT (contract_id, item_number) DO NOTHING;
+
+INSERT INTO public.audit_checklist_items (contract_id, item_number, section, item_label)
+SELECT id, 26, 'Consistência no Imoview', 'Garantidora: contrato × Imoview'
+FROM public.audit_contracts
+ON CONFLICT (contract_id, item_number) DO NOTHING;
+```
+
+Atualizar `seed_audit_checklist()` para incluir os itens 25 e 26 no array `items` para contratos futuros.
 
 ## Arquivos tocados
 
-- `supabase/functions/extract-contract/index.ts` (reescrita do handler, remoção do mock)
-- `src/pages/auditoria/AuditoriaContrato.tsx` (botão de download na Seção B)
+- Migração (schema + backfill + update da função `seed_audit_checklist`).
+- `src/pages/auditoria/AuditoriaContrato.tsx`:
+  - Novo helper `applyAutoComparison` chamado após `runExtract`.
+  - `updateChecklist` passa `verified_by_ai: false` quando o usuário altera manualmente.
+  - Badge cinza "Contrato tombado Quintocred" ao lado do campo Garantidora na Seção A.
+  - Linha informativa de valor de aluguel na Seção B.
+- `src/pages/auditoria/components/ChecklistItem.tsx`:
+  - Aceitar `verified_by_ai` no tipo `ChecklistRow`.
+  - Renderizar badge roxo quando `true`.
+
+Sem mudanças em `extract-contract` (a comparação roda no cliente com dados já retornados).
+
+## Verificação
+
+- Reprocessar um contrato com dados iguais → itens 4/5/6/25/26 ficam ✅ com badge roxo.
+- Reprocessar com nome divergente → item vira ❌ com observação IA mostrando os dois valores.
+- Contrato KMR cujo PDF é Quintocred → item 26 fica ✅ com observação de tombamento e badge cinza aparece na Seção A.
+- Alterar manualmente um item marcado pela IA → badge roxo some.
+- Item de aluguel (`item 22` — valor no Imoview) permanece pendente e a linha informativa aparece na Seção B.

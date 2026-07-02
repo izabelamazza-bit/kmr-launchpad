@@ -27,6 +27,7 @@ import {
 import { GarantidoraBadge } from "./components/GarantidoraBadge";
 import { AlertasExtracao } from "./components/AlertasExtracao";
 import { ChecklistItem, ChecklistRow } from "./components/ChecklistItem";
+import { applyAutoComparison, isTombadoQuintocred } from "./lib/autoCompare";
 import logoKMR from "@/assets/Logo_KMR.png";
 
 interface Contract {
@@ -341,7 +342,34 @@ const AuditoriaContrato = () => {
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
       if (error) throw error;
-      toast({ title: "Extração concluída." });
+      const newExtracted = (data as any)?.extracted ?? null;
+      if (newExtracted && contract) {
+        const patches = await applyAutoComparison(
+          {
+            garantidora: form.garantidora || null,
+            locatario_nome: form.locatario_nome || null,
+            locador_nome: form.locador_nome || null,
+            endereco_imovel: form.endereco_imovel || null,
+            indice_reajuste: form.indice_reajuste || null,
+          },
+          {
+            locadores: newExtracted.locadores ?? null,
+            locatarios: newExtracted.locatarios ?? null,
+            endereco_imovel: newExtracted.endereco_imovel ?? null,
+            indice_reajuste: newExtracted.indice_reajuste ?? null,
+            garantidora_normalizada: newExtracted.garantidora_normalizada ?? null,
+          },
+          checklist
+        );
+        toast({
+          title: "Extração concluída.",
+          description: patches.length
+            ? `Checklist atualizado pela IA (${patches.length} ${patches.length === 1 ? "item verificado" : "itens verificados"}).`
+            : undefined,
+        });
+      } else {
+        toast({ title: "Extração concluída." });
+      }
       await load();
     } catch (err: any) {
       toast({ variant: "destructive", title: "Erro na extração", description: err?.message ?? String(err) });
@@ -503,11 +531,13 @@ const AuditoriaContrato = () => {
   };
 
   const updateChecklist = async (itemId: string, patch: Partial<ChecklistRow>) => {
-    setChecklist((prev) => prev.map((i) => (i.id === itemId ? { ...i, ...patch } : i)));
+    // Alterações manuais removem o selo "Verificado pela IA"
+    const fullPatch = { ...patch, verified_by_ai: false };
+    setChecklist((prev) => prev.map((i) => (i.id === itemId ? { ...i, ...fullPatch } : i)));
     const { data: userRes } = await supabase.auth.getUser();
     const { error } = await supabase
       .from("audit_checklist_items")
-      .update({ ...patch, updated_by: userRes.user?.id })
+      .update({ ...fullPatch, updated_by: userRes.user?.id })
       .eq("id", itemId);
     if (!error) flashSaved();
   };
@@ -607,12 +637,22 @@ const AuditoriaContrato = () => {
                   />
                 </FieldWrap>
                 <FieldWrap label="Garantidora *" error={errors.garantidora}>
-                  <SearchableSelect
-                    options={garantidoraOptions}
-                    value={form.garantidora}
-                    onChange={(v) => setForm({ ...form, garantidora: v })}
-                    placeholder="Selecione..."
-                  />
+                  <div className="space-y-2">
+                    <SearchableSelect
+                      options={garantidoraOptions}
+                      value={form.garantidora}
+                      onChange={(v) => setForm({ ...form, garantidora: v })}
+                      placeholder="Selecione..."
+                    />
+                    {isTombadoQuintocred(form.garantidora || null, extracted?.garantidora_normalizada ?? null) && (
+                      <Badge
+                        className="text-[11px] font-medium"
+                        style={{ background: "#E5E7EB", color: "#4F4F4F", borderColor: "transparent" }}
+                      >
+                        Contrato tombado Quintocred
+                      </Badge>
+                    )}
+                  </div>
                 </FieldWrap>
                 <FieldWrap label="Empresa">
                   <SearchableSelect
@@ -826,6 +866,17 @@ const AuditoriaContrato = () => {
                             onChange={(v) => setEx({ ...ex, valor_aluguel: v })}
                           />
                         </FieldWrap>
+                        <div className="sm:col-span-2 -mt-2 text-xs text-muted-foreground bg-muted/50 border rounded-md p-2">
+                          Valor no contrato:{" "}
+                          <span className="font-medium text-foreground">
+                            {(ex.valor_aluguel || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                          </span>{" "}
+                          · Valor atual no Imoview:{" "}
+                          <span className="font-medium text-foreground">
+                            {(form.valor_aluguel || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                          </span>{" "}
+                          — confira no portal da garantidora.
+                        </div>
                         <FieldWrap label="Dia de vencimento">
                           <Input
                             type="number"
