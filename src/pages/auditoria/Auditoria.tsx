@@ -56,10 +56,6 @@ const Auditoria = () => {
     });
   }, [navigate]);
 
-  useEffect(() => {
-    reprocessAddressNok().then(() => load());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const load = async () => {
       setLoading(true);
@@ -141,7 +137,10 @@ const Auditoria = () => {
     };
 
   useEffect(() => {
-    load();
+    (async () => {
+      await reprocessAddressNok();
+      await load();
+    })();
   }, []);
 
   const filtered = useMemo(() => {
