@@ -78,11 +78,19 @@ function cmpAddress(a: string | null, b: string | null): boolean | null {
 
 const normCpf = (s: string | null | undefined) => (s ?? "").replace(/\D+/g, "");
 
-function cmpCpf(a: string | null, b: string | null): boolean | null {
-  const na = normCpf(a);
-  const nb = normCpf(b);
-  if (!na || !nb) return null;
-  return na === nb;
+function splitCpfs(s: string | null | undefined): string[] {
+  return (s ?? "")
+    .split(/[;,\n\/|]+/)
+    .map((x) => normCpf(x))
+    .filter((x) => x.length > 0);
+}
+
+function cmpCpf(imoview: string | null, contrato: string | null): boolean | null {
+  const a = normCpf(imoview);
+  const list = splitCpfs(contrato);
+  if (!a || !list.length) return null;
+  // OK se o CPF do Imoview estiver em qualquer CPF do contrato (locatário solidário).
+  return list.includes(a);
 }
 
 function cmpMulti(a: string | null, b: string | null): boolean | null {
@@ -129,8 +137,27 @@ export function buildAutoPatches(
   push(5, cmpMulti(contract.locador_nome, extracted.locadores), "Locador", contract.locador_nome, extracted.locadores);
   // Item 6 — endereço (normalização tolerante a espaços/pontuação)
   push(6, cmpAddress(contract.endereco_imovel, extracted.endereco_imovel), "Endereço", contract.endereco_imovel, extracted.endereco_imovel);
-  // Item 7 — CPF do locatário
-  push(7, cmpCpf(contract.locatario_cpf, extracted.cpf_locatarios), "CPF locatário", contract.locatario_cpf, extracted.cpf_locatarios);
+  // Item 7 — CPF do locatário (múltiplos CPFs no contrato = locatário solidário)
+  {
+    const result = cmpCpf(contract.locatario_cpf, extracted.cpf_locatarios);
+    const item = byNum.get(7);
+    if (result !== null && item) {
+      const multiple = splitCpfs(extracted.cpf_locatarios).length > 1;
+      const obs =
+        result && multiple
+          ? mkObs("CPF locatário (solidário)", contract.locatario_cpf, extracted.cpf_locatarios)
+          : result
+          ? null
+          : mkObs("CPF locatário", contract.locatario_cpf, extracted.cpf_locatarios);
+      patches.push({
+        id: item.id,
+        item_number: 7,
+        status: result ? "ok" : "nok",
+        observation: obs,
+        verified_by_ai: true,
+      });
+    }
+  }
 
   return patches;
 }
