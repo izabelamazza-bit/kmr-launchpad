@@ -76,7 +76,7 @@ export function ResultadoAuditoria({ checklist, garantidoraForm, garantidoraExtr
         <div>
           <div className="flex items-center justify-between text-sm mb-1">
             <span className="text-muted-foreground">
-              {progressPct}% aprovados ({aprovados} de {verificaveis} itens verificáveis)
+              {progressPct}% aprovados ({aprovados} de {total} aprovados)
             </span>
             {pendentes > 0 && (
               <span className="text-xs text-muted-foreground">
