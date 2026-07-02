@@ -6,6 +6,7 @@ export interface ContractSectionA {
   locador_nome: string | null;
   endereco_imovel: string | null;
   indice_reajuste: string | null;
+  locatario_cpf: string | null;
 }
 
 export interface ExtractedSectionB {
@@ -14,6 +15,7 @@ export interface ExtractedSectionB {
   endereco_imovel: string | null;
   indice_reajuste: string | null;
   garantidora_normalizada: string | null;
+  cpf_locatarios: string | null;
 }
 
 export interface ChecklistLite {
@@ -74,6 +76,15 @@ function cmpAddress(a: string | null, b: string | null): boolean | null {
   return normAddress(a) === normAddress(b);
 }
 
+const normCpf = (s: string | null | undefined) => (s ?? "").replace(/\D+/g, "");
+
+function cmpCpf(a: string | null, b: string | null): boolean | null {
+  const na = normCpf(a);
+  const nb = normCpf(b);
+  if (!na || !nb) return null;
+  return na === nb;
+}
+
 function cmpMulti(a: string | null, b: string | null): boolean | null {
   const aa = splitMulti(a);
   const bb = splitMulti(b);
@@ -118,35 +129,8 @@ export function buildAutoPatches(
   push(5, cmpMulti(contract.locador_nome, extracted.locadores), "Locador", contract.locador_nome, extracted.locadores);
   // Item 6 — endereço (normalização tolerante a espaços/pontuação)
   push(6, cmpAddress(contract.endereco_imovel, extracted.endereco_imovel), "Endereço", contract.endereco_imovel, extracted.endereco_imovel);
-  // Item 25 — índice de reajuste
-  push(25, cmpSingle(contract.indice_reajuste, extracted.indice_reajuste), "Índice", contract.indice_reajuste, extracted.indice_reajuste);
-
-  // Item 26 — garantidora (com exceção KMR × Quintocred)
-  const gA = contract.garantidora;
-  const gB = extracted.garantidora_normalizada;
-  if (gA && gB) {
-    const item = byNum.get(26);
-    if (item) {
-      if (gA === "KMR" && gB === "Quintocred") {
-        patches.push({
-          id: item.id,
-          item_number: 26,
-          status: "ok",
-          observation: "Contrato tombado Quintocred",
-          verified_by_ai: true,
-        });
-      } else {
-        const ok = norm(gA) === norm(gB);
-        patches.push({
-          id: item.id,
-          item_number: 26,
-          status: ok ? "ok" : "nok",
-          observation: ok ? null : mkObs("Garantidora", gA, gB),
-          verified_by_ai: true,
-        });
-      }
-    }
-  }
+  // Item 7 — CPF do locatário
+  push(7, cmpCpf(contract.locatario_cpf, extracted.cpf_locatarios), "CPF locatário", contract.locatario_cpf, extracted.cpf_locatarios);
 
   return patches;
 }
