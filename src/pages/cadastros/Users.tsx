@@ -14,6 +14,7 @@ import { validateEmail } from "@/lib/validators";
 
 interface UserRecord {
   id: string;
+  user_id: string | null;
   full_name: string;
   username: string;
   email: string;
