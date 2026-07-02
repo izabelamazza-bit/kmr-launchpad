@@ -24,6 +24,14 @@ interface UserRecord {
   created_at: string;
 }
 
+const Field = ({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) => (
+  <div className="space-y-1.5">
+    <Label>{label}</Label>
+    {children}
+    {error && <p className="text-sm text-destructive">{error}</p>}
+  </div>
+);
+
 const profileOptions = [
   { value: "analista", label: "Analista" },
   { value: "supervisor", label: "Supervisor" },
@@ -181,14 +189,6 @@ const Users = () => {
     { key: "access_profile", label: "Perfil", render: (i) => profileOptions.find(p => p.value === i.access_profile)?.label || i.access_profile },
     { key: "status", label: "Status", render: (i) => <Badge variant={i.status === "ativo" ? "default" : "secondary"}>{i.status === "ativo" ? "Ativo" : "Inativo"}</Badge> },
   ];
-
-  const Field = ({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) => (
-    <div className="space-y-1.5">
-      <Label>{label}</Label>
-      {children}
-      {error && <p className="text-sm text-destructive">{error}</p>}
-    </div>
-  );
 
   return (
     <CrudLayout title="Usuários" searchValue={search} onSearchChange={setSearch} onNewClick={() => { setEditingId(null); setForm(emptyForm); setErrors({}); setFormOpen(true); }} newLabel="Novo usuário">
