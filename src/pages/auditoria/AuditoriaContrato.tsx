@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, LogOut, Upload, Loader2, RefreshCw, Check } from "lucide-react";
+import { ArrowLeft, LogOut, Upload, Loader2, RefreshCw, Check, Download } from "lucide-react";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserRole } from "@/hooks/useUserRole";
