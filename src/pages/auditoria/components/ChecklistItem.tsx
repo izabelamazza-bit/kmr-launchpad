@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { Check, X, Circle } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Sparkles } from "lucide-react";
 
 export interface ChecklistRow {
   id: string;
@@ -10,6 +12,7 @@ export interface ChecklistRow {
   item_label: string;
   status: "pending" | "ok" | "nok";
   observation: string | null;
+  verified_by_ai?: boolean;
 }
 
 interface Props {
@@ -66,8 +69,18 @@ export function ChecklistItem({ item, onChange }: Props) {
           {btn("nok", X, "#fff", "#EB5757")}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-sm font-medium text-foreground">
-            {item.item_number}. {item.item_label}
+          <div className="text-sm font-medium text-foreground flex items-center gap-2 flex-wrap">
+            <span>
+              {item.item_number}. {item.item_label}
+            </span>
+            {item.verified_by_ai && (
+              <Badge
+                className="text-[10px] font-medium px-2 py-0.5"
+                style={{ background: "#8B5CF6", color: "#fff", borderColor: "transparent" }}
+              >
+                <Sparkles className="h-3 w-3 mr-1" /> Verificado pela IA
+              </Badge>
+            )}
           </div>
           {!showObs && item.status === "ok" && (
             <button
