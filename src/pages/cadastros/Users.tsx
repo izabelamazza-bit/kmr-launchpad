@@ -8,10 +8,9 @@ import DeleteDialog from "@/components/crud/DeleteDialog";
 import FormSheet from "@/components/crud/FormSheet";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { MaskedInput } from "@/components/ui/masked-input";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Badge } from "@/components/ui/badge";
-import { validateEmail, validatePhone } from "@/lib/validators";
+import { validateEmail } from "@/lib/validators";
 
 interface UserRecord {
   id: string;
@@ -25,9 +24,8 @@ interface UserRecord {
 }
 
 const profileOptions = [
-  { value: "admin", label: "Administrador" },
-  { value: "user", label: "Usuário" },
-  { value: "manager", label: "Gerente" },
+  { value: "analista", label: "Analista" },
+  { value: "supervisor", label: "Supervisor" },
 ];
 
 const statusOptions = [
@@ -37,10 +35,8 @@ const statusOptions = [
 
 const emptyForm = {
   full_name: "",
-  username: "",
   email: "",
-  phone: "",
-  access_profile: "user",
+  access_profile: "analista",
   status: "ativo",
   password: "",
   confirm_password: "",
@@ -84,18 +80,13 @@ const Users = () => {
   const validate = () => {
     const e: Record<string, string> = {};
     if (!form.full_name.trim()) e.full_name = "Preencha este campo.";
-    if (!form.username.trim()) e.username = "Preencha este campo.";
     if (!form.email.trim()) e.email = "Preencha este campo.";
     else if (!validateEmail(form.email)) e.email = "Email inválido.";
-    if (form.phone && !validatePhone(form.phone)) e.phone = "Telefone inválido.";
     if (!form.access_profile) e.access_profile = "Preencha este campo.";
     if (!editingId) {
-      if (!form.password) e.password = "Preencha este campo.";
+      if (!form.password || form.password.length < 8) e.password = "Mínimo de 8 caracteres.";
       if (!form.confirm_password) e.confirm_password = "Preencha este campo.";
       if (form.password && form.confirm_password && form.password !== form.confirm_password)
-        e.confirm_password = "As senhas não coincidem.";
-    } else if (form.password || form.confirm_password) {
-      if (form.password !== form.confirm_password)
         e.confirm_password = "As senhas não coincidem.";
     }
     setErrors(e);
@@ -106,37 +97,48 @@ const Users = () => {
     if (!validate()) return;
     setSaving(true);
 
-    // Check duplicate username
-    const { data: existing } = await supabase
-      .from("users_registry")
-      .select("id")
-      .eq("username", form.username.trim())
-      .neq("id", editingId || "00000000-0000-0000-0000-000000000000")
-      .limit(1);
-    if (existing && existing.length > 0) {
-      setErrors((p) => ({ ...p, username: "Este usuário já existe." }));
-      setSaving(false);
-      return;
-    }
-
-    const payload = {
-      full_name: form.full_name.trim(),
-      username: form.username.trim(),
-      email: form.email.trim(),
-      phone: form.phone || null,
-      access_profile: form.access_profile,
-      status: form.status,
-      updated_at: new Date().toISOString(),
-    };
-
     if (editingId) {
-      const { error } = await supabase.from("users_registry").update(payload).eq("id", editingId);
-      if (error) { toast({ variant: "destructive", title: "Erro ao salvar." }); setSaving(false); return; }
+      // Update registry fields
+      const { error } = await supabase
+        .from("users_registry")
+        .update({
+          full_name: form.full_name.trim(),
+          access_profile: form.access_profile,
+          status: form.status,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", editingId);
+      if (error) { toast({ variant: "destructive", title: "Erro ao salvar.", description: error.message }); setSaving(false); return; }
+
+      // Sync role if user_id available
+      const target = data.find((u) => u.id === editingId) as (UserRecord & { user_id?: string }) | undefined;
+      if (target?.user_id) {
+        await supabase.from("user_roles").delete().eq("user_id", target.user_id);
+        await supabase.from("user_roles").insert({
+          user_id: target.user_id,
+          role: form.access_profile as "analista" | "supervisor",
+        });
+      }
       toast({ title: "Usuário atualizado com sucesso." });
     } else {
-      const { error } = await supabase.from("users_registry").insert(payload);
-      if (error) { toast({ variant: "destructive", title: "Erro ao salvar." }); setSaving(false); return; }
-      toast({ title: "Usuário cadastrado com sucesso." });
+      const { data: resp, error } = await supabase.functions.invoke("admin-create-user", {
+        body: {
+          full_name: form.full_name.trim(),
+          email: form.email.trim(),
+          password: form.password,
+          access_profile: form.access_profile,
+        },
+      });
+      const errMsg = (resp as { error?: string } | null)?.error;
+      if (error || errMsg) {
+        toast({ variant: "destructive", title: "Erro ao criar usuário", description: errMsg ?? error?.message });
+        setSaving(false);
+        return;
+      }
+      toast({
+        title: "Usuário criado com sucesso.",
+        description: "Ele poderá logar com o e-mail e a senha informados.",
+      });
     }
 
     setSaving(false);
@@ -151,9 +153,7 @@ const Users = () => {
     setEditingId(item.id);
     setForm({
       full_name: item.full_name,
-      username: item.username,
       email: item.email,
-      phone: item.phone || "",
       access_profile: item.access_profile,
       status: item.status,
       password: "",
@@ -176,7 +176,6 @@ const Users = () => {
 
   const columns: Column<UserRecord>[] = [
     { key: "full_name", label: "Nome" },
-    { key: "username", label: "Usuário" },
     { key: "email", label: "Email", hideOnMobile: true },
     { key: "access_profile", label: "Perfil", render: (i) => profileOptions.find(p => p.value === i.access_profile)?.label || i.access_profile },
     { key: "status", label: "Status", render: (i) => <Badge variant={i.status === "ativo" ? "default" : "secondary"}>{i.status === "ativo" ? "Ativo" : "Inativo"}</Badge> },
@@ -207,27 +206,29 @@ const Users = () => {
           <Field label="Nome completo *" error={errors.full_name}>
             <Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} className={errors.full_name ? "border-destructive" : ""} />
           </Field>
-          <Field label="Nome de usuário *" error={errors.username}>
-            <Input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} className={errors.username ? "border-destructive" : ""} />
+          <Field label="E-mail *" error={errors.email}>
+            <Input type="email" value={form.email} disabled={!!editingId} onChange={(e) => setForm({ ...form, email: e.target.value })} className={errors.email ? "border-destructive" : ""} />
           </Field>
-          <Field label="Email *" error={errors.email}>
-            <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className={errors.email ? "border-destructive" : ""} />
-          </Field>
-          <Field label="Telefone" error={errors.phone}>
-            <MaskedInput mask="(99) 99999-9999" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} error={!!errors.phone} placeholder="(00) 00000-0000" />
-          </Field>
-          <Field label="Perfil de acesso *" error={errors.access_profile}>
+          <Field label="Perfil *" error={errors.access_profile}>
             <SearchableSelect options={profileOptions} value={form.access_profile} onChange={(v) => setForm({ ...form, access_profile: v })} placeholder="Selecione..." />
           </Field>
           <Field label="Status *" error={errors.status}>
             <SearchableSelect options={statusOptions} value={form.status} onChange={(v) => setForm({ ...form, status: v })} placeholder="Selecione..." />
           </Field>
-          <Field label={editingId ? "Nova senha (opcional)" : "Senha *"} error={errors.password}>
-            <Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className={errors.password ? "border-destructive" : ""} />
-          </Field>
-          <Field label={editingId ? "Confirmar nova senha" : "Confirmar senha *"} error={errors.confirm_password}>
-            <Input type="password" value={form.confirm_password} onChange={(e) => setForm({ ...form, confirm_password: e.target.value })} className={errors.confirm_password ? "border-destructive" : ""} />
-          </Field>
+          {!editingId && (
+            <>
+              <Field label="Senha inicial *" error={errors.password}>
+                <Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className={errors.password ? "border-destructive" : ""} />
+              </Field>
+              <Field label="Confirmar senha *" error={errors.confirm_password}>
+                <Input type="password" value={form.confirm_password} onChange={(e) => setForm({ ...form, confirm_password: e.target.value })} className={errors.confirm_password ? "border-destructive" : ""} />
+              </Field>
+              <div className="sm:col-span-2 text-sm text-muted-foreground bg-muted/50 rounded-md p-3">
+                O usuário poderá fazer login imediatamente com o e-mail e a senha definidos.
+                No primeiro acesso, será obrigado a trocar a senha.
+              </div>
+            </>
+          )}
         </div>
       </FormSheet>
 
