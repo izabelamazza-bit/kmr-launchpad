@@ -1,51 +1,50 @@
-# Paridade total do role `analista` no módulo Auditoria
 
-## Diagnóstico
+# Simplificar acesso (sem roles) + exclusão definitiva de usuário
 
-Após as rodadas anteriores, o único bloqueio remanescente para `analista` é **DELETE**. Está travado em 4 lugares — todos com a mesma checagem `is_supervisor_or_admin(auth.uid())`:
+## 1. Backend — RLS uniforme: autenticado = tudo
 
-| Objeto | Policy | Restrição atual |
-|---|---|---|
-| `audit_contracts` | `audit_contracts_delete` | supervisor/admin |
-| `audit_checklist_items` | `checklist_delete` | supervisor/admin |
-| `audit_contract_extracted_data` | `extracted_data_delete` | supervisor/admin |
-| `storage.objects` (bucket `audit-contracts`) | `audit_pdf_delete` | supervisor/admin |
+Migração única cobrindo todas as tabelas e o storage que ainda têm gate por role. Regra: qualquer policy passa a ser `auth.uid() IS NOT NULL` para SELECT/INSERT/UPDATE/DELETE.
 
-INSERT/UPDATE/SELECT nas 3 tabelas e no bucket já estão liberados para qualquer autenticado, então o erro "apenas supervisor ou admin" que o usuário ainda vê só pode aparecer em fluxos que executam DELETE (apagar contrato de teste, remover/substituir PDF, limpar dados extraídos).
+Policies recriadas:
 
-A edge function `extract-contract` **não faz checagem de role** — apenas valida sessão, posse via RLS de `audit_contracts` (já aberta para analista) e prefixo `${contractId}/`. Nenhuma alteração necessária lá.
+- **`agent_config`** — remover as 3 policies com `is_supervisor_or_admin` (INSERT/UPDATE/DELETE) e substituir por versões autenticadas.
+- **`users_registry`** — recriar INSERT/UPDATE/DELETE sem `is_supervisor_or_admin`.
+- **`user_roles`** — recriar SELECT como `auth.uid() IS NOT NULL` (a tabela continua existindo por causa da FK/histórico, mas deixa de gatear qualquer coisa).
+- **`storage.objects` bucket `sinistros`** — recriar as 4 policies (SELECT/INSERT/UPDATE/DELETE) só exigindo `bucket_id = 'sinistros' AND auth.uid() IS NOT NULL` (remove o join com `sinistros.created_by`/`is_supervisor_or_admin`).
+- **`audit_contracts_insert`** — trocar `WITH CHECK (created_by = auth.uid())` por `auth.uid() IS NOT NULL` (a coluna continua sendo preenchida pelo app para auditoria, mas não bloqueia).
 
-Na UI, dois pontos ainda tratam analista como diferente:
-- `AuditoriaContrato.tsx` — o select "Analista responsável" fica desabilitado para analista em contratos existentes.
-- `Auditoria.tsx` — o filtro "Analista" na listagem só aparece para supervisor/admin.
+Função `is_supervisor_or_admin` e `has_role` **permanecem** no banco (não removo para não quebrar dependências residuais), mas deixam de ser referenciadas por qualquer policy do app.
 
-## Alterações
+## 2. Frontend — remover gates de role
 
-### 1. Migração SQL — abrir DELETE para qualquer autenticado
+- **`src/hooks/useUserRole.ts`** — simplificar: manter export por compatibilidade, mas `isSupervisorOrAdmin` sempre retorna `true` para usuário autenticado (evita cascata de edits em telas que ainda importam o hook).
+- **`src/pages/Configuracoes.tsx`** — remover o bloqueio "Sem permissão" (qualquer autenticado acessa).
+- **`src/pages/auditoria/AuditoriaContrato.tsx`** — remover `useUserRole`/`isSupervisorOrAdmin` (select de analista já está livre).
+- **`src/pages/auditoria/Auditoria.tsx`** — remover a dependência `isSupervisorOrAdmin` do `useMemo` (filtro já aparece para todos).
 
-Recriar as 4 policies de DELETE trocando `is_supervisor_or_admin(auth.uid())` por `auth.uid() IS NOT NULL`:
+Coluna `analyst_id` e a atribuição automática (`analyst_id = user.id` quando vazio) **permanecem** — é só metadado de "quem cadastrou/está responsável", não gate de permissão.
 
-- `audit_contracts.audit_contracts_delete`
-- `audit_checklist_items.checklist_delete`
-- `audit_contract_extracted_data.extracted_data_delete`
-- `storage.objects.audit_pdf_delete` (mantém `bucket_id = 'audit-contracts'`)
+## 3. Exclusão definitiva de usuário
 
-Todas as demais policies permanecem inalteradas.
+Problema atual: `Users.tsx` só faz `delete` em `users_registry`. O usuário continua no `auth.users` (login válido) e o `users_registry` do outro registro pode reaparecer via reprocessamento. Além disso, o e-mail fica preso no Auth.
 
-### 2. UI — remover gates de role dentro da Auditoria
+Solução:
 
-- `src/pages/auditoria/AuditoriaContrato.tsx`: remover `disabled={!isSupervisorOrAdmin && !isNew}` e ajustar o placeholder do select "Analista responsável" para sempre permitir reatribuição.
-- `src/pages/auditoria/Auditoria.tsx`: exibir o filtro "Analista" e aplicar a lógica de filtragem por `analyst_id` para todos os usuários (remover o gate `isSupervisorOrAdmin`).
+- **Nova edge function `admin-delete-user`** (`supabase/functions/admin-delete-user/index.ts`) — recebe `user_id` (auth uid). Valida sessão (`auth.getUser`) e executa via service role:
+  1. `admin.auth.admin.deleteUser(user_id)` — remove do Auth (libera o e-mail).
+  2. `delete from users_registry where user_id = $1` — remove o registro.
+  3. `delete from user_roles where user_id = $1` — limpa role remanescente.
+  - Retorna `{ success: true }`. Sem checagem de role (qualquer autenticado pode).
+- **Registrar em `supabase/config.toml`** com `verify_jwt = true`.
+- **`src/pages/cadastros/Users.tsx`** — trocar o `handleDelete` atual por `supabase.functions.invoke("admin-delete-user", { body: { user_id: deleteItem.user_id } })`. Tratar erro (toast). Se `user_id` for null (registro órfão sem Auth), fazer só o delete direto na tabela como fallback.
 
 ## Fora do escopo
 
-- `user_roles`, `users_registry`, `agent_config`, secrets, `admin-create-user`, telas de Configurações/Usuários — continuam restritos a admin.
-- Bucket `sinistros` e módulo de Sinistros — inalterados.
-- Função `is_supervisor_or_admin` — mantida (ainda usada fora da Auditoria).
-- Edge function `extract-contract` — já não gateia por role; nenhuma mudança.
+- Não altero `admin-create-user` (já funciona; só passa a permitir qualquer autenticado criar, o que já era o caso na prática).
+- Não removo a exigência de troca de senha no primeiro login.
+- Não mexo em `extract-contract` nem em nenhuma outra edge function.
 
 ## Validação
 
-- `pg_policies` confirma as 4 novas expressões `auth.uid() IS NOT NULL`.
-- Como analista: apagar um contrato de teste, deletar/substituir o PDF, reprocessar extração — todos sem erro de permissão.
-- Como analista: filtro por analista aparece na listagem e o select de analista responsável fica editável.
+- Login como qualquer usuário (não-admin) → abrir Auditoria, Configurações, criar/editar/deletar contrato, subir PDF, sem erro.
+- Deletar um usuário de teste na tela de Usuários → some da lista imediatamente; recadastrar o mesmo e-mail funciona sem "já existe".

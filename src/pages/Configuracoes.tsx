@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { useUserRole } from "@/hooks/useUserRole";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,7 +11,6 @@ import { toast } from "@/hooks/use-toast";
 
 const Configuracoes = () => {
   const navigate = useNavigate();
-  const { role, loading: roleLoading, isSupervisorOrAdmin } = useUserRole();
   const [loading, setLoading] = useState(true);
   const [configured, setConfigured] = useState(false);
   const [masked, setMasked] = useState<string | null>(null);
@@ -30,37 +28,9 @@ const Configuracoes = () => {
   };
 
   useEffect(() => {
-    if (!roleLoading) {
-      if (!isSupervisorOrAdmin) {
-        setLoading(false);
-        return;
-      }
-      loadStatus();
-    }
+    loadStatus();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roleLoading, isSupervisorOrAdmin]);
-
-  if (roleLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-muted/40">
-        <p className="text-muted-foreground">Carregando...</p>
-      </div>
-    );
-  }
-
-  if (!isSupervisorOrAdmin) {
-    return (
-      <div className="min-h-screen bg-muted/40 p-6">
-        <Alert variant="destructive" className="max-w-2xl mx-auto">
-          <AlertTitle>Acesso restrito</AlertTitle>
-          <AlertDescription>
-            Apenas administradores e supervisores podem acessar as configurações do sistema.
-            Seu papel atual: <strong>{role ?? "—"}</strong>.
-          </AlertDescription>
-        </Alert>
-      </div>
-    );
-  }
+  }, []);
 
   return (
     <div className="min-h-screen bg-muted/40">
