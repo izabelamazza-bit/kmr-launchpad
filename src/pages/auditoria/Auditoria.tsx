@@ -162,11 +162,7 @@ const Auditoria = () => {
         return false;
       if (filtroProg === "alerta" && !r.has_alert && r.audit_status !== "Com pendencia")
         return false;
-      if (
-        isSupervisorOrAdmin &&
-        filtroAnalista !== "todos" &&
-        r.analyst_id !== filtroAnalista
-      )
+      if (filtroAnalista !== "todos" && r.analyst_id !== filtroAnalista)
         return false;
       return true;
     });
@@ -368,8 +364,7 @@ const Auditoria = () => {
                   </TabsList>
                 </Tabs>
               </div>
-              {isSupervisorOrAdmin && (
-                <div>
+              <div>
                   <div className="text-xs text-muted-foreground mb-1">Analista</div>
                   <SearchableSelect
                     value={filtroAnalista}
@@ -377,8 +372,7 @@ const Auditoria = () => {
                     options={[{ value: "todos", label: "Todos" }, ...analistas]}
                     placeholder="Todos"
                   />
-                </div>
-              )}
+              </div>
             </CardContent>
           </Card>
 

@@ -765,8 +765,7 @@ const AuditoriaContrato = () => {
                       options={analistas}
                       value={form.analyst_id}
                       onChange={(v) => setForm({ ...form, analyst_id: v })}
-                      placeholder={isSupervisorOrAdmin ? "Selecione um analista" : "Você"}
-                      disabled={!isSupervisorOrAdmin && !isNew}
+                      placeholder="Selecione um analista"
                     />
                 </FieldWrap>
 
