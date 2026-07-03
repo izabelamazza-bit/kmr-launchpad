@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { useUserRole } from "@/hooks/useUserRole";
 import CrudLayout from "@/components/crud/CrudLayout";
 import DataTable, { Column } from "@/components/crud/DataTable";
 import { Card, CardContent } from "@/components/ui/card";
@@ -37,7 +36,6 @@ interface ContractRow {
 
 const Auditoria = () => {
   const navigate = useNavigate();
-  const { role, isSupervisorOrAdmin, loading: roleLoading } = useUserRole();
   const [rows, setRows] = useState<ContractRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -166,7 +164,7 @@ const Auditoria = () => {
         return false;
       return true;
     });
-  }, [rows, search, filtroGar, filtroStatus, filtroOcup, filtroEmpresa, filtroProg, filtroAnalista, isSupervisorOrAdmin]);
+  }, [rows, search, filtroGar, filtroStatus, filtroOcup, filtroEmpresa, filtroProg, filtroAnalista]);
 
   const totals = useMemo(() => {
     const t = {

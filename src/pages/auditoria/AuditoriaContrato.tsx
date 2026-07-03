@@ -3,7 +3,6 @@ import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, LogOut, Upload, Loader2, RefreshCw, Check, Download, ChevronDown } from "lucide-react";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
-import { useUserRole } from "@/hooks/useUserRole";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -104,8 +103,6 @@ const AuditoriaContrato = () => {
   const isNew = !id || id === "novo";
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { isSupervisorOrAdmin } = useUserRole();
-
   const [contract, setContract] = useState<Contract | null>(null);
   const [extracted, setExtracted] = useState<Extracted | null>(null);
   const [checklist, setChecklist] = useState<ChecklistRow[]>([]);

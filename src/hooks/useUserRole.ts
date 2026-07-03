@@ -4,43 +4,27 @@ import { supabase } from "@/integrations/supabase/client";
 export type AppRole = "admin" | "supervisor" | "analista";
 
 export function useUserRole() {
-  const [role, setRole] = useState<AppRole | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Roles foram removidos: qualquer usuário autenticado tem acesso total.
+  // Hook mantido por compatibilidade com telas que ainda o importam.
+  const [authed, setAuthed] = useState<boolean | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    const load = async () => {
-      setLoading(true);
-      const { data: sess } = await supabase.auth.getSession();
-      if (!sess.session) {
-        if (!cancelled) {
-          setRole(null);
-          setLoading(false);
-        }
-        return;
-      }
-      // Ensure role exists (first user becomes admin) — via edge function
-      const { data: ensured } = await supabase.functions.invoke("ensure-user-role");
-      let r = ((ensured as { role?: AppRole } | null)?.role) ?? null;
-      if (!r) {
-        const { data: existing } = await supabase
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", sess.session.user.id)
-          .maybeSingle();
-        r = (existing?.role as AppRole | undefined) ?? "analista";
-      }
-      if (!cancelled) {
-        setRole(r);
-        setLoading(false);
-      }
-    };
-    load();
+    supabase.auth.getSession().then(({ data }) => {
+      if (!cancelled) setAuthed(!!data.session);
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
+      setAuthed(!!s);
+    });
     return () => {
       cancelled = true;
+      sub.subscription.unsubscribe();
     };
   }, []);
 
-  const isSupervisorOrAdmin = role === "admin" || role === "supervisor";
-  return { role, loading, isSupervisorOrAdmin };
+  return {
+    role: (authed ? "admin" : null) as AppRole | null,
+    loading: authed === null,
+    isSupervisorOrAdmin: !!authed,
+  };
 }
