@@ -175,7 +175,21 @@ const Users = () => {
   const handleDelete = async () => {
     if (!deleteItem) return;
     setSaving(true);
-    await supabase.from("users_registry").delete().eq("id", deleteItem.id);
+    const { data: resp, error } = await supabase.functions.invoke("admin-delete-user", {
+      body: deleteItem.user_id
+        ? { user_id: deleteItem.user_id }
+        : { registry_id: deleteItem.id },
+    });
+    const errMsg = (resp as { error?: string } | null)?.error;
+    if (error || errMsg) {
+      toast({
+        variant: "destructive",
+        title: "Erro ao excluir usuário",
+        description: errMsg ?? error?.message,
+      });
+      setSaving(false);
+      return;
+    }
     toast({ title: "Usuário excluído com sucesso." });
     setSaving(false);
     setDeleteOpen(false);
