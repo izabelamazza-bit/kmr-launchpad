@@ -1,50 +1,58 @@
+# Dashboard de Auditoria — status real por contrato
 
-# Simplificar acesso (sem roles) + exclusão definitiva de usuário
+Hoje os cards ficam zerados porque o `audit_status` no banco só sai de "Nao iniciada" quando um item é marcado OK/NOK explicitamente, e o card "Com alerta" depende de um cálculo de risco que só existe dentro de um componente React (nunca é persistido nem consultado pela agregação). Vou uniformizar a definição e derivar tudo em tempo real a partir dos 20 itens do checklist.
 
-## 1. Backend — RLS uniforme: autenticado = tudo
+## Novas regras (por contrato)
 
-Migração única cobrindo todas as tabelas e o storage que ainda têm gate por role. Regra: qualquer policy passa a ser `auth.uid() IS NOT NULL` para SELECT/INSERT/UPDATE/DELETE.
+Sobre os 20 itens do `audit_checklist_items` (status ∈ `ok` / `nok` / `pending`):
 
-Policies recriadas:
+- **Preenchidos** = itens com status `ok` ou `nok`.
+- **Não iniciada**: 0 preenchidos.
+- **Em andamento**: 1–19 preenchidos.
+- **Completa**: 20 preenchidos (independente de OK/NOK).
+- **Com pendências** (atributo, não status exclusivo): ≥1 item `nok`, estando o contrato em andamento ou completo.
+- **Com alerta** (atributo): nível de risco = "Alto", calculado como hoje no `ResultadoAuditoria`:
+  - qualquer item crítico (4, 5, 6, 7) com status `nok`, **ou**
+  - garantidora do formulário divergente da garantidora extraída (exceto o par KMR↔Quintocred).
 
-- **`agent_config`** — remover as 3 policies com `is_supervisor_or_admin` (INSERT/UPDATE/DELETE) e substituir por versões autenticadas.
-- **`users_registry`** — recriar INSERT/UPDATE/DELETE sem `is_supervisor_or_admin`.
-- **`user_roles`** — recriar SELECT como `auth.uid() IS NOT NULL` (a tabela continua existindo por causa da FK/histórico, mas deixa de gatear qualquer coisa).
-- **`storage.objects` bucket `sinistros`** — recriar as 4 policies (SELECT/INSERT/UPDATE/DELETE) só exigindo `bucket_id = 'sinistros' AND auth.uid() IS NOT NULL` (remove o join com `sinistros.created_by`/`is_supervisor_or_admin`).
-- **`audit_contracts_insert`** — trocar `WITH CHECK (created_by = auth.uid())` por `auth.uid() IS NOT NULL` (a coluna continua sendo preenchida pelo app para auditoria, mas não bloqueia).
+Os KPIs do topo passam a contar contratos em cada categoria; um mesmo contrato pode entrar em "Completa" e "Com pendências" ao mesmo tempo, e em "Com alerta" em paralelo — refletindo o que já é mostrado hoje na tela do contrato.
 
-Função `is_supervisor_or_admin` e `has_role` **permanecem** no banco (não removo para não quebrar dependências residuais), mas deixam de ser referenciadas por qualquer policy do app.
+## Onde muda
 
-## 2. Frontend — remover gates de role
+### 1. Banco — `recalc_audit_status`
 
-- **`src/hooks/useUserRole.ts`** — simplificar: manter export por compatibilidade, mas `isSupervisorOrAdmin` sempre retorna `true` para usuário autenticado (evita cascata de edits em telas que ainda importam o hook).
-- **`src/pages/Configuracoes.tsx`** — remover o bloqueio "Sem permissão" (qualquer autenticado acessa).
-- **`src/pages/auditoria/AuditoriaContrato.tsx`** — remover `useUserRole`/`isSupervisorOrAdmin` (select de analista já está livre).
-- **`src/pages/auditoria/Auditoria.tsx`** — remover a dependência `isSupervisorOrAdmin` do `useMemo` (filtro já aparece para todos).
+Ajustar a função trigger para a nova definição:
 
-Coluna `analyst_id` e a atribuição automática (`analyst_id = user.id` quando vazio) **permanecem** — é só metadado de "quem cadastrou/está responsável", não gate de permissão.
+```text
+preenchidos = ok + nok
+- preenchidos = 0        -> 'Nao iniciada'
+- preenchidos = total    -> 'Completa'
+- caso contrário         -> 'Em andamento'
+```
 
-## 3. Exclusão definitiva de usuário
+O status vira só progresso. "Com pendências" e "Com alerta" deixam de ser status e viram atributos derivados na leitura. Depois de aplicar a migração, disparar um recálculo único em todos os contratos existentes para que os 743 registros já reflitam o novo cálculo (um `UPDATE ... SET updated_at = now()` em `audit_checklist_items` cobre isso via trigger).
 
-Problema atual: `Users.tsx` só faz `delete` em `users_registry`. O usuário continua no `auth.users` (login válido) e o `users_registry` do outro registro pode reaparecer via reprocessamento. Além disso, o e-mail fica preso no Auth.
+### 2. Frontend — `src/pages/auditoria/Auditoria.tsx`
 
-Solução:
+- Ao carregar cada contrato, além de `total_items` e `ok_items`, calcular também `nok_items` e o flag `risco_alto` (mesma regra do `ResultadoAuditoria`, aplicada sobre os itens já buscados + `garantidora` do contrato × `garantidora_normalizada` do extracted data).
+- Substituir `has_alert` (hoje amarrado a divergência de garantidora) pelo novo `risco_alto`. A `GarantidoraBadge` continua usando a lógica antiga de divergência para o rótulo da coluna — não misturar.
+- Reescrever o bloco `totals`:
+  - `completa`: `total_items === 20 && ok_items + nok_items === 20` (ou `audit_status === 'Completa'`).
+  - `pendencia`: `nok_items > 0` (independente de estar em andamento ou completo).
+  - `alerta`: `risco_alto === true`.
+  - `total`, `loft`, `credaluga`, `kmr` continuam iguais.
+- Ajustar o filtro `filtroProg`:
+  - `completo` → `audit_status === 'Completa'`.
+  - `incompleto` → `audit_status ∈ ('Em andamento','Nao iniciada')`.
+  - `alerta` → `risco_alto === true` (não mais `has_alert || Com pendencia`).
 
-- **Nova edge function `admin-delete-user`** (`supabase/functions/admin-delete-user/index.ts`) — recebe `user_id` (auth uid). Valida sessão (`auth.getUser`) e executa via service role:
-  1. `admin.auth.admin.deleteUser(user_id)` — remove do Auth (libera o e-mail).
-  2. `delete from users_registry where user_id = $1` — remove o registro.
-  3. `delete from user_roles where user_id = $1` — limpa role remanescente.
-  - Retorna `{ success: true }`. Sem checagem de role (qualquer autenticado pode).
-- **Registrar em `supabase/config.toml`** com `verify_jwt = true`.
-- **`src/pages/cadastros/Users.tsx`** — trocar o `handleDelete` atual por `supabase.functions.invoke("admin-delete-user", { body: { user_id: deleteItem.user_id } })`. Tratar erro (toast). Se `user_id` for null (registro órfão sem Auth), fazer só o delete direto na tabela como fallback.
+### 3. Extrair a regra de risco para reuso
 
-## Fora do escopo
-
-- Não altero `admin-create-user` (já funciona; só passa a permitir qualquer autenticado criar, o que já era o caso na prática).
-- Não removo a exigência de troca de senha no primeiro login.
-- Não mexo em `extract-contract` nem em nenhuma outra edge function.
+Criar `src/pages/auditoria/lib/risco.ts` com uma função pura `calcularRiscoAlto({ itens, garantidoraForm, garantidoraExtraida })` e usar tanto no `ResultadoAuditoria` (substituindo o cálculo inline) quanto no `Auditoria.tsx`. Garante que dashboard e tela do contrato nunca divirjam.
 
 ## Validação
 
-- Login como qualquer usuário (não-admin) → abrir Auditoria, Configurações, criar/editar/deletar contrato, subir PDF, sem erro.
-- Deletar um usuário de teste na tela de Usuários → some da lista imediatamente; recadastrar o mesmo e-mail funciona sem "já existe".
+- Abrir `/auditoria` com a base atual (743 contratos): os quatro cards do topo devem somar valores > 0 coerentes; "Total" continua 743.
+- Marcar 1 item OK em um contrato "Nao iniciada" → contrato passa a contar em "Em andamento" (e cai de "Nao iniciada").
+- Marcar item crítico (4/5/6/7) como NOK → contrato entra em "Com alerta" e "Com pendências".
+- Completar os 20 itens sem NOK → entra em "Completa", sai de "Em andamento", não aparece em "Com pendências" nem "Com alerta".
