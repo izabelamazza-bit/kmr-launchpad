@@ -28,7 +28,6 @@ const RequirePasswordChange = ({ children }: { children: React.ReactNode }) => {
     let cancelled = false;
 
     const run = async () => {
-      setChecked(false);
       try {
         if (!session) return;
 

@@ -1,53 +1,41 @@
-## Objetivo
+## Diagnóstico
 
-Adicionar botão **"Exportar relatório"** na tela `/auditoria` que gera `.xlsx` com a lista **filtrada** atualmente visível, contendo as 17 colunas solicitadas.
+A perda de scroll ao voltar para a aba **não é comportamento do navegador** — é causada pelo componente `RequirePasswordChange`, que envolve toda a árvore autenticada em `App.tsx`.
 
-## Onde adicionar
+Fluxo do bug:
+1. Usuário troca de aba → tab volta a ficar visível.
+2. Supabase dispara um evento (`TOKEN_REFRESHED` ou `SIGNED_IN`) via `onAuthStateChange`.
+3. `RequirePasswordChange` atualiza `session` no state.
+4. O 2º `useEffect` roda de novo (depende de `session`) e faz `setChecked(false)`.
+5. Enquanto `checked=false`, o componente retorna `null` — **desmonta a página inteira**.
+6. Quando termina a checagem, remonta do zero → scroll volta para o topo.
 
-Ao lado do botão "Importar planilha Imoview" no header de `Auditoria.tsx`, `variant="outline"`, ícone `Download`.
+Ou seja: perdemos scroll toda vez que a sessão é revalidada, o que acontece ao trocar de aba.
 
-## Colunas do .xlsx
+## Correção
 
-| # | Coluna | Fonte |
-|---|---|---|
-| 1 | Código do contrato (Imoview) | `imoview_number` |
-| 2 | Empresa | `empresa` |
-| 3 | Garantidora | `garantidora` |
-| 4 | Locatário | `locatario_nome` (fallback extracted) |
-| 5 | Endereço do imóvel | `endereco_imovel` (fallback extracted) |
-| 6 | Analista responsável | `analyst_name` |
-| 7 | Status da auditoria | `audit_status` traduzido (Não iniciada / Em andamento / Completa) |
-| 8 | Itens preenchidos | `X/Y` (ok+nok / total) da view `audit_contract_progress` |
-| 9 | % de conformidade | `ok_items / total_items` formatado `0.0%`, "-" se total=0 |
-| 10 | Nível de risco | alto se `risco_alto`; médio se `nok_items>0`; baixo caso contrário |
-| 11 | Qtd itens NOK | `nok_items` |
-| 12 | Itens NOK (lista) | `item_label` dos itens `status='nok'`, separados por "; " |
-| 13 | Itens verificados por IA | count de `verified_by_ai=true` |
-| 14 | Data de início da auditoria | `min(updated_at)` dos itens com status ok/nok |
-| 15 | Data da última atualização | `audit_contracts.updated_at` |
-| 16 | Data de conclusão | `max(updated_at)` dos itens se `audit_status='Completa'`; vazio caso contrário |
-| 17 | Observações do analista | `general_notes` |
+Em `src/components/RequirePasswordChange.tsx`:
 
-## Fluxo
+- Manter `checked` como "primeira checagem concluída" (usar `useRef` ou só setar `true` uma vez, sem voltar a `false` em rechecagens).
+- Renderizar os `children` assim que a **primeira** verificação terminar; rechecagens subsequentes rodam em background sem desmontar a árvore.
+- Se após uma rechecagem a política mudar (ex.: `must_change_password` virou true), o `navigate("/trocar-senha")` continua funcionando normalmente.
 
-1. Handler `exportToExcel()` pega `contract_id`s de `filtered`.
-2. Query única em `audit_checklist_items` (`in(contract_id, ids)`), paginada em lotes de 1000 ids se necessário.
-3. Em memória, agrupa por contrato para derivar colunas 12, 13, 14 e 16.
-4. Junta com `rows` (que já têm progresso/risco/empresa) e monta a matriz.
-5. Gera o `.xlsx` no cliente e dispara download.
+Mudança específica:
+```ts
+// remove: setChecked(false) no início do run()
+// mantém apenas: setChecked(true) no finally
+```
 
-## Biblioteca
-
-Adicionar **`xlsx`** (SheetJS) via `bun add xlsx`. Geração no browser, sem edge function.
-
-Formatação: header em negrito, freeze da primeira linha, larguras automáticas (min 12, max 60), datas `dd/MM/yyyy HH:mm`. Nome do arquivo: `auditoria-contratos-YYYY-MM-DD.xlsx`.
-
-## Arquivos
-
-- `src/pages/auditoria/Auditoria.tsx` — botão + handler
-- `src/pages/auditoria/lib/exportReport.ts` (novo) — função pura que recebe `rows` + itens e devolve o Blob
-- `package.json` — dependência `xlsx`
+Isso preserva o scroll porque a árvore nunca é desmontada após a primeira montagem.
 
 ## Validação
 
-Exportar sem filtro (743 linhas) e conferir contrato 2674: "19/20", itens NOK listados, data de conclusão vazia. Depois testar com filtro (ex: Garantidora=Loft) e conferir que o arquivo contém apenas o subconjunto.
+1. Abrir `/auditoria`, rolar até o meio da tabela.
+2. Trocar para outra aba do navegador por 5–10s e voltar.
+3. Confirmar que a página continua na mesma posição de scroll.
+4. Repetir em `/auditoria/:id` (tela de checklist) enquanto preenche itens no meio da página.
+5. Confirmar que o fluxo de "trocar senha obrigatório" continua funcionando para novos usuários.
+
+## Arquivos alterados
+
+- `src/components/RequirePasswordChange.tsx` — não resetar `checked` em rechecagens de sessão.
