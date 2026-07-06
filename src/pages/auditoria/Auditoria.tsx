@@ -12,7 +12,6 @@ import { format } from "date-fns";
 import { GarantidoraBadge } from "./components/GarantidoraBadge";
 import { ImportImoviewModal } from "./components/ImportImoviewModal";
 import { reprocessAddressNok } from "./lib/reprocessAddress";
-import { calcularRiscoAlto } from "./lib/risco";
 import { Button } from "@/components/ui/button";
 import { FileUp } from "lucide-react";
 
@@ -68,7 +67,7 @@ const Auditoria = () => {
       const list = (contracts ?? []) as any[];
       const ids = list.map((c) => c.id);
 
-      const [extractedRes, itemsRes] = await Promise.all([
+      const [extractedRes, progressRes] = await Promise.all([
         ids.length
           ? supabase
               .from("audit_contract_extracted_data")
@@ -77,27 +76,26 @@ const Auditoria = () => {
           : Promise.resolve({ data: [] as any[] }),
         ids.length
           ? supabase
-              .from("audit_checklist_items")
-              .select("contract_id, item_number, status")
-              .in("contract_id", ids)
+              .from("audit_contract_progress" as any)
+              .select("contract_id, total_items, ok_items, nok_items, has_critical_nok")
           : Promise.resolve({ data: [] as any[] }),
       ]);
 
       const extractedMap = new Map<string, any>();
       (extractedRes.data ?? []).forEach((e: any) => extractedMap.set(e.contract_id, e));
-      const itemsByContract = new Map<string, { total: number; ok: number; nok: number; list: { item_number: number; status: string }[] }>();
-      (itemsRes.data ?? []).forEach((i: any) => {
-        const cur = itemsByContract.get(i.contract_id) ?? { total: 0, ok: 0, nok: 0, list: [] };
-        cur.total += 1;
-        if (i.status === "ok") cur.ok += 1;
-        if (i.status === "nok") cur.nok += 1;
-        cur.list.push({ item_number: i.item_number, status: i.status });
-        itemsByContract.set(i.contract_id, cur);
+      const progressByContract = new Map<string, { total: number; ok: number; nok: number; criticalNok: boolean }>();
+      (progressRes.data ?? []).forEach((p: any) => {
+        progressByContract.set(p.contract_id, {
+          total: p.total_items ?? 0,
+          ok: p.ok_items ?? 0,
+          nok: p.nok_items ?? 0,
+          criticalNok: !!p.has_critical_nok,
+        });
       });
 
       const merged: ContractRow[] = list.map((c) => {
         const ex = extractedMap.get(c.id);
-        const counts = itemsByContract.get(c.id) ?? { total: 0, ok: 0, nok: 0, list: [] };
+        const counts = progressByContract.get(c.id) ?? { total: 0, ok: 0, nok: 0, criticalNok: false };
         const gNorm = ex?.garantidora_normalizada ?? null;
         const divergente =
           gNorm && c.garantidora && gNorm !== c.garantidora && gNorm !== "Quintocred";
@@ -107,11 +105,12 @@ const Auditoria = () => {
           gNorm === "Outra" ||
           gNorm === "Não identificada" ||
           divergente;
-        const risco_alto = calcularRiscoAlto({
-          itens: counts.list,
-          garantidoraForm: c.garantidora,
-          garantidoraExtraida: gNorm,
-        });
+        const garantidoraDivergenteNaoTombada =
+          !!c.garantidora &&
+          !!gNorm &&
+          c.garantidora.toLowerCase() !== gNorm.toLowerCase() &&
+          !(c.garantidora === "KMR" && gNorm === "Quintocred");
+        const risco_alto = counts.criticalNok || garantidoraDivergenteNaoTombada;
         return {
           id: c.id,
           imoview_number: c.imoview_number,
