@@ -23,6 +23,7 @@ import Auditoria from "./pages/auditoria/Auditoria.tsx";
 import AuditoriaContrato from "./pages/auditoria/AuditoriaContrato.tsx";
 import Configuracoes from "./pages/Configuracoes.tsx";
 import TrocarSenha from "./pages/TrocarSenha.tsx";
+import OAuthConsent from "./pages/OAuthConsent.tsx";
 import RequirePasswordChange from "./components/RequirePasswordChange.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
@@ -39,6 +40,7 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/login" element={<Login />} />
           <Route path="/trocar-senha" element={<TrocarSenha />} />
+          <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/componentes" element={<Components />} />
           <Route path="/cadastros/usuarios" element={<Users />} />
