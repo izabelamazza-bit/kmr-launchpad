@@ -104,6 +104,13 @@ export type Database = {
             foreignKeyName: "audit_checklist_items_contract_id_fkey"
             columns: ["contract_id"]
             isOneToOne: false
+            referencedRelation: "audit_contract_progress"
+            referencedColumns: ["contract_id"]
+          },
+          {
+            foreignKeyName: "audit_checklist_items_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
             referencedRelation: "audit_contracts"
             referencedColumns: ["id"]
           },
@@ -177,6 +184,13 @@ export type Database = {
           valor_aluguel?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "audit_contract_extracted_data_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: true
+            referencedRelation: "audit_contract_progress"
+            referencedColumns: ["contract_id"]
+          },
           {
             foreignKeyName: "audit_contract_extracted_data_contract_id_fkey"
             columns: ["contract_id"]
@@ -747,7 +761,16 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      audit_contract_progress: {
+        Row: {
+          contract_id: string | null
+          has_critical_nok: boolean | null
+          nok_items: number | null
+          ok_items: number | null
+          total_items: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       clear_must_change_password: { Args: never; Returns: undefined }

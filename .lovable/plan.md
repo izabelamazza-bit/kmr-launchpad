@@ -1,58 +1,61 @@
-# Dashboard de Auditoria — status real por contrato
+## Diagnóstico
 
-Hoje os cards ficam zerados porque o `audit_status` no banco só sai de "Nao iniciada" quando um item é marcado OK/NOK explicitamente, e o card "Com alerta" depende de um cálculo de risco que só existe dentro de um componente React (nunca é persistido nem consultado pela agregação). Vou uniformizar a definição e derivar tudo em tempo real a partir dos 20 itens do checklist.
+Os dados no banco estão corretos:
+- 743 contratos, 15.317 itens em `audit_checklist_items` (~20 por contrato).
+- Contrato `5b5c0100…b8e7`: 21 itens, 19 preenchidos (12 ok / 7 nok). Campo é `status` com valores `ok` / `nok` / (nulo = pendente). Confere com o que a query espera.
 
-## Novas regras (por contrato)
+O bug **não é** de nome de campo nem de tipo. É de **volume**:
 
-Sobre os 20 itens do `audit_checklist_items` (status ∈ `ok` / `nok` / `pending`):
+Em `src/pages/auditoria/Auditoria.tsx` a carga faz:
 
-- **Preenchidos** = itens com status `ok` ou `nok`.
-- **Não iniciada**: 0 preenchidos.
-- **Em andamento**: 1–19 preenchidos.
-- **Completa**: 20 preenchidos (independente de OK/NOK).
-- **Com pendências** (atributo, não status exclusivo): ≥1 item `nok`, estando o contrato em andamento ou completo.
-- **Com alerta** (atributo): nível de risco = "Alto", calculado como hoje no `ResultadoAuditoria`:
-  - qualquer item crítico (4, 5, 6, 7) com status `nok`, **ou**
-  - garantidora do formulário divergente da garantidora extraída (exceto o par KMR↔Quintocred).
-
-Os KPIs do topo passam a contar contratos em cada categoria; um mesmo contrato pode entrar em "Completa" e "Com pendências" ao mesmo tempo, e em "Com alerta" em paralelo — refletindo o que já é mostrado hoje na tela do contrato.
-
-## Onde muda
-
-### 1. Banco — `recalc_audit_status`
-
-Ajustar a função trigger para a nova definição:
-
-```text
-preenchidos = ok + nok
-- preenchidos = 0        -> 'Nao iniciada'
-- preenchidos = total    -> 'Completa'
-- caso contrário         -> 'Em andamento'
+```ts
+supabase.from("audit_checklist_items")
+  .select("contract_id, item_number, status")
+  .in("contract_id", ids)   // ids = 743 UUIDs
 ```
 
-O status vira só progresso. "Com pendências" e "Com alerta" deixam de ser status e viram atributos derivados na leitura. Depois de aplicar a migração, disparar um recálculo único em todos os contratos existentes para que os 743 registros já reflitam o novo cálculo (um `UPDATE ... SET updated_at = now()` em `audit_checklist_items` cobre isso via trigger).
+Dois problemas simultâneos nessa chamada:
+1. A URL com 743 UUIDs (~28 KB) estoura o limite do PostgREST e/ou é truncada — muitos contratos não voltam nenhum item.
+2. Mesmo passando, PostgREST tem limite default de 1000 linhas por resposta; 743×~20 = 15k linhas, então >90% dos itens são descartados.
 
-### 2. Frontend — `src/pages/auditoria/Auditoria.tsx`
+Resultado: `itemsByContract` fica quase vazio → progresso `0/0` para quase todos e KPIs (`completa`, `pendencia`, `alerta`) zerados. Mesmo problema afeta `audit_contract_extracted_data`, mas em menor grau (743 linhas, cabe).
 
-- Ao carregar cada contrato, além de `total_items` e `ok_items`, calcular também `nok_items` e o flag `risco_alto` (mesma regra do `ResultadoAuditoria`, aplicada sobre os itens já buscados + `garantidora` do contrato × `garantidora_normalizada` do extracted data).
-- Substituir `has_alert` (hoje amarrado a divergência de garantidora) pelo novo `risco_alto`. A `GarantidoraBadge` continua usando a lógica antiga de divergência para o rótulo da coluna — não misturar.
-- Reescrever o bloco `totals`:
-  - `completa`: `total_items === 20 && ok_items + nok_items === 20` (ou `audit_status === 'Completa'`).
-  - `pendencia`: `nok_items > 0` (independente de estar em andamento ou completo).
-  - `alerta`: `risco_alto === true`.
-  - `total`, `loft`, `credaluga`, `kmr` continuam iguais.
-- Ajustar o filtro `filtroProg`:
-  - `completo` → `audit_status === 'Completa'`.
-  - `incompleto` → `audit_status ∈ ('Em andamento','Nao iniciada')`.
-  - `alerta` → `risco_alto === true` (não mais `has_alert || Com pendencia`).
+## Correção
 
-### 3. Extrair a regra de risco para reuso
+Trocar a agregação client-side por uma **view SQL** que devolve 1 linha por contrato já contada, evitando trafegar 15k itens.
 
-Criar `src/pages/auditoria/lib/risco.ts` com uma função pura `calcularRiscoAlto({ itens, garantidoraForm, garantidoraExtraida })` e usar tanto no `ResultadoAuditoria` (substituindo o cálculo inline) quanto no `Auditoria.tsx`. Garante que dashboard e tela do contrato nunca divirjam.
+### 1. Migração — criar view `audit_contract_progress`
 
-## Validação
+```sql
+create or replace view public.audit_contract_progress as
+select
+  c.id as contract_id,
+  count(i.*)                                              as total_items,
+  count(i.*) filter (where i.status = 'ok')               as ok_items,
+  count(i.*) filter (where i.status = 'nok')              as nok_items,
+  bool_or(i.status = 'nok' and i.item_number in (4,5,6,7)) as has_critical_nok
+from public.audit_contracts c
+left join public.audit_checklist_items i on i.contract_id = c.id
+group by c.id;
 
-- Abrir `/auditoria` com a base atual (743 contratos): os quatro cards do topo devem somar valores > 0 coerentes; "Total" continua 743.
-- Marcar 1 item OK em um contrato "Nao iniciada" → contrato passa a contar em "Em andamento" (e cai de "Nao iniciada").
-- Marcar item crítico (4/5/6/7) como NOK → contrato entra em "Com alerta" e "Com pendências".
-- Completar os 20 itens sem NOK → entra em "Completa", sai de "Em andamento", não aparece em "Com pendências" nem "Com alerta".
+grant select on public.audit_contract_progress to authenticated;
+```
+
+View herda RLS das tabelas base (já corretas). Nada é alterado em `audit_checklist_items` nem no fluxo de gravação.
+
+### 2. `src/pages/auditoria/Auditoria.tsx`
+
+- Remover o `select` grande de `audit_checklist_items` no `load()`.
+- Adicionar em paralelo: `supabase.from("audit_contract_progress").select("*")` (743 linhas, sem `.in`).
+- Popular `total_items`, `ok_items`, `nok_items` a partir da view.
+- `risco_alto` = `has_critical_nok` **OU** divergência de garantidora (mantém `calcularRiscoAlto` só para a parte de garantidora, ou inline a comparação — a lista de itens deixa de ser necessária no dashboard).
+- `totals`, filtros e coluna Progresso continuam iguais — leem os mesmos campos, agora populados corretamente.
+
+### 3. Validação
+
+Após aplicar, no `/auditoria`:
+- Contrato `5b5c0100…b8e7` deve mostrar progresso `12/21` (ok/total) e entrar em "Com pendências" (7 nok).
+- Contrato `5f0c5bb9…ee20` → `17/21`, "Com pendências" (2 nok).
+- KPIs "Completa", "Com pendências" e "Com alerta" passam a mostrar valores >0 refletindo os 743 contratos.
+
+`ResultadoAuditoria.tsx` (tela de 1 contrato) não é afetado — ele já lê poucos itens e continua usando `calcularRiscoAlto` com a lista real.
