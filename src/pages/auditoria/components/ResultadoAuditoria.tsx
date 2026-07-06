@@ -2,8 +2,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { ChecklistRow } from "./ChecklistItem";
+import { CRITICAL_ITEMS, calcularRiscoAlto } from "../lib/risco";
 
-const CRITICAL_ITEMS = [4, 5, 6, 7];
 const CRITICAL_LABELS: Record<number, string> = {
   4: "nome do locatário divergente",
   5: "nome do locador divergente",
@@ -28,13 +28,11 @@ export function ResultadoAuditoria({ checklist, garantidoraForm, garantidoraExtr
   const criticosReprovados = checklist.filter(
     (i) => CRITICAL_ITEMS.includes(i.item_number) && i.status === "nok"
   );
-  const garantidoraDivergenteNaoTombada =
-    !!garantidoraForm &&
-    !!garantidoraExtraida &&
-    garantidoraForm.toLowerCase() !== garantidoraExtraida.toLowerCase() &&
-    !(garantidoraForm === "KMR" && garantidoraExtraida === "Quintocred");
-
-  const criticalNok = criticosReprovados.length > 0 || garantidoraDivergenteNaoTombada;
+  const criticalNok = calcularRiscoAlto({
+    itens: checklist.map((c) => ({ item_number: c.item_number, status: c.status })),
+    garantidoraForm,
+    garantidoraExtraida,
+  });
 
   let risco: "Baixo" | "Médio" | "Alto";
   let riscoCor: string;
