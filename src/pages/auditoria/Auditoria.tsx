@@ -12,6 +12,7 @@ import { format } from "date-fns";
 import { GarantidoraBadge } from "./components/GarantidoraBadge";
 import { ImportImoviewModal } from "./components/ImportImoviewModal";
 import { reprocessAddressNok } from "./lib/reprocessAddress";
+import { calcularRiscoAlto } from "./lib/risco";
 import { Button } from "@/components/ui/button";
 import { FileUp } from "lucide-react";
 
@@ -31,7 +32,9 @@ interface ContractRow {
   garantidora_normalizada: string | null;
   total_items: number;
   ok_items: number;
+  nok_items: number;
   has_alert: boolean;
+  risco_alto: boolean;
 }
 
 const Auditoria = () => {
@@ -75,24 +78,26 @@ const Auditoria = () => {
         ids.length
           ? supabase
               .from("audit_checklist_items")
-              .select("contract_id, status")
+              .select("contract_id, item_number, status")
               .in("contract_id", ids)
           : Promise.resolve({ data: [] as any[] }),
       ]);
 
       const extractedMap = new Map<string, any>();
       (extractedRes.data ?? []).forEach((e: any) => extractedMap.set(e.contract_id, e));
-      const itemsByContract = new Map<string, { total: number; ok: number }>();
+      const itemsByContract = new Map<string, { total: number; ok: number; nok: number; list: { item_number: number; status: string }[] }>();
       (itemsRes.data ?? []).forEach((i: any) => {
-        const cur = itemsByContract.get(i.contract_id) ?? { total: 0, ok: 0 };
+        const cur = itemsByContract.get(i.contract_id) ?? { total: 0, ok: 0, nok: 0, list: [] };
         cur.total += 1;
         if (i.status === "ok") cur.ok += 1;
+        if (i.status === "nok") cur.nok += 1;
+        cur.list.push({ item_number: i.item_number, status: i.status });
         itemsByContract.set(i.contract_id, cur);
       });
 
       const merged: ContractRow[] = list.map((c) => {
         const ex = extractedMap.get(c.id);
-        const counts = itemsByContract.get(c.id) ?? { total: 0, ok: 0 };
+        const counts = itemsByContract.get(c.id) ?? { total: 0, ok: 0, nok: 0, list: [] };
         const gNorm = ex?.garantidora_normalizada ?? null;
         const divergente =
           gNorm && c.garantidora && gNorm !== c.garantidora && gNorm !== "Quintocred";
@@ -102,6 +107,11 @@ const Auditoria = () => {
           gNorm === "Outra" ||
           gNorm === "Não identificada" ||
           divergente;
+        const risco_alto = calcularRiscoAlto({
+          itens: counts.list,
+          garantidoraForm: c.garantidora,
+          garantidoraExtraida: gNorm,
+        });
         return {
           id: c.id,
           imoview_number: c.imoview_number,
@@ -118,7 +128,9 @@ const Auditoria = () => {
           garantidora_normalizada: gNorm,
           total_items: counts.total,
           ok_items: counts.ok,
+          nok_items: counts.nok,
           has_alert,
+          risco_alto,
         };
       });
 
@@ -158,8 +170,7 @@ const Auditoria = () => {
         !["Em andamento", "Nao iniciada"].includes(r.audit_status)
       )
         return false;
-      if (filtroProg === "alerta" && !r.has_alert && r.audit_status !== "Com pendencia")
-        return false;
+      if (filtroProg === "alerta" && !r.risco_alto) return false;
       if (filtroAnalista !== "todos" && r.analyst_id !== filtroAnalista)
         return false;
       return true;
@@ -180,8 +191,8 @@ const Auditoria = () => {
     t.total = scope.length;
     scope.forEach((r) => {
       if (r.audit_status === "Completa") t.completa += 1;
-      if (r.audit_status === "Com pendencia" || (r.audit_status !== "Completa" && r.total_items > 0 && r.ok_items < r.total_items)) t.pendencia += 1;
-      if (r.has_alert) t.alerta += 1;
+      if (r.nok_items > 0) t.pendencia += 1;
+      if (r.risco_alto) t.alerta += 1;
       if (r.garantidora === "Loft") t.loft += 1;
       if (r.garantidora === "Credaluga") t.credaluga += 1;
       if (r.garantidora === "KMR") t.kmr += 1;
