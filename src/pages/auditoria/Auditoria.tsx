@@ -13,7 +13,9 @@ import { GarantidoraBadge } from "./components/GarantidoraBadge";
 import { ImportImoviewModal } from "./components/ImportImoviewModal";
 import { reprocessAddressNok } from "./lib/reprocessAddress";
 import { Button } from "@/components/ui/button";
-import { FileUp } from "lucide-react";
+import { FileUp, Download } from "lucide-react";
+import { exportAuditReport } from "./lib/exportReport";
+import { toast } from "@/hooks/use-toast";
 
 interface ContractRow {
   id: string;
@@ -49,6 +51,7 @@ const Auditoria = () => {
   const [filtroEmpresa, setFiltroEmpresa] = useState("todos");
   const [analistas, setAnalistas] = useState<{ value: string; label: string }[]>([]);
   const [importOpen, setImportOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -279,14 +282,35 @@ const Auditoria = () => {
       onNewClick={() => navigate("/auditoria/novo")}
       newLabel="Novo contrato"
       extraActions={
-        <Button
-          variant="outline"
-          className="min-h-[44px] w-full sm:w-auto"
-          onClick={() => setImportOpen(true)}
-        >
-          <FileUp className="h-4 w-4 mr-1" />
-          Importar planilha Imoview
-        </Button>
+        <>
+          <Button
+            variant="outline"
+            className="min-h-[44px] w-full sm:w-auto"
+            onClick={() => setImportOpen(true)}
+          >
+            <FileUp className="h-4 w-4 mr-1" />
+            Importar planilha Imoview
+          </Button>
+          <Button
+            variant="outline"
+            className="min-h-[44px] w-full sm:w-auto"
+            disabled={exporting || filtered.length === 0}
+            onClick={async () => {
+              try {
+                setExporting(true);
+                await exportAuditReport(filtered);
+                toast({ title: "Relatório exportado", description: `${filtered.length} contratos.` });
+              } catch (e: any) {
+                toast({ title: "Erro ao exportar", description: e?.message ?? "Tente novamente", variant: "destructive" });
+              } finally {
+                setExporting(false);
+              }
+            }}
+          >
+            <Download className="h-4 w-4 mr-1" />
+            {exporting ? "Exportando..." : "Exportar relatório"}
+          </Button>
+        </>
       }
     >
       <ImportImoviewModal open={importOpen} onOpenChange={setImportOpen} onDone={load} />
