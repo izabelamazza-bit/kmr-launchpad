@@ -1,62 +1,53 @@
-## Diagnóstico
+## Objetivo
 
-Contrato **2674** (`5b5c0100-…-b8e7`) na view:
+Adicionar botão **"Exportar relatório"** na tela `/auditoria` que gera `.xlsx` com a lista **filtrada** atualmente visível, contendo as 17 colunas solicitadas.
 
-| total_items | ok_items | nok_items | preenchidos | status |
-|---|---|---|---|---|
-| **21** | 12 | 7 | 19 | Em andamento |
+## Onde adicionar
 
-A view está correta — o problema são **dados legados** em `audit_checklist_items`.
+Ao lado do botão "Importar planilha Imoview" no header de `Auditoria.tsx`, `variant="outline"`, ícone `Download`.
 
-Inspecionando os 21 itens do contrato 2674, existem 2 linhas obsoletas:
+## Colunas do .xlsx
 
-| item_number | section | label | status |
-|---|---|---|---|
-| 23 | **Específico — Loft** | "Verificar forma de pagamento (boleto/cartão/PVI)" | pending |
-| 24 | **Específico — Loft** | "Verificar data de renovação" | pending |
+| # | Coluna | Fonte |
+|---|---|---|
+| 1 | Código do contrato (Imoview) | `imoview_number` |
+| 2 | Empresa | `empresa` |
+| 3 | Garantidora | `garantidora` |
+| 4 | Locatário | `locatario_nome` (fallback extracted) |
+| 5 | Endereço do imóvel | `endereco_imovel` (fallback extracted) |
+| 6 | Analista responsável | `analyst_name` |
+| 7 | Status da auditoria | `audit_status` traduzido (Não iniciada / Em andamento / Completa) |
+| 8 | Itens preenchidos | `X/Y` (ok+nok / total) da view `audit_contract_progress` |
+| 9 | % de conformidade | `ok_items / total_items` formatado `0.0%`, "-" se total=0 |
+| 10 | Nível de risco | alto se `risco_alto`; médio se `nok_items>0`; baixo caso contrário |
+| 11 | Qtd itens NOK | `nok_items` |
+| 12 | Itens NOK (lista) | `item_label` dos itens `status='nok'`, separados por "; " |
+| 13 | Itens verificados por IA | count de `verified_by_ai=true` |
+| 14 | Data de início da auditoria | `min(updated_at)` dos itens com status ok/nok |
+| 15 | Data da última atualização | `audit_contracts.updated_at` |
+| 16 | Data de conclusão | `max(updated_at)` dos itens se `audit_status='Completa'`; vazio caso contrário |
+| 17 | Observações do analista | `general_notes` |
 
-Essas linhas foram criadas por uma versão antiga da função `seed_audit_checklist`. A versão atual do seed define:
-- item 23 = **"Locatário cadastrado na garantidora com os mesmos dados do contrato"** (section "Cobertura e contrato da garantidora")
-- items 27/28 = "Específico garantidora" (que já existem no contrato 2674 e estão preenchidos)
+## Fluxo
 
-Como o seed usa `ON CONFLICT (contract_id, item_number) DO NOTHING`, os itens 23/24 "Loft" antigos bloquearam a inserção do novo item 23. Resultado: o contrato tem 21 itens (19 respondidos + 2 stale sempre pending), impossível chegar a "Completa".
+1. Handler `exportToExcel()` pega `contract_id`s de `filtered`.
+2. Query única em `audit_checklist_items` (`in(contract_id, ids)`), paginada em lotes de 1000 ids se necessário.
+3. Em memória, agrupa por contrato para derivar colunas 12, 13, 14 e 16.
+4. Junta com `rows` (que já têm progresso/risco/empresa) e monta a matriz.
+5. Gera o `.xlsx` no cliente e dispara download.
 
-Contagens no banco:
-- **457 contratos** têm essas 2 linhas stale de "Específico — Loft" (914 rows no total; só 2 delas chegaram a ser respondidas).
-- **286 contratos** já estão limpos (20 itens conforme o seed atual).
+## Biblioteca
 
-## Correção
+Adicionar **`xlsx`** (SheetJS) via `bun add xlsx`. Geração no browser, sem edge function.
 
-Migração única com 2 passos:
+Formatação: header em negrito, freeze da primeira linha, larguras automáticas (min 12, max 60), datas `dd/MM/yyyy HH:mm`. Nome do arquivo: `auditoria-contratos-YYYY-MM-DD.xlsx`.
 
-### 1. Remover linhas stale
-```sql
-delete from public.audit_checklist_items
-where section = 'Específico — Loft';
-```
-Impacto: 914 linhas removidas; apenas 2 respostas do usuário são perdidas (aceitável — são de uma versão antiga do checklist que não existe mais na UI). O trigger `trg_recalc_audit_status` recalcula `audit_status` de cada contrato afetado automaticamente.
+## Arquivos
 
-### 2. Reinserir o item 23 canônico nos contratos afetados
-```sql
-insert into public.audit_checklist_items (contract_id, item_number, section, item_label)
-select c.id, 23, 'Cobertura e contrato da garantidora',
-       'Locatário cadastrado na garantidora com os mesmos dados do contrato (nome e CPF)'
-from public.audit_contracts c
-on conflict (contract_id, item_number) do nothing;
-```
-Todos os 743 contratos passam a ter exatamente 20 itens conforme o seed atual.
+- `src/pages/auditoria/Auditoria.tsx` — botão + handler
+- `src/pages/auditoria/lib/exportReport.ts` (novo) — função pura que recebe `rows` + itens e devolve o Blob
+- `package.json` — dependência `xlsx`
 
-### 3. Validação
+## Validação
 
-Após a migração, para o contrato 2674:
-- `total_items` = 20
-- `ok_items` + `nok_items` = 19 (12 ok + 7 nok) — o novo item 23 entra como `pending`
-- `audit_status` = **"Em andamento"**, progresso **19/20**
-
-Isso significa que 2674 ainda **não** está de fato completo — falta o item 23 novo ("Locatário cadastrado na garantidora com os mesmos dados do contrato"). Após a limpeza, esse item aparece na tela do contrato e o analista pode marcá-lo ok/nok; aí sim o contrato conta como "Completa" no dashboard.
-
-Vou mostrar o resultado final da view para 2674 e a contagem total de "Completa" no dashboard após aplicar.
-
-## Nota
-
-Não altero a estrutura de `audit_checklist_items` nem a lógica da view — a view está agregando corretamente, só estava lendo dados obsoletos.
+Exportar sem filtro (743 linhas) e conferir contrato 2674: "19/20", itens NOK listados, data de conclusão vazia. Depois testar com filtro (ex: Garantidora=Loft) e conferir que o arquivo contém apenas o subconjunto.
