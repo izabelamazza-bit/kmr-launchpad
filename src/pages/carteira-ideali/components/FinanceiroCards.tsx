@@ -5,6 +5,7 @@ import { formatBRL } from "../lib/useCarteiraIdeali";
 interface Props {
   valorEmAtraso: number;
   contratosAfetados: number;
+  contratosAfetadosIncompletos: number;
   total: number;
   faturasIncompletas: number;
   carteiraAtivaMes: number;
@@ -13,6 +14,7 @@ interface Props {
 export function FinanceiroCards({
   valorEmAtraso,
   contratosAfetados,
+  contratosAfetadosIncompletos,
   total,
   faturasIncompletas,
   carteiraAtivaMes,
@@ -42,7 +44,7 @@ export function FinanceiroCards({
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground">Contratos afetados</p>
             <p className="text-2xl font-bold mt-1">
-              {contratosAfetados}
+              {contratosAfetados}*
               <span className="text-base font-normal text-muted-foreground"> de {total}</span>
             </p>
             <p className="text-xs text-muted-foreground mt-1">com ao menos 1 fatura em aberto</p>
@@ -54,7 +56,7 @@ export function FinanceiroCards({
             <p className="text-xs text-muted-foreground">% de Inadimplência</p>
             <p className="text-2xl font-bold mt-1">{percent}%</p>
             <p className="text-xs text-muted-foreground mt-1">
-              {contratosAfetados} de {total} contratos com fatura em aberto (dado completo)
+              {contratosAfetados}* de {total} contratos com fatura em aberto (dado completo)
             </p>
           </CardContent>
         </Card>
@@ -77,6 +79,12 @@ export function FinanceiroCards({
           </CardContent>
         </Card>
       </div>
+      <p className="text-xs text-muted-foreground mt-3">
+        * {contratosAfetadosIncompletos} contratos têm ao menos 1 fatura em aberto, mas com informações
+        incompletas (sem valor de boleto ou valor pago confirmado). Esses casos não entram no cálculo
+        acima por não termos valor confiável para somar, mas ainda são risco real de inadimplência —
+        considere-os também.
+      </p>
     </section>
   );
 }
