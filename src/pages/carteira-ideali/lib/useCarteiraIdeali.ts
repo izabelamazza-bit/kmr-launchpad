@@ -184,3 +184,26 @@ export function useCarteiraIdeali() {
 export function formatBRL(v: number): string {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
+
+function normTipo(v: string | null | undefined): string {
+  return (v ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+}
+
+/**
+ * Rótulo de exibição da garantidora: Fiador/Caução/Carta Fiança e Sem garantia
+ * usam o próprio tipo de garantia; demais casos usam a garantidora informada.
+ */
+export function getGarantidoraExibicao(
+  c: Pick<ContractRow, "tipo_garantia" | "garantidora">,
+): string {
+  const t = normTipo(c.tipo_garantia);
+  if (t === "fiador") return "Fiador";
+  if (t === "caucao") return "Caução";
+  if (t === "carta fianca") return "Carta Fiança";
+  if (t === "sem garantia") return "Sem garantia";
+  return c.garantidora ?? "Não informada";
+}

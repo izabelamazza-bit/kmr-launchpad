@@ -12,7 +12,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import type { ContractAggregate } from "../lib/useCarteiraIdeali";
+import { getGarantidoraExibicao, type ContractAggregate } from "../lib/useCarteiraIdeali";
 
 export interface InadimplenciaFilter {
   garantidora: string;
@@ -37,7 +37,7 @@ export function InadimplenciaChart({ contracts, selected, onSelect }: Props) {
     for (const c of contracts) {
       if (!c.oldestOpen) continue;
       if (c.status !== "Ativo" && c.status !== "Pausado" && c.status !== "Encerrado") continue;
-      const key = c.garantidora ?? "Não informada";
+      const key = getGarantidoraExibicao(c);
       const entry = map.get(key) ?? { garantidora: key, Ativo: 0, Pausado: 0, Encerrado: 0 };
       entry[c.status] += 1;
       map.set(key, entry);

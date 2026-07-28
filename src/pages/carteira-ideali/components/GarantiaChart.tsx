@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
 import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
-import type { ContractAggregate } from "../lib/useCarteiraIdeali";
+import { getGarantidoraExibicao, type ContractAggregate } from "../lib/useCarteiraIdeali";
 
 interface Props {
   contracts: ContractAggregate[];
@@ -18,7 +18,7 @@ export function GarantiaChart({ contracts, selected, onSelect }: Props) {
     const map = new Map<string, { garantidora: string; Contratos: number }>();
     for (const c of contracts) {
       if (c.status !== "Ativo") continue;
-      const key = c.garantidora ?? "Não informada";
+      const key = getGarantidoraExibicao(c);
       const entry = map.get(key) ?? { garantidora: key, Contratos: 0 };
       entry.Contratos += 1;
       map.set(key, entry);
