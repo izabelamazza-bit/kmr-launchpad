@@ -47,6 +47,7 @@ export interface CarteiraData {
   total: number;
   valorEmAtraso: number;
   contratosAfetados: number;
+  contratosAfetadosIncompletos: number;
   faturasIncompletas: number;
   carteiraAtivaMes: number;
 }
@@ -125,8 +126,14 @@ export function useCarteiraIdeali() {
       let valorEmAtraso = 0;
       let faturasIncompletas = 0;
       const afetados = new Set<string>();
+      const afetadosIncompletos = new Set<string>();
       for (const inv of invoices) {
-        if (inv.dado_incompleto) faturasIncompletas += 1;
+        if (inv.dado_incompleto) {
+          faturasIncompletas += 1;
+          if (inv.status_fatura === "PE") {
+            afetadosIncompletos.add(inv.codigo_contrato);
+          }
+        }
         if (inv.status_fatura === "PE" && !inv.dado_incompleto) {
           afetados.add(inv.codigo_contrato);
           valorEmAtraso += inv.valor_boleto ?? 0;
@@ -165,6 +172,7 @@ export function useCarteiraIdeali() {
         total: contracts.length,
         valorEmAtraso,
         contratosAfetados: afetados.size,
+        contratosAfetadosIncompletos: afetadosIncompletos.size,
         faturasIncompletas,
         carteiraAtivaMes,
       });
