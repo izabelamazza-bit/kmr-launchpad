@@ -5,7 +5,6 @@ import { Input } from "@/components/ui/input";
 import logoKMR from "@/assets/Logo_KMR.png";
 import { LogOut, Plus, Search, ArrowLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { EnvironmentSelect } from "@/components/EnvironmentSelect";
 
 export interface CrudLayoutProps {
   title: string;
@@ -44,7 +43,6 @@ const CrudLayout = ({
             <img src={logoKMR} alt="KMR" className="h-8 w-auto hidden sm:block" />
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
-            <EnvironmentSelect />
             <Button variant="outline" size="sm" onClick={handleLogout}>
               <LogOut className="h-4 w-4 mr-1" />
               Sair
