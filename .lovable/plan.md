@@ -1,35 +1,40 @@
 ## Objetivo
-Inserir um novo card de "% de Inadimplência" na seção 2. Financeiro da página `/carteira-ideali`, ao lado do card "Contratos afetados", reaproveitando as mesmas variáveis já existentes.
+Adicionar um asterisco (*) ao número "26" nos cards "Contratos afetados" e "% de Inadimplência" da seção 2. Financeiro em `/carteira-ideali`, e incluir uma nota explicativa abaixo da fileira de cards sobre os 51 contratos com faturas em aberto e dados incompletos.
 
-## Estado atual confirmado
-- `useCarteiraIdeali.ts` calcula `contratosAfetados` contando **qualquer** contrato com fatura `PE` (51 contratos).
-- O gráfico "Inadimplência por tipo de garantia" (seção 5) usa `c.oldestOpen`, que também inclui faturas com `dado_incompleto = true` (mantém os 51).
-- O banco de dados real possui: 181 contratos, 51 contratos com qualquer fatura `PE`, 26 contratos com fatura `PE` e `dado_incompleto = false`.
-- O usuário decidiu que o card financeiro deve usar **apenas os 26** (dado completo), enquanto o gráfico da seção 5 mantém os 51.
+## Contexto atual
+A seção Financeiro exibe:
+- **Valor em atraso**: soma de faturas `PE` com valor confirmado.
+- **Contratos afetados**: contratos distintos com ao menos 1 fatura `PE` e `dado_incompleto = false`.
+- **% de Inadimplência**: mesmo numerador/denominador do card anterior.
+- **Faturas com dado incompleto**: total de faturas com `dado_incompleto = true`.
+- **Carteira ativa/mês**: soma dos aluguéis dos contratos ativos.
 
-## Passos
+O cálculo dos "Contratos afetados" ignora faturas `PE` com informação incompleta (sem valor de boleto ou valor pago confirmado). A nota deve deixar isso transparente sem alterar a métrica principal.
 
-1. **Ajustar o cálculo de `contratosAfetados` em `src/pages/carteira-ideali/lib/useCarteiraIdeali.ts`**
-   - Contar contratos distintos que possuem **pelo menos uma fatura `PE` com `dado_incompleto = false`**.
-   - Manter o cálculo de `valorEmAtraso` inalterado (já usa apenas faturas `PE` com `dado_incompleto = false`).
-   - **Não alterar** a lógica que alimenta o gráfico da seção 5 (`c.oldestOpen` continua considerando qualquer fatura `PE`).
+## Implementação
 
-2. **Adicionar o card "% de Inadimplência" em `src/pages/carteira-ideali/components/FinanceiroCards.tsx`**
-   - Inserir o card imediatamente após o card "Contratos afetados".
-   - Cálculo: `contratosAfetados / total * 100`.
-   - Formato: 1 casa decimal + `%` (ex: `14,4%`).
-   - Texto auxiliar: `"{contratosAfetados} de {total} contratos com fatura em aberto (dado completo)"`.
-   - Proteger contra divisão por zero (`total === 0` → `0,0%`).
+### 1. Cálculo do novo indicador
+No hook `src/pages/carteira-ideali/lib/useCarteiraIdeali.ts`:
+- Calcular `contratosAfetadosIncompletos`: quantidade de contratos distintos que possuem ao menos 1 fatura `PE` com `dado_incompleto = true`.
+- Adicionar o campo à interface `CarteiraData`.
+- O valor esperado é **51**, conforme validado na base.
 
-3. **Ajustar o grid da seção Financeiro**
-   - Atualizar de `lg:grid-cols-4` para `lg:grid-cols-5` para acomodar o novo card sem quebra de layout.
-   - Manter responsividade mobile-first (`grid-cols-1 sm:grid-cols-2`).
+### 2. Passar o dado para o componente
+Em `src/pages/carteira-ideali/CarteiraIdeali.tsx`:
+- Incluir `contratosAfetadosIncompletos={data.contratosAfetadosIncompletos}` na chamada de `<FinanceiroCards />`.
 
-4. **Verificação**
-   - Rodar o typecheck/build para garantir que não há erros de compilação.
-   - Validar na preview que o card aparece com o valor esperado (26 ÷ 181 ≈ 14,4%).
+### 3. Alterar o componente FinanceiroCards
+Em `src/pages/carteira-ideali/components/FinanceiroCards.tsx`:
+- Receber nova prop `contratosAfetadosIncompletos: number`.
+- No card **Contratos afetados**, renderizar o número com asterisco: `26*`.
+- No card **% de Inadimplência**, alterar o texto de apoio para: `26* de 181 contratos com fatura em aberto (dado completo)`.
+- Abaixo da fileira de cards (`grid`), adicionar parágrafo com o texto:
+  > * 51 contratos têm ao menos 1 fatura em aberto, mas com informações incompletas (sem valor de boleto ou valor pago confirmado). Esses casos não entram no cálculo acima por não termos valor confiável para somar, mas ainda são risco real de inadimplência — considere-os também.
+- Estilo da nota: texto pequeno (`text-xs`), cor neutra (`text-muted-foreground`), sem ícone.
 
-## Escopo fora deste plano
-- Nenhuma mudança na seção 5 (gráfico de inadimplência).
-- Nenhuma alteração em outros cards, tabelas ou gráficos.
-- Nenhuma mudança de banco de dados, RLS ou Edge Functions.
+## Critérios de aceitação
+- [ ] Os cards "Contratos afetados" e "% de Inadimplência" exibem `26*`.
+- [ ] A nota aparece abaixo da fileira de cards Financeiro, com o texto exato solicitado.
+- [ ] O valor de 51 é calculado a partir dos dados reais (não hardcoded).
+- [ ] A métrica de inadimplência principal não é alterada (mantém 26/181).
+- [ ] O gráfico da seção 5 permanece inalterado, conforme instrução anterior.
