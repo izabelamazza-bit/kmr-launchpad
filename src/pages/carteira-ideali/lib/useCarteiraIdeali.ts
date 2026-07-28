@@ -111,6 +111,7 @@ export function useCarteiraIdeali() {
         fetchAll<InvoiceRow>(
           "ideali_invoices",
           "codigo_contrato,vencimento_fatura,status_fatura,dado_incompleto,valor_boleto,valor_pago_fatura",
+          (q) => q.order("codigo_contrato").order("id_fatura_origem"),
         ),
       ]);
 
@@ -126,9 +127,9 @@ export function useCarteiraIdeali() {
       const afetados = new Set<string>();
       for (const inv of invoices) {
         if (inv.dado_incompleto) faturasIncompletas += 1;
-        if (inv.status_fatura === "PE" && !inv.dado_incompleto) {
-          valorEmAtraso += inv.valor_boleto ?? 0;
+        if (inv.status_fatura === "PE") {
           afetados.add(inv.codigo_contrato);
+          if (!inv.dado_incompleto) valorEmAtraso += inv.valor_boleto ?? 0;
         }
       }
 

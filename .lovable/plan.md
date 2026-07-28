@@ -1,22 +1,26 @@
-## Objetivo
-Separar "Sem seguro" em rótulos corretos (Fiador, Caução, Carta Fiança, Sem garantia) em todas as visualizações de garantidora da página /carteira-ideali.
+## Verificação no banco (confirmada por SQL agregado, sem limite de linhas)
 
-Dados confirmados no banco: 52 Fiador, 12 Caução e 1 Carta Fiança estão hoje com garantidora = "Sem seguro", além de 3 contratos "Sem garantia" e 1 "Seguro Fiança" também marcado como "Sem seguro".
+- `ideali_invoices`: **1116 linhas** (tabela inteira).
+- `ideali_contracts`: **181 contratos**.
+- Contratos distintos com ao menos 1 fatura `status_fatura = 'PE'`: **51**.
+- Com o filtro adicional `dado_incompleto = false`: **26**.
+- Só com faturas pendentes sem valor registrado: 45 contratos.
 
-## Implementação
+Conclusão: o valor de referência 51 corresponde ao critério "ao menos 1 fatura pendente", sem o filtro `dado_incompleto`. Critério aprovado para o card: **51 de 181**.
 
-1. `src/pages/carteira-ideali/lib/useCarteiraIdeali.ts`
-   - Nova função exportada `getGarantidoraExibicao(c)`:
-     - `tipo_garantia` ∈ {Fiador, Caução, Carta Fiança} → retorna o próprio `tipo_garantia`
-     - `tipo_garantia` = "Sem garantia" → "Sem garantia"
-     - demais casos → `garantidora` (ou "Não informada" se nulo)
-   - Comparação de `tipo_garantia` com trim e sem sensibilidade a acento/caixa, para tolerar variações da planilha.
+## Correções
 
-2. `GarantiaChart.tsx` (pizza) — agrupar por `getGarantidoraExibicao` em vez de `garantidora`; mantém filtro status = Ativo.
+1. **Card "Contratos afetados"** (`src/pages/carteira-ideali/lib/useCarteiraIdeali.ts`): contar contratos distintos com ao menos 1 fatura `status_fatura = 'PE'`, sem filtro de `dado_incompleto` e sem filtro de status do contrato. Denominador continua sendo o total geral de contratos (181). Resultado esperado: 51 de 181.
+2. **Paginação determinística das faturas**: a carga client-side pagina de 1000 em 1000 sem ordenação explícita, e a tabela tem 1116 linhas — sem `order by` o banco não garante ordem estável entre páginas, podendo duplicar ou perder registros. Adicionar ordenação estável (por `codigo_contrato` e `id_fatura_origem`) na busca de `ideali_invoices`.
+3. **Card "Valor em atraso"**: mantém o critério atual (soma de `valor_boleto` de faturas `PE` com valor confirmado), pois somar faturas sem valor não faz sentido monetário. O texto de apoio já diz "com valor confirmado".
+4. **Validação após a correção**: conferir na tela que o card mostra 51 de 181, coerente com a query de referência.
 
-3. `InadimplenciaChart.tsx` — agrupar por `getGarantidoraExibicao`; mantém regra de inadimplência e quebra Ativo/Pausado/Encerrado.
+## Seções 5 e 6 (inadimplência e tabela de contratos)
 
-4. `ContratosTable.tsx` — lista do filtro "Garantidora", a comparação do filtro (incluindo o filtro vindo dos gráficos) e a coluna exibida passam a usar `getGarantidoraExibicao`.
+Revisado: o gráfico agrupa por `Ativo`, `Pausado` e `Encerrado` e o clique aplica exatamente o status clicado; a tabela também. Não há filtro fixo em `Ativo` nessas seções. Elas já usam o critério "ao menos 1 fatura `PE`", que passa a ficar alinhado com o card. Após corrigir a paginação, vou conferir que cada clique traz os contratos do status correspondente.
 
-## Fora de escopo
-`PrazoSinistroTable.tsx` permanece usando o campo `garantidora` original (CredPago, Credaluga, Eu Acerto). Nenhuma outra lógica da página é alterada e não há mudança no banco de dados.
+O gráfico de pizza da seção 4 continua filtrando apenas contratos `Ativo`, sem alteração.
+
+## Detalhes técnicos
+
+Arquivo alterado: `src/pages/carteira-ideali/lib/useCarteiraIdeali.ts` (agregação de `contratosAfetados` e ordenação na paginação de `ideali_invoices`). Sem mudanças de banco de dados e sem alterações em `GarantiaChart.tsx`.
