@@ -398,6 +398,206 @@ export type Database = {
         }
         Relationships: []
       }
+      ideali_contracts: {
+        Row: {
+          bairro: string | null
+          cep: string | null
+          cidade: string | null
+          codigo_contrato: string
+          codigo_legado: string | null
+          complemento: string | null
+          created_at: string
+          data_finalizacao_contrato: string | null
+          data_inicio_contrato: string | null
+          data_proximo_reajuste: string | null
+          data_ultimo_reajuste: string | null
+          desconto_pontualidade: number | null
+          despesa_bancaria: number | null
+          dia_vencimento: number | null
+          documento_inquilino: string | null
+          documento_proprietario: string | null
+          emails_inquilino: string | null
+          emails_proprietario: string | null
+          empresa: string
+          finalidade_contrato: string | null
+          garantidora: string | null
+          gerar_notas_fiscais: boolean | null
+          id: string
+          juros_atraso_dia: number | null
+          meses_duracao_contrato: number | null
+          multa_atraso: number | null
+          nome_indice: string | null
+          nome_inquilino: string | null
+          nome_proprietario: string | null
+          numero: string | null
+          pontualizado: string | null
+          produto: string | null
+          repasse_proprietario_percentual: number | null
+          rua: string | null
+          status: string
+          taxa_admin: number | null
+          taxa_admin_minima: number | null
+          taxa_admin_parc_up: number | null
+          taxa_boleto: number | null
+          taxa_ted: number | null
+          telefone_inquilino: string | null
+          telefone_proprietario: string | null
+          tipo_garantia: string | null
+          updated_at: string
+          valor_aluguel: number | null
+        }
+        Insert: {
+          bairro?: string | null
+          cep?: string | null
+          cidade?: string | null
+          codigo_contrato: string
+          codigo_legado?: string | null
+          complemento?: string | null
+          created_at?: string
+          data_finalizacao_contrato?: string | null
+          data_inicio_contrato?: string | null
+          data_proximo_reajuste?: string | null
+          data_ultimo_reajuste?: string | null
+          desconto_pontualidade?: number | null
+          despesa_bancaria?: number | null
+          dia_vencimento?: number | null
+          documento_inquilino?: string | null
+          documento_proprietario?: string | null
+          emails_inquilino?: string | null
+          emails_proprietario?: string | null
+          empresa?: string
+          finalidade_contrato?: string | null
+          garantidora?: string | null
+          gerar_notas_fiscais?: boolean | null
+          id?: string
+          juros_atraso_dia?: number | null
+          meses_duracao_contrato?: number | null
+          multa_atraso?: number | null
+          nome_indice?: string | null
+          nome_inquilino?: string | null
+          nome_proprietario?: string | null
+          numero?: string | null
+          pontualizado?: string | null
+          produto?: string | null
+          repasse_proprietario_percentual?: number | null
+          rua?: string | null
+          status: string
+          taxa_admin?: number | null
+          taxa_admin_minima?: number | null
+          taxa_admin_parc_up?: number | null
+          taxa_boleto?: number | null
+          taxa_ted?: number | null
+          telefone_inquilino?: string | null
+          telefone_proprietario?: string | null
+          tipo_garantia?: string | null
+          updated_at?: string
+          valor_aluguel?: number | null
+        }
+        Update: {
+          bairro?: string | null
+          cep?: string | null
+          cidade?: string | null
+          codigo_contrato?: string
+          codigo_legado?: string | null
+          complemento?: string | null
+          created_at?: string
+          data_finalizacao_contrato?: string | null
+          data_inicio_contrato?: string | null
+          data_proximo_reajuste?: string | null
+          data_ultimo_reajuste?: string | null
+          desconto_pontualidade?: number | null
+          despesa_bancaria?: number | null
+          dia_vencimento?: number | null
+          documento_inquilino?: string | null
+          documento_proprietario?: string | null
+          emails_inquilino?: string | null
+          emails_proprietario?: string | null
+          empresa?: string
+          finalidade_contrato?: string | null
+          garantidora?: string | null
+          gerar_notas_fiscais?: boolean | null
+          id?: string
+          juros_atraso_dia?: number | null
+          meses_duracao_contrato?: number | null
+          multa_atraso?: number | null
+          nome_indice?: string | null
+          nome_inquilino?: string | null
+          nome_proprietario?: string | null
+          numero?: string | null
+          pontualizado?: string | null
+          produto?: string | null
+          repasse_proprietario_percentual?: number | null
+          rua?: string | null
+          status?: string
+          taxa_admin?: number | null
+          taxa_admin_minima?: number | null
+          taxa_admin_parc_up?: number | null
+          taxa_boleto?: number | null
+          taxa_ted?: number | null
+          telefone_inquilino?: string | null
+          telefone_proprietario?: string | null
+          tipo_garantia?: string | null
+          updated_at?: string
+          valor_aluguel?: number | null
+        }
+        Relationships: []
+      }
+      ideali_invoices: {
+        Row: {
+          adicional_fatura: string | null
+          codigo_contrato: string
+          created_at: string
+          dado_incompleto: boolean
+          data_repasse_fatura: string | null
+          id: string
+          id_fatura_origem: number
+          pagamento_fatura: string | null
+          status_fatura: string
+          status_repasse_fatura: string | null
+          valor_boleto: number | null
+          valor_pago_fatura: number | null
+          vencimento_fatura: string
+        }
+        Insert: {
+          adicional_fatura?: string | null
+          codigo_contrato: string
+          created_at?: string
+          dado_incompleto?: boolean
+          data_repasse_fatura?: string | null
+          id?: string
+          id_fatura_origem: number
+          pagamento_fatura?: string | null
+          status_fatura: string
+          status_repasse_fatura?: string | null
+          valor_boleto?: number | null
+          valor_pago_fatura?: number | null
+          vencimento_fatura: string
+        }
+        Update: {
+          adicional_fatura?: string | null
+          codigo_contrato?: string
+          created_at?: string
+          dado_incompleto?: boolean
+          data_repasse_fatura?: string | null
+          id?: string
+          id_fatura_origem?: number
+          pagamento_fatura?: string | null
+          status_fatura?: string
+          status_repasse_fatura?: string | null
+          valor_boleto?: number | null
+          valor_pago_fatura?: number | null
+          vencimento_fatura?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ideali_invoices_codigo_contrato_fkey"
+            columns: ["codigo_contrato"]
+            isOneToOne: false
+            referencedRelation: "ideali_contracts"
+            referencedColumns: ["codigo_contrato"]
+          },
+        ]
+      }
       leads: {
         Row: {
           assigned_to: string | null
