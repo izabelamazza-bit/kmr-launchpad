@@ -221,17 +221,26 @@ export async function parseIdealiFile(file: File): Promise<IdealiParseResult> {
   const buf = await file.arrayBuffer();
   const wb = XLSX.read(buf, { type: "array", cellDates: true });
 
-  const missing = [SHEET_CONTRATOS, SHEET_FATURAS].filter((n) => !wb.SheetNames.includes(n));
+  const sheetMap = new Map(wb.SheetNames.map((n) => [normalizeSheetName(n), n]));
+
+  const required = [
+    { key: "contratos", label: SHEET_CONTRATOS },
+    { key: "histórico faturas", label: SHEET_FATURAS },
+  ];
+  const missing = required.filter((r) => !sheetMap.has(r.key));
   if (missing.length) {
     throw new Error(
       `A planilha precisa ter as abas "${SHEET_CONTRATOS}" e "${SHEET_FATURAS}". Não encontrada(s): ${missing
-        .map((m) => `"${m}"`)
+        .map((m) => `"${m.label}"`)
         .join(", ")}. Abas do arquivo: ${wb.SheetNames.join(", ") || "nenhuma"}.`
     );
   }
 
+  const contratosSheet = sheetMap.get("contratos")!;
+  const faturasSheet = sheetMap.get("histórico faturas")!;
+
   // ---------- Contratos ----------
-  const cRows = sheetRows(wb, SHEET_CONTRATOS);
+  const cRows = sheetRows(wb, contratosSheet);
   const groups = new Map<string, Record<string, any>[]>();
   let contratosIgnoradas = 0;
   for (const row of cRows) {
