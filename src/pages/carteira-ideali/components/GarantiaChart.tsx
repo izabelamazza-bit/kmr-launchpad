@@ -2,16 +2,7 @@ import { useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Legend,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import type { ContractAggregate } from "../lib/useCarteiraIdeali";
 
 interface Props {
@@ -19,6 +10,8 @@ interface Props {
   selected: string | null;
   onSelect: (g: string | null) => void;
 }
+
+const COLORS = ["#2F80ED", "#0F2A44", "#27AE60", "#F2C94C", "#F2994A", "#56CCF2", "#9B51E0", "#EB5757"];
 
 export function GarantiaChart({ contracts, selected, onSelect }: Props) {
   const data = useMemo(() => {
@@ -31,6 +24,9 @@ export function GarantiaChart({ contracts, selected, onSelect }: Props) {
     }
     return [...map.values()].sort((a, b) => b.Contratos - a.Contratos);
   }, [contracts]);
+
+  const total = useMemo(() => data.reduce((s, d) => s + d.Contratos, 0), [data]);
+  const pct = (v: number) => (total ? ((v / total) * 100).toFixed(1) : "0");
 
   return (
     <section aria-labelledby="garantia-chart">
@@ -47,24 +43,47 @@ export function GarantiaChart({ contracts, selected, onSelect }: Props) {
       <Card>
         <CardContent className="p-4">
           <p className="text-xs text-muted-foreground mb-2">
-            Clique em uma barra para filtrar a tabela de contratos abaixo.
+            Clique em uma fatia para filtrar a tabela de contratos abaixo.
           </p>
-          <div style={{ height: Math.max(220, data.length * 46 + 60) }}>
+          <div className="h-[380px] sm:h-[420px]">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data} layout="vertical" margin={{ left: 8, right: 16 }}>
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                <XAxis type="number" allowDecimals={false} fontSize={12} />
-                <YAxis type="category" dataKey="garantidora" width={110} fontSize={12} />
-                <Tooltip cursor={{ fill: "hsl(var(--muted))" }} />
-                <Legend />
-                <Bar
+              <PieChart>
+                <Pie
+                  data={data}
                   dataKey="Contratos"
-                  fill="#2F80ED"
-                  radius={[0, 4, 4, 0]}
+                  nameKey="garantidora"
+                  cx="50%"
+                  cy="42%"
+                  innerRadius="45%"
+                  outerRadius="72%"
+                  paddingAngle={1}
                   cursor="pointer"
-                  onClick={(d: any) => onSelect(d?.garantidora ?? null)}
+                  onClick={(d: any) => onSelect(d?.garantidora ?? d?.payload?.garantidora ?? null)}
+                  label={({ value }: any) => `${value} (${pct(value)}%)`}
+                  labelLine={false}
+                  fontSize={11}
+                >
+                  {data.map((d, i) => (
+                    <Cell
+                      key={d.garantidora}
+                      fill={COLORS[i % COLORS.length]}
+                      opacity={selected && selected !== d.garantidora ? 0.35 : 1}
+                    />
+                  ))}
+                </Pie>
+                <Tooltip
+                  formatter={(v: any, n: any) => [`${v} contratos (${pct(Number(v))}%)`, n]}
                 />
-              </BarChart>
+                <Legend
+                  verticalAlign="bottom"
+                  iconType="circle"
+                  wrapperStyle={{ fontSize: 12 }}
+                  formatter={(value: any, entry: any) => {
+                    const v = entry?.payload?.Contratos ?? 0;
+                    return `${value} — ${v} (${pct(v)}%)`;
+                  }}
+                />
+              </PieChart>
             </ResponsiveContainer>
           </div>
         </CardContent>

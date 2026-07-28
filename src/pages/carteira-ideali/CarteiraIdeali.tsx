@@ -77,20 +77,20 @@ const CarteiraIdeali = () => {
               carteiraAtivaMes={data.carteiraAtivaMes}
             />
             <PrazoSinistroTable contracts={data.contracts} />
-            <InadimplenciaChart
-              contracts={data.contracts}
-              selected={inadFilter}
-              onSelect={(f) => {
-                setInadFilter(f);
-                if (f) setGarantidoraFilter(null);
-              }}
-            />
             <GarantiaChart
               contracts={data.contracts}
               selected={garantidoraFilter}
               onSelect={(g) => {
                 setGarantidoraFilter(g);
                 if (g) setInadFilter(null);
+              }}
+            />
+            <InadimplenciaChart
+              contracts={data.contracts}
+              selected={inadFilter}
+              onSelect={(f) => {
+                setInadFilter(f);
+                if (f) setGarantidoraFilter(null);
               }}
             />
             <ContratosTable
