@@ -1,47 +1,52 @@
 ## Objetivo
 
-Criar a página `/carteira-ideali` contendo apenas o fluxo de importação da planilha da carteira Ideali (sem dashboard, cards ou gráficos), seguindo o mesmo padrão do import Imoview (biblioteca `xlsx` + modal com etapa de resumo).
+Adicionar, na mesma página `/carteira-ideali` (abaixo do botão de importação), um dashboard consolidado somente leitura, em 5 seções. Sem seletor de empresa e sem navegação para outras telas.
+
+## Estado atual verificado
+
+- `recharts` já está instalado (`^2.15.4`) e existe wrapper `src/components/ui/chart.tsx` — nada a instalar.
+- Dados atuais: 181 contratos (Ativo 82, Pausado 80, Encerrado 13, Assinado 5, Aguardando Ativação 1) e 1.116 faturas (PE completas 80, PE com dado incompleto 76, PG 960).
+- Garantidoras presentes: Sem seguro, CredPago, Pottencial, Porto Seguro, Outros, Eu Acerto, Tokio, Credaluga, Too.
 
 ## Arquivos
 
-1. `src/pages/carteira-ideali/lib/idealiImport.ts` — parser da planilha
-2. `src/pages/carteira-ideali/components/ImportIdealiModal.tsx` — modal de upload, resumo e gravação
-3. `src/pages/carteira-ideali/CarteiraIdeali.tsx` — página com título e botão "Importar carteira Ideali"
-4. `src/App.tsx` — rota temporária `/carteira-ideali` (sem link no menu)
+1. `src/pages/carteira-ideali/lib/useCarteiraIdeali.ts` — hook de carga e agregação
+2. `src/pages/carteira-ideali/components/StatusCards.tsx` — Seção 1
+3. `src/pages/carteira-ideali/components/FinanceiroCards.tsx` — Seção 2
+4. `src/pages/carteira-ideali/components/PrazoSinistroTable.tsx` — Seção 3
+5. `src/pages/carteira-ideali/components/GarantiaChart.tsx` — Seção 4
+6. `src/pages/carteira-ideali/components/ContratosTable.tsx` — Seção 5
+7. `src/pages/carteira-ideali/CarteiraIdeali.tsx` — monta as seções e mantém o estado de filtro por garantidora
 
-## Parser (`idealiImport.ts`)
+## Carga de dados
 
-- Lê o arquivo com `XLSX.read` (mesmo padrão do `imoviewImport.ts`).
-- Valida que existem as abas exatas **"Contratos"** e **"Histórico faturas"**; se faltar alguma, lança erro claro listando as abas encontradas.
-- Normalização de valores: `"\N"`, string vazia e `undefined` viram `null` (nunca 0 nem `""`). Helpers reaproveitando a lógica do Imoview: `parseDate` (serial Excel, dd/mm/aaaa, ISO), `parseNumber` (aceita vírgula decimal e "R$"), `parseBool` (Sim/Não, 1/0, true/false).
+Um único hook busca todos os contratos (`empresa = 'Ideali'`) e todas as faturas, paginando em blocos de 1000 para não esbarrar no limite padrão do PostgREST. A partir das faturas, monta-se por contrato: fatura PE mais antiga (menor `vencimento_fatura`, incluindo incompletas), soma de atraso e flag de dado incompleto. Recarrega automaticamente após uma importação bem-sucedida.
 
-### Aba "Contratos"
-- Mapeamento exato de colunas conforme especificado no pedido (43 colunas → campos de `ideali_contracts`).
-- Deduplicação: agrupar por `codigo_contrato`; usar a linha com `inquilino_principal = "Sim"`; se não houver, a primeira do grupo. Contabilizar quantos códigos tinham mais de uma linha.
-- Linhas sem `codigo_contrato` são ignoradas e contadas à parte.
+## Seção 1 — Status da carteira
 
-### Aba "Histórico faturas"
-- Mapeamento das 10 colunas indicadas; colunas de rubrica (`name_release`, `valor_lan`, `credito_lan`, `debito_lan`, `id_lan`) são ignoradas.
-- Deduplicação: agrupar por `id_fatura` e manter a primeira linha do grupo.
-- `dado_incompleto = true` quando `status_fatura = "PE"` e (`valor_boleto` nulo ou `valor_pago_fatura` nulo); caso contrário `false`.
-- Faturas cujo `codigo_contrato` não exista entre os contratos da planilha nem no banco seriam rejeitadas pela chave estrangeira — elas são separadas e reportadas no resumo em vez de quebrar a importação.
+Seis cards: Total, Ativo, Pausado, Encerrado, Assinado, Aguardando Ativação.
 
-## Modal (`ImportIdealiModal.tsx`)
+## Seção 2 — Financeiro
 
-Três etapas dentro do mesmo diálogo:
+- **Valor em atraso**: soma de `valor_boleto - coalesce(valor_pago_fatura, 0)` apenas em faturas `PE` com `dado_incompleto = false`.
+- **Contratos afetados**: contratos distintos com ao menos uma fatura `PE` completa, exibido como "X de 181".
+- **Faturas com dado incompleto**: contagem, em card com cor de atenção (laranja/âmbar do design system) e texto "sem valor registrado — verificar manualmente". Nunca somado ao valor em atraso.
+- **Carteira ativa/mês**: soma de `valor_aluguel` dos contratos com status `Ativo`.
 
-1. **Upload** — input `.xlsx` + botão "Analisar planilha" (parse local, sem gravar nada).
-2. **Resumo/confirmação** — mostra: contratos únicos, quantos foram deduplicados por fiador/cotitular, faturas únicas, faturas com `dado_incompleto`, linhas ignoradas. Botões "Cancelar" e "Confirmar importação".
-3. **Resultado** — totais efetivamente gravados e eventuais erros.
+## Seção 3 — Prazo de 60 dias
 
-## Gravação
+Só contratos com garantidora em CredPago, Credaluga, Eu Acerto e que tenham ao menos uma fatura PE. Para cada um, a partir da fatura PE mais antiga: dias em atraso, data limite (vencimento + 60 dias) e dias restantes. Tabela ordenada por dias restantes crescente, com colunas código, inquilino, garantidora, dias em atraso, dias restantes. Badge vermelho (≤15, inclui negativos), amarelo (16–30), verde (>30). Ícone de alerta com tooltip "valor não confirmado" quando a fatura mais antiga tiver `dado_incompleto = true`.
 
-- `ideali_contracts`: `upsert` com `onConflict: "codigo_contrato"`, sempre com `empresa = 'Ideali'`.
-- `ideali_invoices`: `upsert` com `onConflict: "id_fatura_origem"`.
-- Contratos primeiro, faturas depois (restrição de chave estrangeira já confirmada no banco).
-- Envio em lotes (ex.: 500 registros por chamada) com barra/contador de progresso, para planilhas grandes.
-- Erros por lote são coletados e exibidos na tela de resultado, sem abortar o restante.
+## Seção 4 — Gráfico por garantidora
 
-## Fora do escopo
+Barras horizontais agrupadas (recharts, `layout="vertical"`), duas séries: Ativo e Encerrado. Clique em barra ou label define o filtro de garantidora da Seção 5; botão "Limpar filtro" aparece quando ativo.
 
-Nenhum dashboard, KPI, card, gráfico, listagem ou item de menu nesta entrega.
+## Seção 5 — Tabela de contratos
+
+Colunas: código, inquilino, endereço concatenado (rua, número, bairro, cidade), status, tipo de garantia, garantidora, valor do aluguel, dias em atraso da fatura PE mais antiga ("Em dia" quando não houver) e indicador visual de dado incompleto. Filtros acima: select de status, select de garantidora (sincronizado com o clique no gráfico) e toggle "Somente contratos com atraso". Paginação client-side de 25 linhas.
+
+## Detalhes técnicos
+
+- Somente leitura: nenhum campo editável, nenhuma mutação.
+- Cores via tokens do design system; layout mobile-first com cards empilhados e tabelas em scroll horizontal.
+- Datas calculadas em UTC-neutro (comparação por data pura) para evitar erro de fuso.
