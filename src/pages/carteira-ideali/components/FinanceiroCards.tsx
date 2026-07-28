@@ -17,12 +17,19 @@ export function FinanceiroCards({
   faturasIncompletas,
   carteiraAtivaMes,
 }: Props) {
+  const percent = total > 0
+    ? ((contratosAfetados / total) * 100).toLocaleString("pt-BR", {
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 1,
+      })
+    : "0,0";
+
   return (
     <section aria-labelledby="financeiro">
       <h2 id="financeiro" className="text-base font-semibold mb-3">
         Financeiro
       </h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
         <Card>
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground">Valor em atraso</p>
@@ -39,6 +46,16 @@ export function FinanceiroCards({
               <span className="text-base font-normal text-muted-foreground"> de {total}</span>
             </p>
             <p className="text-xs text-muted-foreground mt-1">com ao menos 1 fatura em aberto</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">% de Inadimplência</p>
+            <p className="text-2xl font-bold mt-1">{percent}%</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {contratosAfetados} de {total} contratos com fatura em aberto (dado completo)
+            </p>
           </CardContent>
         </Card>
 
