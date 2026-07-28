@@ -17,6 +17,7 @@ export function GarantiaChart({ contracts, selected, onSelect }: Props) {
   const data = useMemo(() => {
     const map = new Map<string, { garantidora: string; Contratos: number }>();
     for (const c of contracts) {
+      if (c.status !== "Ativo") continue;
       const key = c.garantidora ?? "Não informada";
       const entry = map.get(key) ?? { garantidora: key, Contratos: 0 };
       entry.Contratos += 1;
@@ -43,7 +44,8 @@ export function GarantiaChart({ contracts, selected, onSelect }: Props) {
       <Card>
         <CardContent className="p-4">
           <p className="text-xs text-muted-foreground mb-2">
-            Clique em uma fatia para filtrar a tabela de contratos abaixo.
+            Composição da carteira ativa por garantidora. Clique em uma fatia para filtrar a tabela
+            de contratos abaixo.
           </p>
           <div className="h-[380px] sm:h-[420px]">
             <ResponsiveContainer width="100%" height="100%">
