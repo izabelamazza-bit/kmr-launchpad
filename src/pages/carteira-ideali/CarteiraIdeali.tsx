@@ -3,12 +3,20 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowLeft, FileUp } from "lucide-react";
+import { ArrowLeft, FileUp, Loader2 } from "lucide-react";
 import { ImportIdealiModal } from "./components/ImportIdealiModal";
+import { useCarteiraIdeali } from "./lib/useCarteiraIdeali";
+import { StatusCards } from "./components/StatusCards";
+import { FinanceiroCards } from "./components/FinanceiroCards";
+import { PrazoSinistroTable } from "./components/PrazoSinistroTable";
+import { GarantiaChart } from "./components/GarantiaChart";
+import { ContratosTable } from "./components/ContratosTable";
 
 const CarteiraIdeali = () => {
   const navigate = useNavigate();
   const [importOpen, setImportOpen] = useState(false);
+  const [garantidoraFilter, setGarantidoraFilter] = useState<string | null>(null);
+  const { data, loading, error, reload } = useCarteiraIdeali();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -27,7 +35,7 @@ const CarteiraIdeali = () => {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         <Card>
           <CardContent className="p-6 space-y-4">
             <div>
@@ -43,9 +51,45 @@ const CarteiraIdeali = () => {
             </Button>
           </CardContent>
         </Card>
+
+        {loading && (
+          <div className="flex items-center justify-center py-12 text-muted-foreground gap-2">
+            <Loader2 className="h-5 w-5 animate-spin" /> Carregando carteira...
+          </div>
+        )}
+
+        {!loading && error && (
+          <Card>
+            <CardContent className="p-6 text-sm text-destructive">{error}</CardContent>
+          </Card>
+        )}
+
+        {!loading && !error && data && (
+          <>
+            <StatusCards total={data.total} statusCounts={data.statusCounts} />
+            <FinanceiroCards
+              valorEmAtraso={data.valorEmAtraso}
+              contratosAfetados={data.contratosAfetados}
+              total={data.total}
+              faturasIncompletas={data.faturasIncompletas}
+              carteiraAtivaMes={data.carteiraAtivaMes}
+            />
+            <PrazoSinistroTable contracts={data.contracts} />
+            <GarantiaChart
+              contracts={data.contracts}
+              selected={garantidoraFilter}
+              onSelect={setGarantidoraFilter}
+            />
+            <ContratosTable
+              contracts={data.contracts}
+              garantidoraFilter={garantidoraFilter}
+              onGarantidoraFilterChange={setGarantidoraFilter}
+            />
+          </>
+        )}
       </main>
 
-      <ImportIdealiModal open={importOpen} onOpenChange={setImportOpen} />
+      <ImportIdealiModal open={importOpen} onOpenChange={setImportOpen} onDone={reload} />
     </div>
   );
 };
