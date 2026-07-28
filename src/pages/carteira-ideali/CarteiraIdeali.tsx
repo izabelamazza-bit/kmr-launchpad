@@ -72,6 +72,7 @@ const CarteiraIdeali = () => {
             <FinanceiroCards
               valorEmAtraso={data.valorEmAtraso}
               contratosAfetados={data.contratosAfetados}
+              contratosAfetadosIncompletos={data.contratosAfetadosIncompletos}
               total={data.total}
               faturasIncompletas={data.faturasIncompletas}
               carteiraAtivaMes={data.carteiraAtivaMes}
