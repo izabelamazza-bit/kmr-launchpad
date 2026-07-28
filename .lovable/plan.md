@@ -1,35 +1,22 @@
-## 1. Gráfico "Contratos por tipo de garantia" (/carteira-ideali)
+## Objetivo
+Separar "Sem seguro" em rótulos corretos (Fiador, Caução, Carta Fiança, Sem garantia) em todas as visualizações de garantidora da página /carteira-ideali.
 
-- Considerar somente contratos com `status === "Ativo"` na montagem dos dados da rosca (contagem, percentuais e legenda passam a refletir só a carteira ativa).
-- Trocar o texto de apoio acima do gráfico por: "Composição da carteira ativa por garantidora."
-- O clique na fatia continua filtrando a tabela da Seção 5, que segue mostrando todos os status.
-- Nenhuma outra seção muda.
+Dados confirmados no banco: 52 Fiador, 12 Caução e 1 Carta Fiança estão hoje com garantidora = "Sem seguro", além de 3 contratos "Sem garantia" e 1 "Seguro Fiança" também marcado como "Sem seguro".
 
-## 2. Seletor de ambiente no cabeçalho
+## Implementação
 
-Hoje o app não tem um menu lateral: a navegação é a grade de cards do Dashboard, e cada tela tem seu próprio cabeçalho (Dashboard e `CrudLayout`).
+1. `src/pages/carteira-ideali/lib/useCarteiraIdeali.ts`
+   - Nova função exportada `getGarantidoraExibicao(c)`:
+     - `tipo_garantia` ∈ {Fiador, Caução, Carta Fiança} → retorna o próprio `tipo_garantia`
+     - `tipo_garantia` = "Sem garantia" → "Sem garantia"
+     - demais casos → `garantidora` (ou "Não informada" se nulo)
+   - Comparação de `tipo_garantia` com trim e sem sensibilidade a acento/caixa, para tolerar variações da planilha.
 
-**Novo contexto de ambiente**
-- Criar `EnvironmentProvider` + hook `useEnvironment`, com valores `Rotina | Alugar | Ideali`.
-- Persistência em `localStorage` (chave `kmr:environment`), default `Rotina` quando não houver nada salvo.
-- Provider montado no `App.tsx`, dentro do `BrowserRouter`.
+2. `GarantiaChart.tsx` (pizza) — agrupar por `getGarantidoraExibicao` em vez de `garantidora`; mantém filtro status = Ativo.
 
-**Componente `EnvironmentSelect`**
-- Dropdown (Select do shadcn) com as três opções, colocado no cabeçalho ao lado do nome do usuário / botão "Sair".
-- Inserido no cabeçalho do Dashboard e no cabeçalho compartilhado `CrudLayout` (cobre Usuários, Leads, Auditoria, Sinistros e demais telas CRUD), além do cabeçalho da página `/carteira-ideali`.
+3. `InadimplenciaChart.tsx` — agrupar por `getGarantidoraExibicao`; mantém regra de inadimplência e quebra Ativo/Pausado/Encerrado.
 
-**Comportamento na troca**
-- Ao escolher **Ideali**: navegar para `/carteira-ideali`.
-- Ao sair de Ideali para **Rotina** ou **Alugar**: navegar para `/dashboard`.
-- Selecionar Rotina/Alugar não altera nenhuma outra lógica existente (o filtro de empresa dentro da Auditoria continua igual).
+4. `ContratosTable.tsx` — lista do filtro "Garantidora", a comparação do filtro (incluindo o filtro vindo dos gráficos) e a coluna exibida passam a usar `getGarantidoraExibicao`.
 
-**Ocultação condicional de menu**
-- No Dashboard, quando o ambiente for `Ideali`, remover o card "Auditoria" da grade e exibir um card "Carteira Ideali" apontando para `/carteira-ideali`. Os demais itens (Usuários, Leads, Agente, Atendimento, Sinistros, Configurações) permanecem.
-- Guarda de rota leve: se o ambiente for `Ideali` e o usuário abrir `/auditoria` diretamente, redirecionar para `/carteira-ideali`.
-
-Sem alterações de banco, RLS ou dados para Rotina/Alugar — apenas navegação, persistência e visibilidade de menu.
-
-## Detalhes técnicos
-
-- Arquivos novos: `src/contexts/EnvironmentContext.tsx`, `src/components/EnvironmentSelect.tsx`.
-- Arquivos alterados: `src/App.tsx`, `src/pages/Dashboard.tsx`, `src/components/crud/CrudLayout.tsx`, `src/pages/carteira-ideali/CarteiraIdeali.tsx`, `src/pages/carteira-ideali/components/GarantiaChart.tsx`.
+## Fora de escopo
+`PrazoSinistroTable.tsx` permanece usando o campo `garantidora` original (CredPago, Credaluga, Eu Acerto). Nenhuma outra lógica da página é alterada e não há mudança no banco de dados.

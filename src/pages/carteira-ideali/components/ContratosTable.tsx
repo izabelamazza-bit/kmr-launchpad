@@ -7,7 +7,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { AlertTriangle, X } from "lucide-react";
-import { STATUS_LIST, formatBRL, type ContractAggregate } from "../lib/useCarteiraIdeali";
+import {
+  STATUS_LIST,
+  formatBRL,
+  getGarantidoraExibicao,
+  type ContractAggregate,
+} from "../lib/useCarteiraIdeali";
 import type { InadimplenciaFilter } from "./InadimplenciaChart";
 
 const PAGE_SIZE = 25;
@@ -34,7 +39,7 @@ export function ContratosTable({
 
   const garantidoras = useMemo(
     () =>
-      [...new Set(contracts.map((c) => c.garantidora ?? "Não informada"))].sort((a, b) =>
+      [...new Set(contracts.map((c) => getGarantidoraExibicao(c)))].sort((a, b) =>
         a.localeCompare(b, "pt-BR"),
       ),
     [contracts],
@@ -43,13 +48,13 @@ export function ContratosTable({
   const filtered = useMemo(() => {
     return contracts.filter((c) => {
       if (inadimplenciaFilter) {
-        if ((c.garantidora ?? "Não informada") !== inadimplenciaFilter.garantidora) return false;
+        if (getGarantidoraExibicao(c) !== inadimplenciaFilter.garantidora) return false;
         if (c.status !== inadimplenciaFilter.status) return false;
         if (!c.oldestOpen) return false;
         return true;
       }
       if (status !== ALL && c.status !== status) return false;
-      if (garantidoraFilter && (c.garantidora ?? "Não informada") !== garantidoraFilter) return false;
+      if (garantidoraFilter && getGarantidoraExibicao(c) !== garantidoraFilter) return false;
       if (onlyLate && !c.oldestOpen) return false;
       return true;
     });
@@ -164,7 +169,7 @@ export function ContratosTable({
                       </TableCell>
                       <TableCell className="whitespace-nowrap">{c.status}</TableCell>
                       <TableCell>{c.tipo_garantia ?? "—"}</TableCell>
-                      <TableCell>{c.garantidora ?? "—"}</TableCell>
+                      <TableCell>{getGarantidoraExibicao(c)}</TableCell>
                       <TableCell className="text-right whitespace-nowrap">
                         {c.valor_aluguel === null ? "—" : formatBRL(c.valor_aluguel)}
                       </TableCell>
