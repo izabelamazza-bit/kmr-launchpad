@@ -264,7 +264,7 @@ export async function parseIdealiFile(file: File): Promise<IdealiParseResult> {
   }
 
   // ---------- Faturas ----------
-  const fRows = sheetRows(wb, SHEET_FATURAS);
+  const fRows = sheetRows(wb, faturasSheet);
   const seen = new Set<number>();
   const invoices: IdealiInvoice[] = [];
   let faturasIgnoradas = 0;
