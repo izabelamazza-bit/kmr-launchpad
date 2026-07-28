@@ -21,6 +21,7 @@ import ResumoSinistro from "./pages/sinistros/ResumoSinistro.tsx";
 import Sinistros from "./pages/sinistros/Sinistros.tsx";
 import Auditoria from "./pages/auditoria/Auditoria.tsx";
 import AuditoriaContrato from "./pages/auditoria/AuditoriaContrato.tsx";
+import CarteiraIdeali from "./pages/carteira-ideali/CarteiraIdeali.tsx";
 import Configuracoes from "./pages/Configuracoes.tsx";
 import TrocarSenha from "./pages/TrocarSenha.tsx";
 import OAuthConsent from "./pages/OAuthConsent.tsx";
@@ -57,6 +58,7 @@ const App = () => (
           <Route path="/auditoria" element={<Auditoria />} />
           <Route path="/auditoria/novo" element={<AuditoriaContrato />} />
           <Route path="/auditoria/:id" element={<AuditoriaContrato />} />
+          <Route path="/carteira-ideali" element={<CarteiraIdeali />} />
           <Route path="/configuracoes" element={<Configuracoes />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
