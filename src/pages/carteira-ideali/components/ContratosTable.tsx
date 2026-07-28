@@ -6,8 +6,9 @@ import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, X } from "lucide-react";
 import { STATUS_LIST, formatBRL, type ContractAggregate } from "../lib/useCarteiraIdeali";
+import type { InadimplenciaFilter } from "./InadimplenciaChart";
 
 const PAGE_SIZE = 25;
 const ALL = "__all__";
@@ -16,9 +17,17 @@ interface Props {
   contracts: ContractAggregate[];
   garantidoraFilter: string | null;
   onGarantidoraFilterChange: (g: string | null) => void;
+  inadimplenciaFilter?: InadimplenciaFilter | null;
+  onClearInadimplencia?: () => void;
 }
 
-export function ContratosTable({ contracts, garantidoraFilter, onGarantidoraFilterChange }: Props) {
+export function ContratosTable({
+  contracts,
+  garantidoraFilter,
+  onGarantidoraFilterChange,
+  inadimplenciaFilter,
+  onClearInadimplencia,
+}: Props) {
   const [status, setStatus] = useState<string>(ALL);
   const [onlyLate, setOnlyLate] = useState(false);
   const [page, setPage] = useState(1);
@@ -33,16 +42,22 @@ export function ContratosTable({ contracts, garantidoraFilter, onGarantidoraFilt
 
   const filtered = useMemo(() => {
     return contracts.filter((c) => {
+      if (inadimplenciaFilter) {
+        if ((c.garantidora ?? "Não informada") !== inadimplenciaFilter.garantidora) return false;
+        if (c.status !== inadimplenciaFilter.status) return false;
+        if (!c.oldestOpen) return false;
+        return true;
+      }
       if (status !== ALL && c.status !== status) return false;
       if (garantidoraFilter && (c.garantidora ?? "Não informada") !== garantidoraFilter) return false;
       if (onlyLate && !c.oldestOpen) return false;
       return true;
     });
-  }, [contracts, status, garantidoraFilter, onlyLate]);
+  }, [contracts, status, garantidoraFilter, onlyLate, inadimplenciaFilter]);
 
   useEffect(() => {
     setPage(1);
-  }, [status, garantidoraFilter, onlyLate]);
+  }, [status, garantidoraFilter, onlyLate, inadimplenciaFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageRows = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -56,7 +71,21 @@ export function ContratosTable({ contracts, garantidoraFilter, onGarantidoraFilt
         Contratos ({filtered.length})
       </h2>
 
-      <div className="flex flex-col sm:flex-row sm:items-end gap-3 mb-3">
+      {inadimplenciaFilter && (
+        <div className="flex items-center gap-3 mb-3 flex-wrap rounded-md border bg-muted/50 px-3 py-2">
+          <p className="text-sm">
+            Filtro de inadimplência ativo: <strong>{inadimplenciaFilter.garantidora}</strong> ·{" "}
+            <strong>{inadimplenciaFilter.status}</strong>
+          </p>
+          <Button variant="outline" size="sm" onClick={() => onClearInadimplencia?.()}>
+            <X className="h-4 w-4 mr-1" /> Limpar filtro
+          </Button>
+        </div>
+      )}
+
+      <div
+        className={`flex flex-col sm:flex-row sm:items-end gap-3 mb-3 ${inadimplenciaFilter ? "opacity-50 pointer-events-none" : ""}`}
+      >
         <div className="sm:w-52">
           <Label className="text-xs">Status</Label>
           <Select value={status} onValueChange={setStatus}>
