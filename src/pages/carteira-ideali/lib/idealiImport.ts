@@ -82,6 +82,10 @@ function normalizeHeader(h: string): string {
     .toLowerCase();
 }
 
+function normalizeSheetName(name: string): string {
+  return name.trim().toLowerCase();
+}
+
 function get(row: Record<string, any>, key: string): any {
   return row[normalizeHeader(key)];
 }
