@@ -26,6 +26,8 @@ import Configuracoes from "./pages/Configuracoes.tsx";
 import TrocarSenha from "./pages/TrocarSenha.tsx";
 import OAuthConsent from "./pages/OAuthConsent.tsx";
 import RequirePasswordChange from "./components/RequirePasswordChange.tsx";
+import { EnvironmentProvider } from "./contexts/EnvironmentContext.tsx";
+import RequireNotIdeali from "./components/RequireNotIdeali.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -36,6 +38,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
+        <EnvironmentProvider>
         <RequirePasswordChange>
         <Routes>
           <Route path="/" element={<Index />} />
@@ -55,9 +58,9 @@ const App = () => (
           <Route path="/sinistros" element={<Sinistros />} />
           <Route path="/novo-sinistro" element={<NovoSinistro />} />
           <Route path="/novo-sinistro/resumo/:id" element={<ResumoSinistro />} />
-          <Route path="/auditoria" element={<Auditoria />} />
-          <Route path="/auditoria/novo" element={<AuditoriaContrato />} />
-          <Route path="/auditoria/:id" element={<AuditoriaContrato />} />
+          <Route path="/auditoria" element={<RequireNotIdeali><Auditoria /></RequireNotIdeali>} />
+          <Route path="/auditoria/novo" element={<RequireNotIdeali><AuditoriaContrato /></RequireNotIdeali>} />
+          <Route path="/auditoria/:id" element={<RequireNotIdeali><AuditoriaContrato /></RequireNotIdeali>} />
           <Route path="/carteira-ideali" element={<CarteiraIdeali />} />
           <Route path="/configuracoes" element={<Configuracoes />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
@@ -65,6 +68,7 @@ const App = () => (
         </Routes>
         </RequirePasswordChange>
         <ChatWidget />
+        </EnvironmentProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

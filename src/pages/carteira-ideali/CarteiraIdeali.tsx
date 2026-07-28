@@ -12,6 +12,7 @@ import { PrazoSinistroTable } from "./components/PrazoSinistroTable";
 import { GarantiaChart } from "./components/GarantiaChart";
 import { InadimplenciaChart, type InadimplenciaFilter } from "./components/InadimplenciaChart";
 import { ContratosTable } from "./components/ContratosTable";
+import { EnvironmentSelect } from "@/components/EnvironmentSelect";
 
 const CarteiraIdeali = () => {
   const navigate = useNavigate();
@@ -34,6 +35,9 @@ const CarteiraIdeali = () => {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <h1 className="text-lg font-semibold">Carteira Ideali</h1>
+          <div className="ml-auto">
+            <EnvironmentSelect />
+          </div>
         </div>
       </header>
 

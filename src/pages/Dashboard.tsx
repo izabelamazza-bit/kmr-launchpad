@@ -5,6 +5,9 @@ import { Button } from "@/components/ui/button";
 import logoKMR from "@/assets/Logo_KMR.png";
 import { LogOut, Users, Building2, UserCircle, Package, MessageSquare, Bot, Headset, AlertTriangle, FileWarning, ShieldCheck, Settings } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
+import { EnvironmentSelect } from "@/components/EnvironmentSelect";
+import { useEnvironment } from "@/contexts/EnvironmentContext";
+import { Wallet } from "lucide-react";
 
 const menuItems = [
   { label: "Usuários", icon: Users, path: "/cadastros/usuarios", desc: "Gerenciar usuários do sistema" },
@@ -16,8 +19,16 @@ const menuItems = [
   { label: "Configurações", icon: Settings, path: "/configuracoes", desc: "Integrações de IA e chaves de API" },
 ];
 
+const carteiraIdealiItem = {
+  label: "Carteira Ideali",
+  icon: Wallet,
+  path: "/carteira-ideali",
+  desc: "Dashboard e importação da carteira Ideali",
+};
+
 const Dashboard = () => {
   const navigate = useNavigate();
+  const { environment } = useEnvironment();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -52,12 +63,18 @@ const Dashboard = () => {
 
   const displayName = user?.user_metadata?.full_name || user?.email || "";
 
+  const visibleItems =
+    environment === "Ideali"
+      ? [...menuItems.filter((i) => i.path !== "/auditoria"), carteiraIdealiItem]
+      : menuItems;
+
   return (
     <div className="min-h-screen bg-muted/40">
       <header className="bg-card border-b shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <img src={logoKMR} alt="KMR" className="h-8 w-auto" />
           <div className="flex items-center gap-4">
+            <EnvironmentSelect />
             <span className="text-sm text-muted-foreground hidden sm:inline">
               Olá, <strong className="text-foreground">{displayName}</strong>
             </span>
@@ -95,7 +112,7 @@ const Dashboard = () => {
 
         <h2 className="text-lg font-medium text-foreground mb-4">Cadastros</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {menuItems.map((item) => (
+          {visibleItems.map((item) => (
             <button
               key={item.path}
               onClick={() => navigate(item.path)}
