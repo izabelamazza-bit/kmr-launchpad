@@ -127,9 +127,9 @@ export function useCarteiraIdeali() {
       const afetados = new Set<string>();
       for (const inv of invoices) {
         if (inv.dado_incompleto) faturasIncompletas += 1;
-        if (inv.status_fatura === "PE") {
+        if (inv.status_fatura === "PE" && !inv.dado_incompleto) {
           afetados.add(inv.codigo_contrato);
-          if (!inv.dado_incompleto) valorEmAtraso += inv.valor_boleto ?? 0;
+          valorEmAtraso += inv.valor_boleto ?? 0;
         }
       }
 
