@@ -1,24 +1,20 @@
-## Ajuste 1 — Valor em atraso
+## Ajustes em /carteira-ideali
 
-Em `useCarteiraIdeali.ts`, o cálculo passa a somar apenas `valor_boleto` das faturas com `status_fatura = 'PE'` e `dado_incompleto = false` (sem subtrair `valor_pago_fatura`). Mesma correção no valor por contrato (`valorEmAtraso` de cada contrato), mantendo "Contratos afetados" e o card de faturas incompletas como estão.
+**1. Cores do prazo de 60 dias** (`components/PrazoSinistroTable.tsx`)
+Reescrever `badgeClass(dias)`:
+- `dias < 0` → vermelho (destructive)
+- `0 <= dias <= 14` → amarelo (#F2C94C / texto #0F2A44)
+- `dias >= 15` → verde (#27AE60)
 
-## Ajuste 2 — Gráfico "Contratos por tipo de garantia"
+**2. Reordenar seções** (`CarteiraIdeali.tsx`)
+Trocar a ordem de renderização: `GarantiaChart` passa a vir antes de `InadimplenciaChart`. Estados e handlers de filtro permanecem iguais.
 
-`GarantiaChart.tsx` passa a ter barra única por garantidora com o total de contratos (todos os status), ordenado do maior para o menor. Clique na barra continua filtrando a Seção 5 por garantidora; botão "Limpar filtro" mantido.
+**3. Gráfico de pizza** (`components/GarantiaChart.tsx`)
+Substituir o `BarChart` por `PieChart` (recharts) em formato rosca:
+- Mesma agregação atual (contagem por garantidora, todos os status).
+- Paleta com tons da marca (#2F80ED, #0F2A44, #27AE60, #F2C94C, #F2994A, #56CCF2...) ciclando por fatia.
+- Clique na fatia chama `onSelect(garantidora)`; botão "Limpar filtro" mantido.
+- Legenda/labels com contagem absoluta e percentual (ex.: "CredPago — 128 (34%)"), com tooltip mostrando ambos.
+- Layout responsivo (mobile-first): rosca centralizada com legenda abaixo.
 
-## Ajuste 3 — Nova seção "Inadimplência por tipo de garantia"
-
-Novo componente `InadimplenciaChart.tsx`, posicionado entre "Prazo de 60 dias" e "Contratos por tipo de garantia".
-
-- Contrato inadimplente = tem ao menos uma fatura `PE` (inclui `dado_incompleto = true`) — já disponível via `oldestOpen` no agregado.
-- Considera apenas contratos com status Ativo, Pausado ou Encerrado.
-- Barras agrupadas (3 séries) por garantidora, ordenadas pelo total de inadimplentes.
-- Legenda com cores distintas: Ativo (azul #2F80ED), Pausado (laranja #F2994A), Encerrado (vermelho #EB5757).
-- Texto acima do gráfico: "Contratos com pelo menos uma fatura em aberto, por garantidora e situação do contrato."
-- Clique na barra define filtro combinado (garantidora + status + somente inadimplentes) e mostra "Limpar filtro".
-
-## Integração do filtro
-
-`CarteiraIdeali.tsx` passa a manter um estado de filtro de inadimplência `{ garantidora, status } | null`. `ContratosTable.tsx` recebe essa prop opcional: quando ativa, filtra por garantidora, status e presença de fatura em aberto, e exibe um aviso/botão de limpar. Selecionar o filtro de inadimplência limpa o filtro simples de garantidora e vice-versa, para evitar estados conflitantes.
-
-Nenhuma outra seção é alterada.
+Nenhuma outra seção da página é alterada.

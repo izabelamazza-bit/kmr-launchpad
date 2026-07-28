@@ -10,8 +10,8 @@ import {
 } from "../lib/useCarteiraIdeali";
 
 function badgeClass(dias: number): string {
-  if (dias <= 15) return "bg-destructive text-destructive-foreground";
-  if (dias <= 30) return "bg-[#F2C94C] text-[#0F2A44]";
+  if (dias < 0) return "bg-destructive text-destructive-foreground";
+  if (dias <= 14) return "bg-[#F2C94C] text-[#0F2A44]";
   return "bg-[#27AE60] text-white";
 }
 
