@@ -10,12 +10,14 @@ import { StatusCards } from "./components/StatusCards";
 import { FinanceiroCards } from "./components/FinanceiroCards";
 import { PrazoSinistroTable } from "./components/PrazoSinistroTable";
 import { GarantiaChart } from "./components/GarantiaChart";
+import { InadimplenciaChart, type InadimplenciaFilter } from "./components/InadimplenciaChart";
 import { ContratosTable } from "./components/ContratosTable";
 
 const CarteiraIdeali = () => {
   const navigate = useNavigate();
   const [importOpen, setImportOpen] = useState(false);
   const [garantidoraFilter, setGarantidoraFilter] = useState<string | null>(null);
+  const [inadFilter, setInadFilter] = useState<InadimplenciaFilter | null>(null);
   const { data, loading, error, reload } = useCarteiraIdeali();
 
   useEffect(() => {
@@ -75,15 +77,31 @@ const CarteiraIdeali = () => {
               carteiraAtivaMes={data.carteiraAtivaMes}
             />
             <PrazoSinistroTable contracts={data.contracts} />
+            <InadimplenciaChart
+              contracts={data.contracts}
+              selected={inadFilter}
+              onSelect={(f) => {
+                setInadFilter(f);
+                if (f) setGarantidoraFilter(null);
+              }}
+            />
             <GarantiaChart
               contracts={data.contracts}
               selected={garantidoraFilter}
-              onSelect={setGarantidoraFilter}
+              onSelect={(g) => {
+                setGarantidoraFilter(g);
+                if (g) setInadFilter(null);
+              }}
             />
             <ContratosTable
               contracts={data.contracts}
               garantidoraFilter={garantidoraFilter}
-              onGarantidoraFilterChange={setGarantidoraFilter}
+              onGarantidoraFilterChange={(g) => {
+                setGarantidoraFilter(g);
+                if (g) setInadFilter(null);
+              }}
+              inadimplenciaFilter={inadFilter}
+              onClearInadimplencia={() => setInadFilter(null)}
             />
           </>
         )}
