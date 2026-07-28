@@ -1,20 +1,35 @@
-## Ajustes em /carteira-ideali
+## 1. Gráfico "Contratos por tipo de garantia" (/carteira-ideali)
 
-**1. Cores do prazo de 60 dias** (`components/PrazoSinistroTable.tsx`)
-Reescrever `badgeClass(dias)`:
-- `dias < 0` → vermelho (destructive)
-- `0 <= dias <= 14` → amarelo (#F2C94C / texto #0F2A44)
-- `dias >= 15` → verde (#27AE60)
+- Considerar somente contratos com `status === "Ativo"` na montagem dos dados da rosca (contagem, percentuais e legenda passam a refletir só a carteira ativa).
+- Trocar o texto de apoio acima do gráfico por: "Composição da carteira ativa por garantidora."
+- O clique na fatia continua filtrando a tabela da Seção 5, que segue mostrando todos os status.
+- Nenhuma outra seção muda.
 
-**2. Reordenar seções** (`CarteiraIdeali.tsx`)
-Trocar a ordem de renderização: `GarantiaChart` passa a vir antes de `InadimplenciaChart`. Estados e handlers de filtro permanecem iguais.
+## 2. Seletor de ambiente no cabeçalho
 
-**3. Gráfico de pizza** (`components/GarantiaChart.tsx`)
-Substituir o `BarChart` por `PieChart` (recharts) em formato rosca:
-- Mesma agregação atual (contagem por garantidora, todos os status).
-- Paleta com tons da marca (#2F80ED, #0F2A44, #27AE60, #F2C94C, #F2994A, #56CCF2...) ciclando por fatia.
-- Clique na fatia chama `onSelect(garantidora)`; botão "Limpar filtro" mantido.
-- Legenda/labels com contagem absoluta e percentual (ex.: "CredPago — 128 (34%)"), com tooltip mostrando ambos.
-- Layout responsivo (mobile-first): rosca centralizada com legenda abaixo.
+Hoje o app não tem um menu lateral: a navegação é a grade de cards do Dashboard, e cada tela tem seu próprio cabeçalho (Dashboard e `CrudLayout`).
 
-Nenhuma outra seção da página é alterada.
+**Novo contexto de ambiente**
+- Criar `EnvironmentProvider` + hook `useEnvironment`, com valores `Rotina | Alugar | Ideali`.
+- Persistência em `localStorage` (chave `kmr:environment`), default `Rotina` quando não houver nada salvo.
+- Provider montado no `App.tsx`, dentro do `BrowserRouter`.
+
+**Componente `EnvironmentSelect`**
+- Dropdown (Select do shadcn) com as três opções, colocado no cabeçalho ao lado do nome do usuário / botão "Sair".
+- Inserido no cabeçalho do Dashboard e no cabeçalho compartilhado `CrudLayout` (cobre Usuários, Leads, Auditoria, Sinistros e demais telas CRUD), além do cabeçalho da página `/carteira-ideali`.
+
+**Comportamento na troca**
+- Ao escolher **Ideali**: navegar para `/carteira-ideali`.
+- Ao sair de Ideali para **Rotina** ou **Alugar**: navegar para `/dashboard`.
+- Selecionar Rotina/Alugar não altera nenhuma outra lógica existente (o filtro de empresa dentro da Auditoria continua igual).
+
+**Ocultação condicional de menu**
+- No Dashboard, quando o ambiente for `Ideali`, remover o card "Auditoria" da grade e exibir um card "Carteira Ideali" apontando para `/carteira-ideali`. Os demais itens (Usuários, Leads, Agente, Atendimento, Sinistros, Configurações) permanecem.
+- Guarda de rota leve: se o ambiente for `Ideali` e o usuário abrir `/auditoria` diretamente, redirecionar para `/carteira-ideali`.
+
+Sem alterações de banco, RLS ou dados para Rotina/Alugar — apenas navegação, persistência e visibilidade de menu.
+
+## Detalhes técnicos
+
+- Arquivos novos: `src/contexts/EnvironmentContext.tsx`, `src/components/EnvironmentSelect.tsx`.
+- Arquivos alterados: `src/App.tsx`, `src/pages/Dashboard.tsx`, `src/components/crud/CrudLayout.tsx`, `src/pages/carteira-ideali/CarteiraIdeali.tsx`, `src/pages/carteira-ideali/components/GarantiaChart.tsx`.
