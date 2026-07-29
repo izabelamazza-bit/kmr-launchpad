@@ -106,21 +106,9 @@ const CarteiraIdeali = () => {
             />
           </>
         )}
-
-        <DocumentacaoSection
-          documentos={documentos}
-          fila={fila}
-          loading={docsLoading}
-          onFilaChange={handleFilaChange}
-        />
       </main>
 
       <ImportIdealiModal open={importOpen} onOpenChange={setImportOpen} onDone={reload} />
-      <ImportDocumentosModal
-        open={importDocsOpen}
-        onOpenChange={setImportDocsOpen}
-        onDone={reloadDocs}
-      />
     </div>
   );
 };
