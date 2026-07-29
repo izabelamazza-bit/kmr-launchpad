@@ -542,6 +542,147 @@ export type Database = {
         }
         Relationships: []
       }
+      ideali_documentos: {
+        Row: {
+          apolice_garantia: boolean
+          apolice_seguro_incendio: boolean
+          codigo_contrato: string
+          contrato_adm: boolean
+          contrato_locacao: boolean
+          created_at: string
+          endereco: string | null
+          garantidora: string | null
+          id: string
+          inquilino: string | null
+          levantamento_documentos: boolean
+          migrar: string | null
+          n_arquivos_drive: number
+          nome_pasta_drive: string | null
+          observacoes: string | null
+          pasta_encontrada_drive: boolean
+          prioritario: boolean
+          relatorio_repasse_cobranca: boolean
+          status_contrato: string | null
+          status_documento_drive: string
+          tem_doc_garantia_drive: boolean
+          updated_at: string
+          vistoria: boolean
+        }
+        Insert: {
+          apolice_garantia?: boolean
+          apolice_seguro_incendio?: boolean
+          codigo_contrato: string
+          contrato_adm?: boolean
+          contrato_locacao?: boolean
+          created_at?: string
+          endereco?: string | null
+          garantidora?: string | null
+          id?: string
+          inquilino?: string | null
+          levantamento_documentos?: boolean
+          migrar?: string | null
+          n_arquivos_drive?: number
+          nome_pasta_drive?: string | null
+          observacoes?: string | null
+          pasta_encontrada_drive?: boolean
+          prioritario?: boolean
+          relatorio_repasse_cobranca?: boolean
+          status_contrato?: string | null
+          status_documento_drive?: string
+          tem_doc_garantia_drive?: boolean
+          updated_at?: string
+          vistoria?: boolean
+        }
+        Update: {
+          apolice_garantia?: boolean
+          apolice_seguro_incendio?: boolean
+          codigo_contrato?: string
+          contrato_adm?: boolean
+          contrato_locacao?: boolean
+          created_at?: string
+          endereco?: string | null
+          garantidora?: string | null
+          id?: string
+          inquilino?: string | null
+          levantamento_documentos?: boolean
+          migrar?: string | null
+          n_arquivos_drive?: number
+          nome_pasta_drive?: string | null
+          observacoes?: string | null
+          pasta_encontrada_drive?: boolean
+          prioritario?: boolean
+          relatorio_repasse_cobranca?: boolean
+          status_contrato?: string | null
+          status_documento_drive?: string
+          tem_doc_garantia_drive?: boolean
+          updated_at?: string
+          vistoria?: boolean
+        }
+        Relationships: []
+      }
+      ideali_fila_analista: {
+        Row: {
+          clausula_garantidora_presente: string
+          codigo_contrato: string
+          created_at: string
+          endereco: string | null
+          endereco_confere: string
+          garantidora: string | null
+          id: string
+          inquilino: string | null
+          localizacao_documento: string
+          nome_inquilino_confere: string
+          observacoes: string | null
+          ordem: number
+          resolvido_em: string | null
+          status_contrato: string | null
+          status_documento_drive: string
+          status_fila: string
+          status_loft_seguradora: string
+          updated_at: string
+        }
+        Insert: {
+          clausula_garantidora_presente?: string
+          codigo_contrato: string
+          created_at?: string
+          endereco?: string | null
+          endereco_confere?: string
+          garantidora?: string | null
+          id?: string
+          inquilino?: string | null
+          localizacao_documento?: string
+          nome_inquilino_confere?: string
+          observacoes?: string | null
+          ordem?: number
+          resolvido_em?: string | null
+          status_contrato?: string | null
+          status_documento_drive?: string
+          status_fila?: string
+          status_loft_seguradora?: string
+          updated_at?: string
+        }
+        Update: {
+          clausula_garantidora_presente?: string
+          codigo_contrato?: string
+          created_at?: string
+          endereco?: string | null
+          endereco_confere?: string
+          garantidora?: string | null
+          id?: string
+          inquilino?: string | null
+          localizacao_documento?: string
+          nome_inquilino_confere?: string
+          observacoes?: string | null
+          ordem?: number
+          resolvido_em?: string | null
+          status_contrato?: string | null
+          status_documento_drive?: string
+          status_fila?: string
+          status_loft_seguradora?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ideali_invoices: {
         Row: {
           adicional_fatura: string | null

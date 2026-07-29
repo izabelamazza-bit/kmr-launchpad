@@ -5,7 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, FileUp, Loader2 } from "lucide-react";
 import { ImportIdealiModal } from "./components/ImportIdealiModal";
+import { ImportDocumentosModal } from "./components/ImportDocumentosModal";
 import { useCarteiraIdeali } from "./lib/useCarteiraIdeali";
+import { useDocumentosIdeali, type FilaRecord } from "./lib/useDocumentosIdeali";
+import { DocumentacaoSection } from "./components/DocumentacaoSection";
 import { StatusCards } from "./components/StatusCards";
 import { FinanceiroCards } from "./components/FinanceiroCards";
 import { PrazoSinistroTable } from "./components/PrazoSinistroTable";
@@ -16,9 +19,20 @@ import { ContratosTable } from "./components/ContratosTable";
 const CarteiraIdeali = () => {
   const navigate = useNavigate();
   const [importOpen, setImportOpen] = useState(false);
+  const [importDocsOpen, setImportDocsOpen] = useState(false);
   const [garantidoraFilter, setGarantidoraFilter] = useState<string | null>(null);
   const [inadFilter, setInadFilter] = useState<InadimplenciaFilter | null>(null);
   const { data, loading, error, reload } = useCarteiraIdeali();
+  const {
+    documentos,
+    fila,
+    loading: docsLoading,
+    reload: reloadDocs,
+    setFila,
+  } = useDocumentosIdeali();
+
+  const handleFilaChange = (row: FilaRecord) =>
+    setFila((prev) => prev.map((f) => (f.id === row.id ? row : f)));
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -47,10 +61,16 @@ const CarteiraIdeali = () => {
                 resumo antes de qualquer gravação no banco.
               </p>
             </div>
-            <Button onClick={() => setImportOpen(true)}>
-              <FileUp className="h-4 w-4 mr-2" />
-              Importar carteira Ideali
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button onClick={() => setImportOpen(true)}>
+                <FileUp className="h-4 w-4 mr-2" />
+                Importar carteira Ideali
+              </Button>
+              <Button variant="outline" onClick={() => setImportDocsOpen(true)}>
+                <FileUp className="h-4 w-4 mr-2" />
+                Importar auditoria de documentos
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
@@ -106,9 +126,21 @@ const CarteiraIdeali = () => {
             />
           </>
         )}
+
+        <DocumentacaoSection
+          documentos={documentos}
+          fila={fila}
+          loading={docsLoading}
+          onFilaChange={handleFilaChange}
+        />
       </main>
 
       <ImportIdealiModal open={importOpen} onOpenChange={setImportOpen} onDone={reload} />
+      <ImportDocumentosModal
+        open={importDocsOpen}
+        onOpenChange={setImportDocsOpen}
+        onDone={reloadDocs}
+      />
     </div>
   );
 };
