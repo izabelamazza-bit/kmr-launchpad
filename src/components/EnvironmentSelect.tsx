@@ -17,8 +17,7 @@ export function EnvironmentSelect() {
     const env = value as Environment;
     if (env === environment) return;
     setEnvironment(env);
-    if (env === "Ideali") navigate("/carteira-ideali");
-    else if (environment === "Ideali") navigate("/dashboard");
+    navigate("/dashboard");
   };
 
   return (
