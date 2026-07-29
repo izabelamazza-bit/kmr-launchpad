@@ -7,7 +7,7 @@ import { LogOut, Users, Building2, UserCircle, Package, MessageSquare, Bot, Head
 import type { User } from "@supabase/supabase-js";
 import { EnvironmentSelect } from "@/components/EnvironmentSelect";
 import { useEnvironment } from "@/contexts/EnvironmentContext";
-import { Wallet } from "lucide-react";
+import { Wallet, FolderCheck } from "lucide-react";
 
 const menuItems = [
   { label: "Usuários", icon: Users, path: "/cadastros/usuarios", desc: "Gerenciar usuários do sistema" },
@@ -19,12 +19,20 @@ const menuItems = [
   { label: "Configurações", icon: Settings, path: "/configuracoes", desc: "Integrações de IA e chaves de API" },
 ];
 
-const carteiraIdealiItem = {
-  label: "Carteira Ideali",
-  icon: Wallet,
-  path: "/carteira-ideali",
-  desc: "Dashboard e importação da carteira Ideali",
-};
+const idealiItems = [
+  {
+    label: "Carteira",
+    icon: Wallet,
+    path: "/carteira-ideali",
+    desc: "Dashboard e importação da carteira Ideali",
+  },
+  {
+    label: "Documentação",
+    icon: FolderCheck,
+    path: "/documentacao-ideali",
+    desc: "Situação dos documentos no Drive e fila do analista",
+  },
+];
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -63,10 +71,8 @@ const Dashboard = () => {
 
   const displayName = user?.user_metadata?.full_name || user?.email || "";
 
-  const visibleItems =
-    environment === "Ideali"
-      ? [...menuItems.filter((i) => i.path !== "/auditoria"), carteiraIdealiItem]
-      : menuItems;
+  const isIdeali = environment === "Ideali";
+  const visibleItems = isIdeali ? idealiItems : menuItems;
 
   return (
     <div className="min-h-screen bg-muted/40">
@@ -90,6 +96,7 @@ const Dashboard = () => {
         <h1 className="text-3xl font-semibold text-foreground mb-2">Dashboard</h1>
         <p className="text-muted-foreground mb-8">Bem-vindo ao painel administrativo da KMR.</p>
 
+        {!isIdeali && (
         <div className="mb-8 bg-card border rounded-lg p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shadow-sm">
           <div className="flex items-start gap-3">
             <div className="bg-primary/10 rounded-md p-2">
@@ -109,8 +116,9 @@ const Dashboard = () => {
             Registrar novo sinistro
           </Button>
         </div>
+        )}
 
-        <h2 className="text-lg font-medium text-foreground mb-4">Cadastros</h2>
+        <h2 className="text-lg font-medium text-foreground mb-4">{isIdeali ? "Ideali" : "Cadastros"}</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {visibleItems.map((item) => (
             <button
