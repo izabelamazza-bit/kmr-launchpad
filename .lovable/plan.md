@@ -1,35 +1,47 @@
 ## Objetivo
 
-Criar a lógica de importação do CSV do RPA da garantidora Loft, pronta para ser usada na tela "Portal Loft" (a ser criada no próximo prompt).
+Criar a tela "Portal Loft" (`/portal-loft`), independente da Auditoria, usando o importador CSV já implementado.
 
-## O que será construído
+## Navegação
 
-### 1. Dependência
-- Instalar `papaparse` + `@types/papaparse` (hoje só existe `xlsx` no projeto).
+- Novo item no menu principal do Dashboard: **Portal Loft** (ícone `Building2`/`ShieldCheck`, descrição "Snapshots e movimentações do portal da garantidora Loft"), junto de Sinistros/Auditoria — visível nos ambientes Rotina/Alugar e oculto quando "Ideali" está selecionado (mesmo tratamento da Auditoria, via `RequireNotIdeali` na rota).
+- Rota registrada em `App.tsx`.
 
-### 2. Parser e conversores — `src/pages/portal-loft/lib/loftCsvImport.ts`
-- Constante com os 30 cabeçalhos esperados, na ordem exata informada.
-- Validação: se o conjunto de colunas não for exatamente o esperado, aborta antes de qualquer insert e retorna a lista de colunas faltantes/extras para exibir no erro.
-- Conversores:
-  - `parseBool`: "Sim" → true, "Não" → false (case/acento tolerantes), vazio → null.
-  - `parseDate`: "DD/MM/AAAA" → "AAAA-MM-DD"; vazio/inválido → null.
-  - `parseNum`: string com ponto decimal → number; vazio → null (remove separadores de milhar e "R$" por segurança).
-- Linhas sem `contrato` são descartadas e contabilizadas como ignoradas.
+## Estrutura da tela (de cima para baixo)
 
-### 3. Fluxo de importação (função `importLoftCsv`)
-1. Parse local com papaparse (`header: true`, `skipEmptyLines: true`).
-2. Valida cabeçalho → erro claro se divergir.
-3. Cria 1 registro em `guarantor_portal_imports` (garantidora `Loft`, `nome_arquivo`, `total_linhas`, `importado_por` = usuário logado).
-4. Insere as linhas convertidas em `guarantor_portal_snapshots` com o `import_id`, em lotes de 500.
-5. Callback de progresso por lote (`onProgress(inseridos, total)`).
-6. **Rollback em falha:** se algum lote falhar, apaga os snapshots já inseridos daquele `import_id` e o próprio registro de import, garantindo que nada fique parcialmente aplicado; se o rollback também falhar, o erro exibido avisa explicitamente que o import ficou incompleto e informa o `import_id`.
+**1. Cabeçalho**
+- Título + botão "Importar novo CSV" abrindo o `ImportLoftModal` já pronto.
+- Ao lado: "Última importação: DD/MM/AAAA HH:mm por <nome>". O nome vem de `users_registry` (match por `user_id = importado_por`), com fallback para o e-mail ou "—" quando não houver registro.
 
-### 4. Componente `ImportLoftModal.tsx`
-- Seguindo o padrão visual já usado em `ImportImoviewModal` / `ImportDocumentosModal` (componentes de /componentes).
-- Input de arquivo `.csv`, botão "Importar", `Progress` durante a execução.
-- Resumo final: total de linhas do CSV, importadas com sucesso, ignoradas, e erros — via toast + bloco de resumo no modal.
-- Estados de erro com mensagem legível (cabeçalho inválido, falha de rede, parsing).
+**2. Cards de resumo** (baseados na importação mais recente)
+- Total de contratos, Ativos, Cancelados, Exonerados (contagem por `status` dos snapshots do import atual).
+- Casos novos: contratos do import atual ausentes no import anterior (comparação em memória dos dois conjuntos de `contrato`).
+- Mudanças de status: linhas de `guarantor_portal_movements` do import atual onde `status_atual <> status_anterior`.
+
+**3. Painel "Movimentações desta importação"**
+- Tabela a partir de `guarantor_portal_movements` filtrada por `import_atual_id` = import mais recente, exibindo só linhas com alguma diferença (status, cancelamento de taxa ou pagamento suspenso).
+- Colunas: contrato, inquilino, "status anterior → status atual" (com `ArrowRight`), badge de cancelamento de taxa quando mudou, badge de pagamento suspenso quando mudou.
+- Estado vazio: "Nenhuma movimentação em relação à importação anterior."
+
+**4. Tabela principal**
+- Todos os contratos do import mais recente.
+- Colunas: contrato, inquilino, CPF, plano, status (badge: verde Ativo / cinza Cancelado / vermelho Exonerado / neutro para outros), valor do aluguel (BRL), corretor, data de ativação, data de exoneração.
+- Filtros (selects) por status, plano e corretor, populados dos valores presentes nos dados; busca por contrato, inquilino ou CPF (ignorando pontuação do CPF).
+- Linha clicável.
+
+**5. Drawer de histórico do contrato**
+- `Sheet` lateral com todas as snapshots daquele `contrato` (todos os imports), ordenadas por `data_importacao` crescente/decrescente.
+- Formato linha do tempo: cada ponto mostra data da importação, status e os campos que mudaram em relação à snapshot anterior, destacados como "campo: antes → depois". Snapshot sem mudanças aparece como "Sem alterações".
+- Campos comparados: status, plano, valores (locatício, aluguel, condomínio, outras taxas, setup), cancelamento de taxa e previsão, pagamento suspenso, datas (ativação, exoneração, última renovação), corretor, inquilino, fiança, garantia, multiplicador, custo de saída, motivo de exoneração.
+
+## Arquivos
+
+- `src/pages/portal-loft/PortalLoft.tsx` — página e composição.
+- `src/pages/portal-loft/lib/usePortalLoft.ts` — carrega último e penúltimo import, snapshots (paginação em blocos de 1000 para passar do limite do PostgREST), movimentações e KPIs.
+- `src/pages/portal-loft/components/` — `ResumoCards.tsx`, `MovimentacoesPanel.tsx`, `ContratosTable.tsx`, `HistoricoDrawer.tsx`.
+- Edições: `src/App.tsx` (rota) e `src/pages/Dashboard.tsx` (item de menu).
 
 ## Notas técnicas
-- Sem mudanças nas tabelas: `guarantor_portal_imports` / `guarantor_portal_snapshots` já existem com RLS para usuário autenticado.
-- O modal será exportado e plugado na tela "Portal Loft" no próximo prompt; nesta etapa ele não é montado em nenhuma rota nova.
+
+- Componentes exclusivamente do design system em `/componentes` (Card, Table, Badge, Select, Input, Sheet, Button), paleta KMR e layout mobile-first.
+- Nenhum vínculo com `audit_contracts`; nenhuma alteração de schema — as tabelas e a view já existem.
