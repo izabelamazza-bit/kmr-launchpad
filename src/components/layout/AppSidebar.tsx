@@ -8,8 +8,6 @@ import {
   Bot,
   Headset,
   LayoutDashboard,
-  Wallet,
-  FolderCheck,
   LogOut,
 } from "lucide-react";
 import {
@@ -27,19 +25,12 @@ import {
 } from "@/components/ui/sidebar";
 import logoKMR from "@/assets/Logo_KMR.png";
 import { supabase } from "@/integrations/supabase/client";
-import { useEnvironment } from "@/contexts/EnvironmentContext";
 
 const operacao = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Auditoria", url: "/auditoria", icon: ShieldCheck },
   { title: "Sinistros", url: "/sinistros", icon: FileWarning },
   { title: "Portal Loft", url: "/portal-loft", icon: Building2 },
-];
-
-const idealiItems = [
-  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
-  { title: "Carteira", url: "/carteira-ideali", icon: Wallet },
-  { title: "Documentação", url: "/documentacao-ideali", icon: FolderCheck },
 ];
 
 const administracao = [
@@ -54,13 +45,9 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const { environment } = useEnvironment();
-  const isIdeali = environment === "Ideali";
 
   const isActive = (url: string) =>
     url === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(url);
-
-  const mainItems = isIdeali ? idealiItems : operacao;
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -82,7 +69,7 @@ export function AppSidebar() {
           <SidebarGroupLabel>Operação</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {mainItems.map((item) => (
+              {operacao.map((item) => (
                 <SidebarMenuItem key={item.url}>
                   <SidebarMenuButton asChild isActive={isActive(item.url)} tooltip={item.title}>
                     <NavLink to={item.url} className="flex items-center gap-2">
@@ -98,8 +85,7 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="pb-3">
-        {!isIdeali && (
-          <SidebarGroup className="py-0">
+        <SidebarGroup className="py-0">
             <SidebarGroupLabel className="text-[10px] uppercase tracking-wide">
               Administração
             </SidebarGroupLabel>
@@ -124,8 +110,7 @@ export function AppSidebar() {
                 ))}
               </SidebarMenu>
             </SidebarGroupContent>
-          </SidebarGroup>
-        )}
+        </SidebarGroup>
 
         <SidebarMenu>
           <SidebarMenuItem>
