@@ -1,33 +1,28 @@
 ## Objetivo
 
-Separar a Documentação Ideali em página própria e limitar o ambiente Ideali a apenas dois destinos: Carteira e Documentação.
+Criar a estrutura de banco para armazenar os dados do RPA da garantidora Loft (importações de CSV, snapshots por contrato e detecção de movimentações entre importações). Nenhuma tabela do módulo de Auditoria é alterada.
 
-## 1. Nova página `/documentacao-ideali`
+## O que será criado
 
-- Criar `src/pages/carteira-ideali/DocumentacaoIdeali.tsx`: página independente com cabeçalho próprio (voltar para `/dashboard`, título "Documentação Ideali"), guarda de sessão igual à da Carteira, botão "Importar auditoria de documentos" (`ImportDocumentosModal`) e o conteúdo completo da Seção 7 via `DocumentacaoSection` (4 cards + tabela "Situação dos documentos no Drive" + Fila do Analista).
-- Reaproveitar o hook `useDocumentosIdeali` sem alterações (dados e tabelas permanecem exatamente como estão).
-- Registrar a rota em `src/App.tsx`.
+### 1. Tabela `guarantor_portal_imports`
+Uma linha por rodada de importação: garantidora (default `Loft`), nome do arquivo, data da importação, total de linhas e usuário que importou.
 
-## 2. Limpar `/carteira-ideali`
+### 2. Tabela `guarantor_portal_snapshots`
+Uma linha por contrato por importação, com todos os campos solicitados: valores (locatício, aluguel, condomínio, outras taxas, setup, fiança total, garantia, multiplicador, custo de saída), flags (cancelamento de taxa + previsão, pagamento suspenso), status, plano, datas (criação, ativação, exoneração, última renovação), corretor, inquilino e CPF, endereço completo (CEP, endereço, número, complemento, bairro, cidade, UF), motivo da exoneração e data do snapshot. Ligada à importação com exclusão em cascata.
 
-- Remover de `CarteiraIdeali.tsx`: `DocumentacaoSection`, `ImportDocumentosModal`, o hook `useDocumentosIdeali` e o botão de importação de documentos (que passa para a nova página).
-- O restante das seções 1–6 fica intacto.
+Índices em `contrato` e em `import_id`.
 
-## 3. Dashboard restrito no ambiente Ideali
+### 3. Acesso (RLS)
+RLS habilitado nas duas tabelas, seguindo exatamente o padrão já usado em `audit_contracts`: qualquer usuário autenticado pode consultar, criar, editar e excluir registros. Nenhum acesso para visitantes não autenticados.
 
-Em `src/pages/Dashboard.tsx`, quando `environment === "Ideali"`:
-- Exibir somente dois cards de navegação: **Carteira** (`/carteira-ideali`) e **Documentação** (`/documentacao-ideali`).
-- Ocultar o bloco "Registrar novo sinistro" e todo o grupo "Cadastros" (Usuários, Leads, Agente de IA, Atendimento, Sinistros, Auditoria, Configurações).
-- Ajustar o título da seção para "Ideali" em vez de "Cadastros" nesse contexto.
+### 4. View `guarantor_portal_movements`
+Para cada contrato, compara o snapshot mais recente com o imediatamente anterior e expõe: contrato, inquilino, status atual/anterior, cancelamento de taxa atual/anterior, pagamento suspenso atual/anterior, IDs das importações atual e anterior, e a data da importação atual. Serve de base para telas de "o que mudou desde a última importação".
 
-Em `Rotina` / `Alugar`, nada muda: o dashboard genérico completo continua aparecendo.
+## Detalhes técnicos
 
-## 4. Seletor de ambiente
-
-Em `src/components/EnvironmentSelect.tsx`, ao escolher "Ideali", navegar para `/dashboard` (menu com as duas opções) em vez de redirecionar direto para `/carteira-ideali`. Ao sair de Ideali, continua indo para `/dashboard`.
-
-## Notas técnicas
-
-- Nenhuma migração de banco; `ideali_documentos`, `ideali_fila_analista` e `useDocumentosIdeali` permanecem inalterados.
-- `RequireNotIdeali` continua protegendo Auditoria; as rotas Ideali seguem acessíveis por URL direta.
-- Verificação final: build/typecheck e navegação Ideali → Carteira / Documentação e volta para Rotina.
+- Grants explícitos em ambas as tabelas: `SELECT, INSERT, UPDATE, DELETE` para `authenticated` e `ALL` para `service_role` (sem `anon`).
+- Policies nomeadas `guarantor_portal_imports_{select,insert,update,delete}` e equivalentes para snapshots, com predicado `auth.uid() IS NOT NULL` para o role `authenticated` — mesmo padrão verificado em `audit_contracts` (o predicado `auth.uid() IS NOT NULL` é a forma robusta equivalente a `auth.role() = 'authenticated'`).
+- `importado_por uuid references auth.users(id)` (somente FK, sem trigger).
+- A view usa CTE com `LAG(...) OVER (PARTITION BY contrato ORDER BY i.data_importacao)` sobre o join `guarantor_portal_snapshots s JOIN guarantor_portal_imports i ON i.id = s.import_id`, filtrando com `ROW_NUMBER() ... DESC = 1` para manter apenas a linha mais recente por contrato.
+- A view é criada com `security_invoker = true`, para que o RLS das tabelas base continue valendo para quem consulta.
+- Nada de código de frontend nesta etapa: apenas migração de banco. O importador de CSV e as telas ficam para um passo seguinte.
