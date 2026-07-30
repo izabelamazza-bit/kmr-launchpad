@@ -398,6 +398,152 @@ export type Database = {
         }
         Relationships: []
       }
+      guarantor_portal_imports: {
+        Row: {
+          data_importacao: string
+          garantidora: string
+          id: string
+          importado_por: string | null
+          nome_arquivo: string | null
+          total_linhas: number | null
+        }
+        Insert: {
+          data_importacao?: string
+          garantidora?: string
+          id?: string
+          importado_por?: string | null
+          nome_arquivo?: string | null
+          total_linhas?: number | null
+        }
+        Update: {
+          data_importacao?: string
+          garantidora?: string
+          id?: string
+          importado_por?: string | null
+          nome_arquivo?: string | null
+          total_linhas?: number | null
+        }
+        Relationships: []
+      }
+      guarantor_portal_snapshots: {
+        Row: {
+          bairro: string | null
+          cancelamento_taxa: boolean | null
+          cancelamento_taxa_previsao: string | null
+          cep: string | null
+          cidade: string | null
+          complemento: string | null
+          contrato: string
+          corretor: string | null
+          custo_saida: number | null
+          data_ativacao: string | null
+          data_criacao: string | null
+          data_exoneracao: string | null
+          data_snapshot: string
+          endereco: string | null
+          endereco_numero: string | null
+          fianca_total: number | null
+          garantia: number | null
+          garantidora: string
+          id: string
+          import_id: string
+          inquilino: string | null
+          inquilino_cpf: string | null
+          motivo_exoneracao: string | null
+          multiplicador: number | null
+          pagamento_suspenso: boolean | null
+          plano: string | null
+          status: string | null
+          uf: string | null
+          ultima_renovacao: string | null
+          valor_aluguel: number | null
+          valor_condominio: number | null
+          valor_locaticio: number | null
+          valor_outras_taxas: number | null
+          valor_setup: number | null
+        }
+        Insert: {
+          bairro?: string | null
+          cancelamento_taxa?: boolean | null
+          cancelamento_taxa_previsao?: string | null
+          cep?: string | null
+          cidade?: string | null
+          complemento?: string | null
+          contrato: string
+          corretor?: string | null
+          custo_saida?: number | null
+          data_ativacao?: string | null
+          data_criacao?: string | null
+          data_exoneracao?: string | null
+          data_snapshot?: string
+          endereco?: string | null
+          endereco_numero?: string | null
+          fianca_total?: number | null
+          garantia?: number | null
+          garantidora?: string
+          id?: string
+          import_id: string
+          inquilino?: string | null
+          inquilino_cpf?: string | null
+          motivo_exoneracao?: string | null
+          multiplicador?: number | null
+          pagamento_suspenso?: boolean | null
+          plano?: string | null
+          status?: string | null
+          uf?: string | null
+          ultima_renovacao?: string | null
+          valor_aluguel?: number | null
+          valor_condominio?: number | null
+          valor_locaticio?: number | null
+          valor_outras_taxas?: number | null
+          valor_setup?: number | null
+        }
+        Update: {
+          bairro?: string | null
+          cancelamento_taxa?: boolean | null
+          cancelamento_taxa_previsao?: string | null
+          cep?: string | null
+          cidade?: string | null
+          complemento?: string | null
+          contrato?: string
+          corretor?: string | null
+          custo_saida?: number | null
+          data_ativacao?: string | null
+          data_criacao?: string | null
+          data_exoneracao?: string | null
+          data_snapshot?: string
+          endereco?: string | null
+          endereco_numero?: string | null
+          fianca_total?: number | null
+          garantia?: number | null
+          garantidora?: string
+          id?: string
+          import_id?: string
+          inquilino?: string | null
+          inquilino_cpf?: string | null
+          motivo_exoneracao?: string | null
+          multiplicador?: number | null
+          pagamento_suspenso?: boolean | null
+          plano?: string | null
+          status?: string | null
+          uf?: string | null
+          ultima_renovacao?: string | null
+          valor_aluguel?: number | null
+          valor_condominio?: number | null
+          valor_locaticio?: number | null
+          valor_outras_taxas?: number | null
+          valor_setup?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guarantor_portal_snapshots_import_id_fkey"
+            columns: ["import_id"]
+            isOneToOne: false
+            referencedRelation: "guarantor_portal_imports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ideali_contracts: {
         Row: {
           bairro: string | null
@@ -1111,6 +1257,30 @@ export type Database = {
           total_items: number | null
         }
         Relationships: []
+      }
+      guarantor_portal_movements: {
+        Row: {
+          cancelamento_taxa_anterior: boolean | null
+          cancelamento_taxa_atual: boolean | null
+          contrato: string | null
+          data_importacao_atual: string | null
+          import_anterior_id: string | null
+          import_atual_id: string | null
+          inquilino: string | null
+          pagamento_suspenso_anterior: boolean | null
+          pagamento_suspenso_atual: boolean | null
+          status_anterior: string | null
+          status_atual: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guarantor_portal_snapshots_import_id_fkey"
+            columns: ["import_atual_id"]
+            isOneToOne: false
+            referencedRelation: "guarantor_portal_imports"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Functions: {
