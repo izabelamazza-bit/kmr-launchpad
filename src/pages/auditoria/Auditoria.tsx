@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { FileUp, Download } from "lucide-react";
 import { exportAuditReport } from "./lib/exportReport";
 import { toast } from "@/hooks/use-toast";
+import { KpiCard } from "@/components/KpiCard";
 
 interface ContractRow {
   id: string;
@@ -423,18 +424,5 @@ const Auditoria = () => {
     </CrudLayout>
   );
 };
-
-function KpiCard({ label, value, color }: { label: string; value: number; color: string }) {
-  return (
-    <Card>
-      <CardContent className="pt-4">
-        <div className="text-xs text-muted-foreground">{label}</div>
-        <div className="text-2xl font-bold mt-1" style={{ color }}>
-          {value}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
 
 export default Auditoria;
