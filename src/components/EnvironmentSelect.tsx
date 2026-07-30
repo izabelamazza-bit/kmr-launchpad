@@ -1,4 +1,3 @@
-import { useNavigate } from "react-router-dom";
 import { Building2 } from "lucide-react";
 import {
   Select,
@@ -11,13 +10,11 @@ import { ENVIRONMENTS, useEnvironment, type Environment } from "@/contexts/Envir
 
 export function EnvironmentSelect() {
   const { environment, setEnvironment } = useEnvironment();
-  const navigate = useNavigate();
 
   const handleChange = (value: string) => {
     const env = value as Environment;
     if (env === environment) return;
     setEnvironment(env);
-    navigate("/dashboard");
   };
 
   return (
