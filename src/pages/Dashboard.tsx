@@ -16,6 +16,7 @@ const menuItems = [
   { label: "Atendimento", icon: Headset, path: "/atendimento", desc: "Acompanhe e gerencie conversas em tempo real" },
   { label: "Sinistros", icon: FileWarning, path: "/sinistros", desc: "Acompanhar inadimplências registradas" },
   { label: "Auditoria", icon: ShieldCheck, path: "/auditoria", desc: "Auditoria de contratos de garantidoras" },
+  { label: "Portal Loft", icon: Building2, path: "/portal-loft", desc: "Snapshots e movimentações do portal da garantidora Loft" },
   { label: "Configurações", icon: Settings, path: "/configuracoes", desc: "Integrações de IA e chaves de API" },
 ];
 
