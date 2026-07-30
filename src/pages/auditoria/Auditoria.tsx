@@ -17,6 +17,7 @@ import { FileUp, Download } from "lucide-react";
 import { exportAuditReport } from "./lib/exportReport";
 import { toast } from "@/hooks/use-toast";
 import { KpiCard } from "@/components/KpiCard";
+import { useEnvironment } from "@/contexts/EnvironmentContext";
 
 interface ContractRow {
   id: string;
@@ -49,7 +50,8 @@ const Auditoria = () => {
   const [filtroOcup, setFiltroOcup] = useState("todos");
   const [filtroProg, setFiltroProg] = useState("todos");
   const [filtroAnalista, setFiltroAnalista] = useState("todos");
-  const [filtroEmpresa, setFiltroEmpresa] = useState("todos");
+  const { environment } = useEnvironment();
+  const filtroEmpresa = environment;
   const [analistas, setAnalistas] = useState<{ value: string; label: string }[]>([]);
   const [importOpen, setImportOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -332,20 +334,7 @@ const Auditoria = () => {
 
           {/* Filters */}
           <Card className="mb-4">
-            <CardContent className="pt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
-              <div>
-                <div className="text-xs text-muted-foreground mb-1">Empresa</div>
-                <SearchableSelect
-                  value={filtroEmpresa}
-                  onChange={setFiltroEmpresa}
-                  options={[
-                    { value: "todos", label: "Todas" },
-                    { value: "Rotina", label: "Rotina" },
-                    { value: "Alugar", label: "Alugar" },
-                  ]}
-                  placeholder="Todas"
-                />
-              </div>
+            <CardContent className="pt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
               <div>
                 <div className="text-xs text-muted-foreground mb-1">Garantidora</div>
                 <SearchableSelect
