@@ -168,7 +168,7 @@ const Auditoria = () => {
       if (filtroGar !== "todos" && r.garantidora !== filtroGar) return false;
       if (filtroStatus !== "todos" && r.status_contrato !== filtroStatus) return false;
       if (filtroOcup !== "todos" && r.ocupacao !== filtroOcup) return false;
-      if (filtroEmpresa !== "todos" && r.empresa !== filtroEmpresa) return false;
+      if (r.empresa !== filtroEmpresa) return false;
       if (filtroProg === "completo" && r.audit_status !== "Completa") return false;
       if (
         filtroProg === "incompleto" &&
@@ -192,7 +192,7 @@ const Auditoria = () => {
       credaluga: 0,
       kmr: 0,
     };
-    const scope = rows.filter((r) => filtroEmpresa === "todos" || r.empresa === filtroEmpresa);
+    const scope = rows.filter((r) => r.empresa === filtroEmpresa);
     t.total = scope.length;
     scope.forEach((r) => {
       if (r.audit_status === "Completa") t.completa += 1;
