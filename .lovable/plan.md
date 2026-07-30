@@ -1,28 +1,35 @@
 ## Objetivo
 
-Criar a estrutura de banco para armazenar os dados do RPA da garantidora Loft (importações de CSV, snapshots por contrato e detecção de movimentações entre importações). Nenhuma tabela do módulo de Auditoria é alterada.
+Criar a lógica de importação do CSV do RPA da garantidora Loft, pronta para ser usada na tela "Portal Loft" (a ser criada no próximo prompt).
 
-## O que será criado
+## O que será construído
 
-### 1. Tabela `guarantor_portal_imports`
-Uma linha por rodada de importação: garantidora (default `Loft`), nome do arquivo, data da importação, total de linhas e usuário que importou.
+### 1. Dependência
+- Instalar `papaparse` + `@types/papaparse` (hoje só existe `xlsx` no projeto).
 
-### 2. Tabela `guarantor_portal_snapshots`
-Uma linha por contrato por importação, com todos os campos solicitados: valores (locatício, aluguel, condomínio, outras taxas, setup, fiança total, garantia, multiplicador, custo de saída), flags (cancelamento de taxa + previsão, pagamento suspenso), status, plano, datas (criação, ativação, exoneração, última renovação), corretor, inquilino e CPF, endereço completo (CEP, endereço, número, complemento, bairro, cidade, UF), motivo da exoneração e data do snapshot. Ligada à importação com exclusão em cascata.
+### 2. Parser e conversores — `src/pages/portal-loft/lib/loftCsvImport.ts`
+- Constante com os 30 cabeçalhos esperados, na ordem exata informada.
+- Validação: se o conjunto de colunas não for exatamente o esperado, aborta antes de qualquer insert e retorna a lista de colunas faltantes/extras para exibir no erro.
+- Conversores:
+  - `parseBool`: "Sim" → true, "Não" → false (case/acento tolerantes), vazio → null.
+  - `parseDate`: "DD/MM/AAAA" → "AAAA-MM-DD"; vazio/inválido → null.
+  - `parseNum`: string com ponto decimal → number; vazio → null (remove separadores de milhar e "R$" por segurança).
+- Linhas sem `contrato` são descartadas e contabilizadas como ignoradas.
 
-Índices em `contrato` e em `import_id`.
+### 3. Fluxo de importação (função `importLoftCsv`)
+1. Parse local com papaparse (`header: true`, `skipEmptyLines: true`).
+2. Valida cabeçalho → erro claro se divergir.
+3. Cria 1 registro em `guarantor_portal_imports` (garantidora `Loft`, `nome_arquivo`, `total_linhas`, `importado_por` = usuário logado).
+4. Insere as linhas convertidas em `guarantor_portal_snapshots` com o `import_id`, em lotes de 500.
+5. Callback de progresso por lote (`onProgress(inseridos, total)`).
+6. **Rollback em falha:** se algum lote falhar, apaga os snapshots já inseridos daquele `import_id` e o próprio registro de import, garantindo que nada fique parcialmente aplicado; se o rollback também falhar, o erro exibido avisa explicitamente que o import ficou incompleto e informa o `import_id`.
 
-### 3. Acesso (RLS)
-RLS habilitado nas duas tabelas, seguindo exatamente o padrão já usado em `audit_contracts`: qualquer usuário autenticado pode consultar, criar, editar e excluir registros. Nenhum acesso para visitantes não autenticados.
+### 4. Componente `ImportLoftModal.tsx`
+- Seguindo o padrão visual já usado em `ImportImoviewModal` / `ImportDocumentosModal` (componentes de /componentes).
+- Input de arquivo `.csv`, botão "Importar", `Progress` durante a execução.
+- Resumo final: total de linhas do CSV, importadas com sucesso, ignoradas, e erros — via toast + bloco de resumo no modal.
+- Estados de erro com mensagem legível (cabeçalho inválido, falha de rede, parsing).
 
-### 4. View `guarantor_portal_movements`
-Para cada contrato, compara o snapshot mais recente com o imediatamente anterior e expõe: contrato, inquilino, status atual/anterior, cancelamento de taxa atual/anterior, pagamento suspenso atual/anterior, IDs das importações atual e anterior, e a data da importação atual. Serve de base para telas de "o que mudou desde a última importação".
-
-## Detalhes técnicos
-
-- Grants explícitos em ambas as tabelas: `SELECT, INSERT, UPDATE, DELETE` para `authenticated` e `ALL` para `service_role` (sem `anon`).
-- Policies nomeadas `guarantor_portal_imports_{select,insert,update,delete}` e equivalentes para snapshots, com predicado `auth.uid() IS NOT NULL` para o role `authenticated` — mesmo padrão verificado em `audit_contracts` (o predicado `auth.uid() IS NOT NULL` é a forma robusta equivalente a `auth.role() = 'authenticated'`).
-- `importado_por uuid references auth.users(id)` (somente FK, sem trigger).
-- A view usa CTE com `LAG(...) OVER (PARTITION BY contrato ORDER BY i.data_importacao)` sobre o join `guarantor_portal_snapshots s JOIN guarantor_portal_imports i ON i.id = s.import_id`, filtrando com `ROW_NUMBER() ... DESC = 1` para manter apenas a linha mais recente por contrato.
-- A view é criada com `security_invoker = true`, para que o RLS das tabelas base continue valendo para quem consulta.
-- Nada de código de frontend nesta etapa: apenas migração de banco. O importador de CSV e as telas ficam para um passo seguinte.
+## Notas técnicas
+- Sem mudanças nas tabelas: `guarantor_portal_imports` / `guarantor_portal_snapshots` já existem com RLS para usuário autenticado.
+- O modal será exportado e plugado na tela "Portal Loft" no próximo prompt; nesta etapa ele não é montado em nenhuma rota nova.
