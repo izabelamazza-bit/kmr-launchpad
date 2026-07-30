@@ -30,6 +30,7 @@ import OAuthConsent from "./pages/OAuthConsent.tsx";
 import RequirePasswordChange from "./components/RequirePasswordChange.tsx";
 import { EnvironmentProvider } from "./contexts/EnvironmentContext.tsx";
 import RequireNotIdeali from "./components/RequireNotIdeali.tsx";
+import AppLayout from "./components/layout/AppLayout.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -47,26 +48,28 @@ const App = () => (
           <Route path="/login" element={<Login />} />
           <Route path="/trocar-senha" element={<TrocarSenha />} />
           <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/componentes" element={<Components />} />
-          <Route path="/cadastros/usuarios" element={<Users />} />
-          <Route path="/cadastros/empresas" element={<Companies />} />
-          <Route path="/cadastros/pessoas" element={<People />} />
-          <Route path="/cadastros/pessoas/:id" element={<PessoaDetalhe />} />
-          <Route path="/cadastros/produtos-servicos" element={<ProductsServices />} />
-          <Route path="/cadastros/leads" element={<Leads />} />
-          <Route path="/agente" element={<AgentConfig />} />
-          <Route path="/atendimento" element={<Atendimento />} />
-          <Route path="/sinistros" element={<Sinistros />} />
-          <Route path="/novo-sinistro" element={<NovoSinistro />} />
-          <Route path="/novo-sinistro/resumo/:id" element={<ResumoSinistro />} />
-          <Route path="/auditoria" element={<RequireNotIdeali><Auditoria /></RequireNotIdeali>} />
-          <Route path="/auditoria/novo" element={<RequireNotIdeali><AuditoriaContrato /></RequireNotIdeali>} />
-          <Route path="/auditoria/:id" element={<RequireNotIdeali><AuditoriaContrato /></RequireNotIdeali>} />
-          <Route path="/carteira-ideali" element={<CarteiraIdeali />} />
-          <Route path="/portal-loft" element={<RequireNotIdeali><PortalLoft /></RequireNotIdeali>} />
-          <Route path="/documentacao-ideali" element={<DocumentacaoIdeali />} />
-          <Route path="/configuracoes" element={<Configuracoes />} />
+          <Route element={<AppLayout />}>
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/componentes" element={<Components />} />
+            <Route path="/cadastros/usuarios" element={<Users />} />
+            <Route path="/cadastros/empresas" element={<Companies />} />
+            <Route path="/cadastros/pessoas" element={<People />} />
+            <Route path="/cadastros/pessoas/:id" element={<PessoaDetalhe />} />
+            <Route path="/cadastros/produtos-servicos" element={<ProductsServices />} />
+            <Route path="/cadastros/leads" element={<Leads />} />
+            <Route path="/agente" element={<AgentConfig />} />
+            <Route path="/atendimento" element={<Atendimento />} />
+            <Route path="/sinistros" element={<Sinistros />} />
+            <Route path="/novo-sinistro" element={<NovoSinistro />} />
+            <Route path="/novo-sinistro/resumo/:id" element={<ResumoSinistro />} />
+            <Route path="/auditoria" element={<RequireNotIdeali><Auditoria /></RequireNotIdeali>} />
+            <Route path="/auditoria/novo" element={<RequireNotIdeali><AuditoriaContrato /></RequireNotIdeali>} />
+            <Route path="/auditoria/:id" element={<RequireNotIdeali><AuditoriaContrato /></RequireNotIdeali>} />
+            <Route path="/carteira-ideali" element={<CarteiraIdeali />} />
+            <Route path="/portal-loft" element={<RequireNotIdeali><PortalLoft /></RequireNotIdeali>} />
+            <Route path="/documentacao-ideali" element={<DocumentacaoIdeali />} />
+            <Route path="/configuracoes" element={<Configuracoes />} />
+          </Route>
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

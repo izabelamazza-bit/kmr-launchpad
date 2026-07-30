@@ -3,22 +3,15 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import logoKMR from "@/assets/Logo_KMR.png";
-import { LogOut, Users, Building2, UserCircle, Package, MessageSquare, Bot, Headset, AlertTriangle, FileWarning, ShieldCheck, Settings } from "lucide-react";
+import { LogOut, Building2, AlertTriangle, FileWarning, ShieldCheck, ArrowRight } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import { EnvironmentSelect } from "@/components/EnvironmentSelect";
 import { useEnvironment } from "@/contexts/EnvironmentContext";
 import { Wallet, FolderCheck } from "lucide-react";
-
-const menuItems = [
-  { label: "Usuários", icon: Users, path: "/cadastros/usuarios", desc: "Gerenciar usuários do sistema" },
-  { label: "Leads", icon: MessageSquare, path: "/cadastros/leads", desc: "Leads qualificados pelo agente de IA" },
-  { label: "Agente de IA", icon: Bot, path: "/agente", desc: "Configure e treine o assistente virtual" },
-  { label: "Atendimento", icon: Headset, path: "/atendimento", desc: "Acompanhe e gerencie conversas em tempo real" },
-  { label: "Sinistros", icon: FileWarning, path: "/sinistros", desc: "Acompanhar inadimplências registradas" },
-  { label: "Auditoria", icon: ShieldCheck, path: "/auditoria", desc: "Auditoria de contratos de garantidoras" },
-  { label: "Portal Loft", icon: Building2, path: "/portal-loft", desc: "Snapshots e movimentações do portal da garantidora Loft" },
-  { label: "Configurações", icon: Settings, path: "/configuracoes", desc: "Integrações de IA e chaves de API" },
-];
+import { KpiCard } from "@/components/KpiCard";
+import { useDashboardResumo } from "@/hooks/useDashboardResumo";
+import { usePortalLoft, useResumo } from "@/pages/portal-loft/lib/usePortalLoft";
+import { ResumoCards } from "@/pages/portal-loft/components/ResumoCards";
 
 const idealiItems = [
   {
@@ -40,6 +33,10 @@ const Dashboard = () => {
   const { environment } = useEnvironment();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const isIdeali = environment === "Ideali";
+  const { auditoria, sinistros } = useDashboardResumo();
+  const loft = usePortalLoft();
+  const loftResumo = useResumo(loft.snapshots, loft.movements);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -71,9 +68,6 @@ const Dashboard = () => {
   }
 
   const displayName = user?.user_metadata?.full_name || user?.email || "";
-
-  const isIdeali = environment === "Ideali";
-  const visibleItems = isIdeali ? idealiItems : menuItems;
 
   return (
     <div className="min-h-screen bg-muted/40">
@@ -119,23 +113,112 @@ const Dashboard = () => {
         </div>
         )}
 
-        <h2 className="text-lg font-medium text-foreground mb-4">{isIdeali ? "Ideali" : "Cadastros"}</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {visibleItems.map((item) => (
-            <button
-              key={item.path}
-              onClick={() => navigate(item.path)}
-              className="bg-card rounded-lg border shadow-sm p-6 text-left hover:border-primary/50 hover:shadow-md transition-all group"
-            >
-              <item.icon className="h-8 w-8 text-primary mb-3 group-hover:scale-110 transition-transform" />
-              <p className="font-medium text-foreground">{item.label}</p>
-              <p className="text-sm text-muted-foreground mt-1">{item.desc}</p>
-            </button>
-          ))}
-        </div>
+        {isIdeali ? (
+          <>
+            <h2 className="text-lg font-medium text-foreground mb-4">Ideali</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {idealiItems.map((item) => (
+                <button
+                  key={item.path}
+                  onClick={() => navigate(item.path)}
+                  className="bg-card rounded-lg border shadow-sm p-6 text-left hover:border-primary/50 hover:shadow-md transition-all group"
+                >
+                  <item.icon className="h-8 w-8 text-primary mb-3 group-hover:scale-110 transition-transform" />
+                  <p className="font-medium text-foreground">{item.label}</p>
+                  <p className="text-sm text-muted-foreground mt-1">{item.desc}</p>
+                </button>
+              ))}
+            </div>
+          </>
+        ) : (
+          <div className="space-y-8">
+            <section>
+              <SectionHeader
+                icon={ShieldCheck}
+                title="Auditoria"
+                desc="Auditoria de contratos de garantidoras"
+                onClick={() => navigate("/auditoria")}
+              />
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <KpiCard label="Total" value={auditoria.total} color="#0F2A44" />
+                <KpiCard label="Auditoria completa" value={auditoria.completa} color="#27AE60" />
+                <KpiCard label="Com pendências" value={auditoria.pendencia} color="#F2994A" />
+                <KpiCard label="Com alerta" value={auditoria.alerta} color="#EB5757" />
+              </div>
+            </section>
+
+            <section>
+              <SectionHeader
+                icon={FileWarning}
+                title="Sinistros"
+                desc="Acompanhar inadimplências registradas"
+                onClick={() => navigate("/sinistros")}
+              />
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                <KpiCard label="Total" value={sinistros.total} color="#0F2A44" />
+                <KpiCard label="Em análise" value={sinistros.emAnalise} color="#F2C94C" />
+                <KpiCard label="Em pagamento" value={sinistros.pagamento} color="#2F80ED" />
+                <KpiCard label="Pago" value={sinistros.pago} color="#27AE60" />
+                <KpiCard label="Cancelado" value={sinistros.cancelado} color="#EB5757" />
+              </div>
+            </section>
+
+            <section>
+              <SectionHeader
+                icon={Building2}
+                title="Portal Loft"
+                desc="Snapshots e movimentações do portal da garantidora Loft"
+                onClick={() => navigate("/portal-loft")}
+              />
+              {loft.currentImport ? (
+                <ResumoCards
+                  total={loftResumo.total}
+                  ativos={loftResumo.ativos}
+                  cancelados={loftResumo.cancelados}
+                  exonerados={loftResumo.exonerados}
+                  novos={loft.novos}
+                  mudancasStatus={loftResumo.mudancasStatus}
+                  temAnterior={!!loft.previousImport}
+                />
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  {loft.loading ? "Carregando..." : "Nenhuma importação registrada ainda."}
+                </p>
+              )}
+            </section>
+          </div>
+        )}
       </main>
     </div>
   );
 };
+
+function SectionHeader({
+  icon: Icon,
+  title,
+  desc,
+  onClick,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  desc: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="w-full flex items-center justify-between gap-3 mb-3 text-left group"
+    >
+      <div className="flex items-center gap-3">
+        <Icon className="h-5 w-5 text-primary" />
+        <div>
+          <p className="font-medium text-foreground">{title}</p>
+          <p className="text-sm text-muted-foreground">{desc}</p>
+        </div>
+      </div>
+      <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:translate-x-1 transition-transform" />
+    </button>
+  );
+}
 
 export default Dashboard;
