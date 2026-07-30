@@ -21,15 +21,12 @@ import ResumoSinistro from "./pages/sinistros/ResumoSinistro.tsx";
 import Sinistros from "./pages/sinistros/Sinistros.tsx";
 import Auditoria from "./pages/auditoria/Auditoria.tsx";
 import AuditoriaContrato from "./pages/auditoria/AuditoriaContrato.tsx";
-import CarteiraIdeali from "./pages/carteira-ideali/CarteiraIdeali.tsx";
-import DocumentacaoIdeali from "./pages/carteira-ideali/DocumentacaoIdeali.tsx";
 import PortalLoft from "./pages/portal-loft/PortalLoft.tsx";
 import Configuracoes from "./pages/Configuracoes.tsx";
 import TrocarSenha from "./pages/TrocarSenha.tsx";
 import OAuthConsent from "./pages/OAuthConsent.tsx";
 import RequirePasswordChange from "./components/RequirePasswordChange.tsx";
 import { EnvironmentProvider } from "./contexts/EnvironmentContext.tsx";
-import RequireNotIdeali from "./components/RequireNotIdeali.tsx";
 import AppLayout from "./components/layout/AppLayout.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
@@ -62,12 +59,10 @@ const App = () => (
             <Route path="/sinistros" element={<Sinistros />} />
             <Route path="/novo-sinistro" element={<NovoSinistro />} />
             <Route path="/novo-sinistro/resumo/:id" element={<ResumoSinistro />} />
-            <Route path="/auditoria" element={<RequireNotIdeali><Auditoria /></RequireNotIdeali>} />
-            <Route path="/auditoria/novo" element={<RequireNotIdeali><AuditoriaContrato /></RequireNotIdeali>} />
-            <Route path="/auditoria/:id" element={<RequireNotIdeali><AuditoriaContrato /></RequireNotIdeali>} />
-            <Route path="/carteira-ideali" element={<CarteiraIdeali />} />
-            <Route path="/portal-loft" element={<RequireNotIdeali><PortalLoft /></RequireNotIdeali>} />
-            <Route path="/documentacao-ideali" element={<DocumentacaoIdeali />} />
+            <Route path="/auditoria" element={<Auditoria />} />
+            <Route path="/auditoria/novo" element={<AuditoriaContrato />} />
+            <Route path="/auditoria/:id" element={<AuditoriaContrato />} />
+            <Route path="/portal-loft" element={<PortalLoft />} />
             <Route path="/configuracoes" element={<Configuracoes />} />
           </Route>
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
