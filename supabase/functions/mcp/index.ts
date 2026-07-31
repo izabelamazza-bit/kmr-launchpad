@@ -79,13 +79,15 @@ var list_sinistros_default = defineTool3({
   description: "Lista sinistros (avisos de desocupa\xE7\xE3o) KMR com filtro opcional por status.",
   inputSchema: {
     status: z3.string().optional(),
+    empresa: z3.string().optional(),
     limit: z3.number().int().min(1).max(200).default(50)
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
-  handler: async ({ status, limit }, ctx) => {
+  handler: async ({ status, empresa, limit }, ctx) => {
     if (!ctx.isAuthenticated()) return { content: [{ type: "text", text: "N\xE3o autenticado" }], isError: true };
-    let q = sb3(ctx).from("sinistros").select("id,inquilino_nome,inquilino_cpf,codigo_contrato,status_imovel,motivo_desocupacao,data_entrega_chaves,status,created_at").order("created_at", { ascending: false }).limit(limit);
+    let q = sb3(ctx).from("sinistros").select("id,inquilino_nome,inquilino_cpf,codigo_contrato,status_imovel,motivo_desocupacao,data_entrega_chaves,status,empresa,created_at").order("created_at", { ascending: false }).limit(limit);
     if (status) q = q.eq("status", status);
+    if (empresa) q = q.eq("empresa", empresa);
     const { data, error } = await q;
     return error ? { content: [{ type: "text", text: error.message }], isError: true } : { content: [{ type: "text", text: JSON.stringify(data) }], structuredContent: { sinistros: data ?? [] } };
   }

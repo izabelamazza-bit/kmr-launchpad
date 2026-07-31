@@ -29,17 +29,18 @@ import logoKMR from "@/assets/Logo_KMR.png";
 import { supabase } from "@/integrations/supabase/client";
 import { useEnvironment } from "@/contexts/EnvironmentContext";
 
-const operacao = [
-  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
-  { title: "Auditoria", url: "/auditoria", icon: ShieldCheck },
-  { title: "Sinistros", url: "/sinistros", icon: FileWarning },
-  { title: "Portal Loft", url: "/portal-loft", icon: Building2 },
-];
+const dashboard = { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard };
+const auditoria = { title: "Auditoria", url: "/auditoria", icon: ShieldCheck };
+const sinistros = { title: "Sinistros", url: "/sinistros", icon: FileWarning };
+const portalLoft = { title: "Portal Loft", url: "/portal-loft", icon: Building2 };
+const carteira = { title: "Carteira", url: "/carteira-ideali", icon: Wallet };
+const documentacao = { title: "Documentação", url: "/documentacao-ideali", icon: FolderOpen };
 
-const idealiOperacao = [
-  { title: "Carteira", url: "/carteira-ideali", icon: Wallet },
-  { title: "Documentação", url: "/documentacao-ideali", icon: FolderOpen },
-];
+const operacaoPorEmpresa = {
+  Rotina: [dashboard, auditoria, sinistros, portalLoft],
+  Alugar: [dashboard, auditoria, sinistros],
+  Ideali: [dashboard, carteira, documentacao],
+} as const;
 
 const administracao = [
   { title: "Usuários", url: "/cadastros/usuarios", icon: Users },
@@ -54,8 +55,7 @@ export function AppSidebar() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const { environment } = useEnvironment();
-  const operacaoItems =
-    environment === "Ideali" ? [...operacao, ...idealiOperacao] : operacao;
+  const operacaoItems = operacaoPorEmpresa[environment] ?? operacaoPorEmpresa.Rotina;
 
   const isActive = (url: string) =>
     url === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(url);

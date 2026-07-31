@@ -16,6 +16,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import logoKMR from "@/assets/Logo_KMR.png";
+import { useEnvironment } from "@/contexts/EnvironmentContext";
 
 interface SinistroRow {
   id: string;
@@ -62,6 +63,7 @@ const getImovelLabel = (status: string) =>
 
 const Sinistros = () => {
   const navigate = useNavigate();
+  const { environment } = useEnvironment();
   const [data, setData] = useState<SinistroRow[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -78,11 +80,12 @@ const Sinistros = () => {
       const { data } = await supabase
         .from("sinistros")
         .select("id, inquilino_nome, inquilino_cpf, codigo_contrato, status_imovel, status, created_at")
+        .eq("empresa", environment)
         .order("created_at", { ascending: false });
       setData((data ?? []) as SinistroRow[]);
       setLoading(false);
     })();
-  }, []);
+  }, [environment]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
