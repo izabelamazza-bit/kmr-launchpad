@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/validators";
 import logoKMR from "@/assets/Logo_KMR.png";
+import { useEnvironment } from "@/contexts/EnvironmentContext";
 
 interface Sinistro {
   id: string;
@@ -22,6 +23,7 @@ interface Sinistro {
   data_entrega_chaves: string | null;
   observacoes: string | null;
   status: string;
+  empresa: string | null;
 }
 
 interface Debito {
@@ -52,6 +54,7 @@ const ResumoSinistro = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { environment } = useEnvironment();
 
   const [sinistro, setSinistro] = useState<Sinistro | null>(null);
   const [debitos, setDebitos] = useState<Debito[]>([]);
@@ -82,7 +85,17 @@ const ResumoSinistro = () => {
         .order("created_at", { ascending: false }),
     ]);
     if (s) {
-      setSinistro(s as Sinistro);
+      const row = s as Sinistro;
+      if (row.empresa && row.empresa !== environment) {
+        setSinistro(null);
+        setDebitos([]);
+        setAnexos([]);
+        setHistorico([]);
+        setLoading(false);
+        navigate("/sinistros");
+        return;
+      }
+      setSinistro(row);
     }
     setDebitos((d ?? []) as Debito[]);
     setAnexos((a ?? []) as Anexo[]);
