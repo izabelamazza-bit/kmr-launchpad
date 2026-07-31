@@ -16,13 +16,24 @@ export interface SinistrosResumo {
   cancelado: number;
 }
 
-export function useDashboardResumo() {
+export interface GarantidoraResumo {
+  garantidora: string;
+  count: number;
+  valor: number;
+}
+
+const GARANTIDORAS_DASH = ["Loft", "Credaluga", "KMR"] as const;
+
+export function useDashboardResumo(empresa?: string) {
   const [auditoria, setAuditoria] = useState<AuditoriaResumo>({
     total: 0,
     completa: 0,
     pendencia: 0,
     alerta: 0,
   });
+  const [garantidoras, setGarantidoras] = useState<GarantidoraResumo[]>(
+    GARANTIDORAS_DASH.map((g) => ({ garantidora: g, count: 0, valor: 0 })),
+  );
   const [sinistros, setSinistros] = useState<SinistrosResumo>({
     total: 0,
     emAnalise: 0,
@@ -36,8 +47,12 @@ export function useDashboardResumo() {
     let cancelled = false;
     (async () => {
       setLoading(true);
+      let contractsQuery = supabase
+        .from("audit_contracts")
+        .select("id, audit_status, garantidora, valor_aluguel, empresa");
+      if (empresa) contractsQuery = contractsQuery.eq("empresa", empresa);
       const [contractsRes, progressRes, sinistrosRes] = await Promise.all([
-        supabase.from("audit_contracts").select("id, audit_status"),
+        contractsQuery,
         supabase
           .from("audit_contract_progress" as any)
           .select("contract_id, nok_items, has_critical_nok"),
@@ -51,11 +66,19 @@ export function useDashboardResumo() {
       progress.forEach((p) => progressMap.set(p.contract_id, p));
 
       const a: AuditoriaResumo = { total: contracts.length, completa: 0, pendencia: 0, alerta: 0 };
+      const gMap = new Map<string, GarantidoraResumo>(
+        GARANTIDORAS_DASH.map((g) => [g, { garantidora: g, count: 0, valor: 0 }]),
+      );
       contracts.forEach((c) => {
         const p = progressMap.get(c.id);
         if (c.audit_status === "Completa") a.completa += 1;
         if ((p?.nok_items ?? 0) > 0) a.pendencia += 1;
         if (p?.has_critical_nok) a.alerta += 1;
+        const g = gMap.get(c.garantidora ?? "");
+        if (g) {
+          g.count += 1;
+          g.valor += Number(c.valor_aluguel ?? 0);
+        }
       });
 
       const rows = (sinistrosRes.data ?? []) as any[];
@@ -75,13 +98,14 @@ export function useDashboardResumo() {
       });
 
       setAuditoria(a);
+      setGarantidoras(GARANTIDORAS_DASH.map((g) => gMap.get(g)!));
       setSinistros(s);
       setLoading(false);
     })();
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [empresa]);
 
-  return { auditoria, sinistros, loading };
+  return { auditoria, garantidoras, sinistros, loading };
 }
