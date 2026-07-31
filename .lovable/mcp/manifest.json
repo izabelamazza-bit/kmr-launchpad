@@ -90,6 +90,9 @@
             "status": {
               "type": "string"
             },
+            "empresa": {
+              "type": "string"
+            },
             "limit": {
               "type": "integer",
               "minimum": 1,
