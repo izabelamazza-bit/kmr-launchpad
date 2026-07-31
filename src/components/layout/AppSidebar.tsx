@@ -11,6 +11,7 @@ import {
   LogOut,
   Wallet,
   FolderOpen,
+  Receipt,
 } from "lucide-react";
 import {
   Sidebar,
@@ -35,9 +36,10 @@ const sinistros = { title: "Sinistros", url: "/sinistros", icon: FileWarning };
 const portalLoft = { title: "Portal Loft", url: "/portal-loft", icon: Building2 };
 const carteira = { title: "Carteira", url: "/carteira-ideali", icon: Wallet };
 const documentacao = { title: "Documentação", url: "/documentacao-ideali", icon: FolderOpen };
+const cobmais = { title: "Cobmais", url: "/cobmais", icon: Receipt };
 
 const operacaoPorEmpresa = {
-  Rotina: [dashboard, auditoria, sinistros, portalLoft],
+  Rotina: [dashboard, auditoria, sinistros, portalLoft, cobmais],
   Alugar: [dashboard, auditoria, sinistros],
   Ideali: [dashboard, carteira, documentacao],
 } as const;

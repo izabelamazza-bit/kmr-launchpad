@@ -12,6 +12,7 @@ const ROUTE_EMPRESAS: { prefix: string; empresas: Environment[] }[] = [
   { prefix: "/portal-loft", empresas: ["Rotina"] },
   { prefix: "/carteira-ideali", empresas: ["Ideali"] },
   { prefix: "/documentacao-ideali", empresas: ["Ideali"] },
+  { prefix: "/cobmais", empresas: ["Rotina"] },
 ];
 
 const AppLayoutInner = () => {
