@@ -94,12 +94,23 @@ const Dashboard = () => {
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              <KpiCard label="Contratos ativos" value={ideali.contratosAtivos} color="#0F2A44" />
-              <ValueKpiCard label="Valor da carteira" value={ideali.valorCarteira} color="#27AE60" />
+              <KpiCard
+                label="Contratos ativos"
+                value={ideali.contratosAtivos}
+                color="#0F2A44"
+                onClick={() => navigate("/carteira-ideali")}
+              />
+              <ValueKpiCard
+                label="Valor da carteira"
+                value={ideali.valorCarteira}
+                color="#27AE60"
+                onClick={() => navigate("/carteira-ideali")}
+              />
               <KpiCard
                 label="Documentação (pendências)"
                 value={ideali.pendenciasDocumentacao}
                 color="#F2994A"
+                onClick={() => navigate("/documentacao-ideali")}
               />
               <ValueKpiCard
                 label="Valor de inadimplência"

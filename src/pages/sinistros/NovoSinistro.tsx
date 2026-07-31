@@ -13,11 +13,19 @@ import { MaskedInput } from "@/components/ui/masked-input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { validateCPF } from "@/lib/validators";
+import { useEnvironment } from "@/contexts/EnvironmentContext";
 import logoKMR from "@/assets/Logo_KMR.png";
 
 import FileUploadField from "@/components/sinistros/FileUploadField";
@@ -25,6 +33,7 @@ import CurrencyInput from "@/components/sinistros/CurrencyInput";
 import MultiFileUploadField from "@/components/sinistros/MultiFileUploadField";
 
 type StatusImovel = "ocupado" | "desocupado";
+type EmpresaSinistro = "Rotina" | "Alugar";
 
 interface ContaConsumo {
   descricao: string;
@@ -63,11 +72,13 @@ const baseSchema = z.object({
   inquilino_cpf: z.string().refine(validateCPF, "CPF inválido"),
   codigo_contrato: z.string().trim().min(1, "Informe o código do contrato").max(60),
   status_imovel: z.enum(["ocupado", "desocupado"]),
+  empresa: z.enum(["Rotina", "Alugar"], { errorMap: () => ({ message: "Selecione a empresa" }) }),
 });
 
 const NovoSinistro = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { environment } = useEnvironment();
 
   const [loading, setLoading] = useState(false);
 
@@ -76,6 +87,9 @@ const NovoSinistro = () => {
   const [cpf, setCpf] = useState("");
   const [codigoContrato, setCodigoContrato] = useState("");
   const [statusImovel, setStatusImovel] = useState<StatusImovel>("ocupado");
+  const [empresa, setEmpresa] = useState<EmpresaSinistro | "">(
+    environment === "Rotina" || environment === "Alugar" ? environment : "",
+  );
 
   // Aluguel
   const [aluguelBoleto, setAluguelBoleto] = useState<File | null>(null);
@@ -159,6 +173,7 @@ const NovoSinistro = () => {
       inquilino_cpf: cpf,
       codigo_contrato: codigoContrato,
       status_imovel: statusImovel,
+      empresa,
     });
     if (!parsed.success) {
       toast({
@@ -227,6 +242,7 @@ const NovoSinistro = () => {
           inquilino_cpf: cpf,
           codigo_contrato: codigoContrato.trim(),
           status_imovel: statusImovel,
+          empresa,
           motivo_desocupacao: statusImovel === "desocupado" ? motivoDesocupacao.trim() : null,
           data_entrega_chaves:
             statusImovel === "desocupado" && dataChaves
@@ -382,6 +398,18 @@ const NovoSinistro = () => {
                 onChange={(e) => setCodigoContrato(e.target.value)}
                 maxLength={60}
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="empresa">Empresa</Label>
+              <Select value={empresa} onValueChange={(v) => setEmpresa(v as EmpresaSinistro)}>
+                <SelectTrigger id="empresa">
+                  <SelectValue placeholder="Selecione a empresa" />
+                </SelectTrigger>
+                <SelectContent className="bg-popover z-50">
+                  <SelectItem value="Rotina">Rotina</SelectItem>
+                  <SelectItem value="Alugar">Alugar</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </CardContent>
         </Card>

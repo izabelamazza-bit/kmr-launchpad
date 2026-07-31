@@ -51,12 +51,14 @@ export function useDashboardResumo(empresa?: string) {
         .from("audit_contracts")
         .select("id, audit_status, garantidora, valor_aluguel, empresa");
       if (empresa) contractsQuery = contractsQuery.eq("empresa", empresa);
+      let sinistrosQuery = supabase.from("sinistros").select("id, status, empresa");
+      if (empresa) sinistrosQuery = sinistrosQuery.eq("empresa", empresa);
       const [contractsRes, progressRes, sinistrosRes] = await Promise.all([
         contractsQuery,
         supabase
           .from("audit_contract_progress" as any)
           .select("contract_id, nok_items, has_critical_nok"),
-        supabase.from("sinistros").select("id, status"),
+        sinistrosQuery,
       ]);
       if (cancelled) return;
 

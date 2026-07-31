@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowLeft, FileUp } from "lucide-react";
+import { FileUp } from "lucide-react";
 import { ImportDocumentosModal } from "./components/ImportDocumentosModal";
 import { DocumentacaoSection } from "./components/DocumentacaoSection";
 import { useDocumentosIdeali, type FilaRecord } from "./lib/useDocumentosIdeali";
@@ -24,16 +24,8 @@ const DocumentacaoIdeali = () => {
 
   return (
     <div className="min-h-screen bg-muted/40">
-      <header className="bg-card border-b shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <h1 className="text-lg font-semibold">Documentação Ideali</h1>
-        </div>
-      </header>
-
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+        <h1 className="text-2xl font-semibold">Documentação Ideali</h1>
         <Card>
           <CardContent className="p-6 space-y-4">
             <div>

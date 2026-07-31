@@ -1139,6 +1139,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           data_entrega_chaves: string | null
+          empresa: string | null
           id: string
           inquilino_cpf: string
           inquilino_nome: string
@@ -1155,6 +1156,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           data_entrega_chaves?: string | null
+          empresa?: string | null
           id?: string
           inquilino_cpf: string
           inquilino_nome: string
@@ -1171,6 +1173,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           data_entrega_chaves?: string | null
+          empresa?: string | null
           id?: string
           inquilino_cpf?: string
           inquilino_nome?: string

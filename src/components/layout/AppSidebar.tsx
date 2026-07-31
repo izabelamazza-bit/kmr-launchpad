@@ -9,6 +9,8 @@ import {
   Headset,
   LayoutDashboard,
   LogOut,
+  Wallet,
+  FolderOpen,
 } from "lucide-react";
 import {
   Sidebar,
@@ -25,12 +27,18 @@ import {
 } from "@/components/ui/sidebar";
 import logoKMR from "@/assets/Logo_KMR.png";
 import { supabase } from "@/integrations/supabase/client";
+import { useEnvironment } from "@/contexts/EnvironmentContext";
 
 const operacao = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Auditoria", url: "/auditoria", icon: ShieldCheck },
   { title: "Sinistros", url: "/sinistros", icon: FileWarning },
   { title: "Portal Loft", url: "/portal-loft", icon: Building2 },
+];
+
+const idealiOperacao = [
+  { title: "Carteira", url: "/carteira-ideali", icon: Wallet },
+  { title: "Documentação", url: "/documentacao-ideali", icon: FolderOpen },
 ];
 
 const administracao = [
@@ -45,6 +53,9 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
   const { pathname } = useLocation();
   const navigate = useNavigate();
+  const { environment } = useEnvironment();
+  const operacaoItems =
+    environment === "Ideali" ? [...operacao, ...idealiOperacao] : operacao;
 
   const isActive = (url: string) =>
     url === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(url);
@@ -69,7 +80,7 @@ export function AppSidebar() {
           <SidebarGroupLabel>Operação</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {operacao.map((item) => (
+              {operacaoItems.map((item) => (
                 <SidebarMenuItem key={item.url}>
                   <SidebarMenuButton asChild isActive={isActive(item.url)} tooltip={item.title}>
                     <NavLink to={item.url} className="flex items-center gap-2">
