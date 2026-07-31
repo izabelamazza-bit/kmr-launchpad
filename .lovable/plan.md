@@ -1,41 +1,38 @@
-## Objetivo
+# Dashboard por empresa
 
-A empresa selecionada passa a ser **apenas um filtro de dados**. Estrutura de telas e menu lateral ficam idênticos para Rotina, Alugar e Ideali.
+O Dashboard passa a ter duas estruturas distintas, escolhidas pela empresa ativa no dropdown do cabeçalho, sem recarregar a página.
 
-## 1. Menu lateral sempre igual
+## Rotina e Alugar
 
-`AppSidebar.tsx`: remover o uso de `useEnvironment` e a lista `idealiItems`.
+1. **Auditoria** — mantém os 4 cards atuais (Total, Auditoria completa, Com pendências, Com alerta), agora filtrados por `empresa = empresa ativa`.
+2. **Quebra por garantidora** (nova fileira abaixo dos 4 cards) — 3 cards: Loft, Credaluga, KMR. Cada um mostra a quantidade de contratos e a soma do valor de aluguel, filtrados por empresa ativa + garantidora, usando exatamente o mesmo critério de garantidora já aplicado na tela de Auditoria.
+3. **Sinistros** — mantém os 5 cards atuais; renderizado só em Rotina/Alugar.
+4. **Portal Loft** — renderizado só em Rotina. Oculto em Alugar e Ideali.
+5. O banner "Registrar novo sinistro" continua em Rotina/Alugar e fica oculto em Ideali.
 
-- **Operação:** Dashboard, Auditoria, Sinistros, Portal Loft
-- **Administração (rodapé, discreto):** Usuários, Leads, Agente de IA, Atendimento — sempre visível
-- Logo KMR no topo permanece fixo (já está correto, não muda por empresa)
+Observação sobre os dados atuais: hoje todos os 743 contratos de auditoria têm `empresa = 'Rotina'` (Loft 457, Credaluga 258, KMR 28). Com "Alugar" selecionado, os cards de auditoria aparecerão zerados — isso é o dado real, não um erro da tela.
 
-## 2. Dropdown de empresa fixo no cabeçalho
+## Ideali
 
-`AppLayout.tsx`: a barra superior passa a ter, à direita, o `EnvironmentSelect` ("Empresa ativa") — presente em todas as telas autenticadas, inclusive Administração.
+Substitui todas as seções acima por uma única seção "Ideali" com 4 cards, lidos das tabelas `ideali_*` preservadas:
 
-`EnvironmentSelect.tsx`: remover o `navigate("/dashboard")` ao trocar de empresa — o usuário permanece na tela atual, só os dados recarregam.
+- **Contratos ativos** — contratos com status Ativo (hoje: 82)
+- **Valor da carteira** — soma do aluguel dos contratos ativos (hoje: R$ 135.449,50)
+- **Documentação** — número único agregado de pendências de documentação: contratos cujo status no Drive não é "Contrato assinado encontrado" (hoje: 129). Sem quebra em subcategorias.
+- **Valor de inadimplência** — soma das faturas em aberto com valor confirmado (hoje: R$ 230.769,80)
 
-`Dashboard.tsx`: remover o header próprio duplicado (logo + seletor + Sair), já que sidebar e cabeçalho global cobrem isso; remover o bloco condicional `isIdeali` e os `idealiItems`. O dashboard mostra sempre: banner "Registrar novo sinistro" + resumos de Auditoria, Sinistros e Portal Loft.
+## Item 3 do pedido
 
-## 3. Refiltro de dados por empresa
-
-- **Auditoria** (`Auditoria.tsx`): o filtro "Empresa" deixa de ser um select local e passa a seguir a empresa ativa do cabeçalho; a lista e os KPIs recarregam ao trocar. Opções passam a incluir Ideali.
-- **Sinistros e Portal Loft:** conforme confirmado, ficam sem filtro por empresa nesta etapa (as tabelas ainda não têm a coluna). O dropdown continua visível; a separação real vem junto com o RLS.
-
-## 4. Remoção das telas Ideali da navegação
-
-Conforme confirmado — **sem apagar código nem dados** (181 contratos, 1.116 faturas, 181 documentos, 82 itens da fila permanecem intactos no banco):
-
-- Remover as rotas `/carteira-ideali` e `/documentacao-ideali` de `App.tsx`
-- Remover os cards Ideali do Dashboard e os itens do menu
-- Remover `RequireNotIdeali` (`App.tsx` e o arquivo), já que nenhuma tela é mais bloqueada por empresa
-- Arquivos em `src/pages/carteira-ideali/` ficam no projeto, apenas desconectados das rotas
-
-## 5. Verificação final
-
-Abrir `/auditoria` no navegador e capturar screenshot mostrando o dropdown de empresa no topo e o menu lateral completo.
+Não existe hoje nenhum card "Valor da carteira sob auditoria" no Dashboard — nada a remover. A quebra por garantidora do item 1b cobre essa necessidade.
 
 ## Detalhes técnicos
 
-Arquivos alterados: `src/App.tsx`, `src/components/layout/AppLayout.tsx`, `src/components/layout/AppSidebar.tsx`, `src/components/EnvironmentSelect.tsx`, `src/pages/Dashboard.tsx`, `src/pages/auditoria/Auditoria.tsx`. Arquivo removido: `src/components/RequireNotIdeali.tsx`. Nenhuma migration; nenhuma alteração de dados ou permissões.
+- `useDashboardResumo` passa a receber a empresa ativa: filtra `audit_contracts` por `empresa`, e devolve também o agregado por garantidora (contagem + soma de `valor_aluguel`).
+- Novo hook enxuto para os 4 números da Ideali (contratos ativos, valor da carteira, pendências de documentação, inadimplência), reaproveitando as mesmas regras já usadas em `useCarteiraIdeali` / `useDocumentosIdeali`.
+- `Dashboard.tsx` lê `useEnvironment()` e renderiza condicionalmente; a troca é reativa por estado do contexto (sem reload).
+- Cards de valor usam um card de KPI monetário (formatação `formatBRL`), mantendo o `KpiCard` atual para contagens.
+- Como as rotas `/carteira-ideali` e `/documentacao-ideali` foram retiradas da navegação, os cards da seção Ideali são apenas informativos (sem link) — me avise se quiser reativar essas rotas.
+
+## Verificação final
+
+Ao terminar, capturo o Dashboard nas 3 empresas (Rotina, Alugar, Ideali) para você conferir a estrutura de cada uma.
