@@ -281,6 +281,86 @@ export type Database = {
         }
         Relationships: []
       }
+      cobmais_imports: {
+        Row: {
+          data_importacao: string
+          id: string
+          importado_por: string | null
+          nome_arquivo: string | null
+          total_linhas: number | null
+        }
+        Insert: {
+          data_importacao?: string
+          id?: string
+          importado_por?: string | null
+          nome_arquivo?: string | null
+          total_linhas?: number | null
+        }
+        Update: {
+          data_importacao?: string
+          id?: string
+          importado_por?: string | null
+          nome_arquivo?: string | null
+          total_linhas?: number | null
+        }
+        Relationships: []
+      }
+      cobmais_snapshots: {
+        Row: {
+          atraso: number | null
+          cliente: string | null
+          contrato: string | null
+          cpf_cnpj: string | null
+          credor: string | null
+          data_snapshot: string
+          garantidora_normalizada: string | null
+          id: string
+          import_id: string
+          marcador: string | null
+          produto: string | null
+          risco: number | null
+          status_cobranca: string | null
+        }
+        Insert: {
+          atraso?: number | null
+          cliente?: string | null
+          contrato?: string | null
+          cpf_cnpj?: string | null
+          credor?: string | null
+          data_snapshot?: string
+          garantidora_normalizada?: string | null
+          id?: string
+          import_id: string
+          marcador?: string | null
+          produto?: string | null
+          risco?: number | null
+          status_cobranca?: string | null
+        }
+        Update: {
+          atraso?: number | null
+          cliente?: string | null
+          contrato?: string | null
+          cpf_cnpj?: string | null
+          credor?: string | null
+          data_snapshot?: string
+          garantidora_normalizada?: string | null
+          id?: string
+          import_id?: string
+          marcador?: string | null
+          produto?: string | null
+          risco?: number | null
+          status_cobranca?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cobmais_snapshots_import_id_fkey"
+            columns: ["import_id"]
+            isOneToOne: false
+            referencedRelation: "cobmais_imports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       companies: {
         Row: {
           bairro: string | null
@@ -1260,6 +1340,34 @@ export type Database = {
           total_items: number | null
         }
         Relationships: []
+      }
+      cobmais_latest_loft: {
+        Row: {
+          atraso: number | null
+          cliente: string | null
+          contrato: string | null
+          cpf_cnpj: string | null
+          credor: string | null
+          data_importacao: string | null
+          data_snapshot: string | null
+          garantidora_normalizada: string | null
+          id: string | null
+          import_id: string | null
+          marcador: string | null
+          nome_arquivo: string | null
+          produto: string | null
+          risco: number | null
+          status_cobranca: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cobmais_snapshots_import_id_fkey"
+            columns: ["import_id"]
+            isOneToOne: false
+            referencedRelation: "cobmais_imports"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       guarantor_portal_movements: {
         Row: {
