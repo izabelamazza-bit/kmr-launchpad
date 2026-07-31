@@ -2,10 +2,16 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Building2, AlertTriangle, FileWarning, ShieldCheck, ArrowRight } from "lucide-react";
+import { Building2, AlertTriangle, FileWarning, ShieldCheck, ArrowRight, Briefcase } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import { KpiCard } from "@/components/KpiCard";
+import { ValueKpiCard } from "@/components/ValueKpiCard";
+import { Card, CardContent } from "@/components/ui/card";
 import { useDashboardResumo } from "@/hooks/useDashboardResumo";
+import { useIdealiResumo } from "@/hooks/useIdealiResumo";
+import { useEnvironment } from "@/contexts/EnvironmentContext";
+import { garantidoraColor } from "@/pages/auditoria/lib/garantidoras";
+import { formatBRL } from "@/pages/carteira-ideali/lib/useCarteiraIdeali";
 import { usePortalLoft, useResumo } from "@/pages/portal-loft/lib/usePortalLoft";
 import { ResumoCards } from "@/pages/portal-loft/components/ResumoCards";
 
@@ -13,7 +19,10 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const { auditoria, sinistros } = useDashboardResumo();
+  const { environment } = useEnvironment();
+  const isIdeali = environment === "Ideali";
+  const { auditoria, garantidoras, sinistros } = useDashboardResumo(environment);
+  const { resumo: ideali, loading: idealiLoading } = useIdealiResumo();
   const loft = usePortalLoft();
   const loftResumo = useResumo(loft.snapshots, loft.movements);
 
@@ -51,6 +60,7 @@ const Dashboard = () => {
           Bem-vindo{displayName ? `, ${displayName}` : ""}. Painel administrativo da KMR.
         </p>
 
+        {!isIdeali && (
         <div className="mb-8 bg-card border rounded-lg p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shadow-sm">
           <div className="flex items-start gap-3">
             <div className="bg-primary/10 rounded-md p-2">
@@ -70,7 +80,35 @@ const Dashboard = () => {
             Registrar novo sinistro
           </Button>
         </div>
+        )}
 
+        {isIdeali ? (
+          <section>
+            <div className="flex items-center gap-3 mb-3">
+              <Briefcase className="h-5 w-5 text-primary" />
+              <div>
+                <p className="font-medium text-foreground">Ideali</p>
+                <p className="text-sm text-muted-foreground">
+                  {idealiLoading ? "Carregando..." : "Carteira, documentação e inadimplência"}
+                </p>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              <KpiCard label="Contratos ativos" value={ideali.contratosAtivos} color="#0F2A44" />
+              <ValueKpiCard label="Valor da carteira" value={ideali.valorCarteira} color="#27AE60" />
+              <KpiCard
+                label="Documentação (pendências)"
+                value={ideali.pendenciasDocumentacao}
+                color="#F2994A"
+              />
+              <ValueKpiCard
+                label="Valor de inadimplência"
+                value={ideali.valorInadimplencia}
+                color="#EB5757"
+              />
+            </div>
+          </section>
+        ) : (
           <div className="space-y-8">
             <section>
               <SectionHeader
@@ -84,6 +122,31 @@ const Dashboard = () => {
                 <KpiCard label="Auditoria completa" value={auditoria.completa} color="#27AE60" />
                 <KpiCard label="Com pendências" value={auditoria.pendencia} color="#F2994A" />
                 <KpiCard label="Com alerta" value={auditoria.alerta} color="#EB5757" />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
+                {garantidoras.map((g) => {
+                  const c = garantidoraColor(g.garantidora);
+                  return (
+                    <Card key={g.garantidora}>
+                      <CardContent className="pt-4">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="inline-block h-2.5 w-2.5 rounded-full"
+                            style={{ backgroundColor: c.bg }}
+                          />
+                          <span className="text-sm font-medium text-foreground">{c.label}</span>
+                        </div>
+                        <div className="mt-2 flex items-baseline gap-2">
+                          <span className="text-2xl font-bold text-foreground">{g.count}</span>
+                          <span className="text-xs text-muted-foreground">contratos</span>
+                        </div>
+                        <div className="text-sm text-muted-foreground mt-1">
+                          {formatBRL(g.valor)} em aluguéis
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             </section>
 
@@ -103,6 +166,7 @@ const Dashboard = () => {
               </div>
             </section>
 
+            {environment === "Rotina" && (
             <section>
               <SectionHeader
                 icon={Building2}
@@ -126,7 +190,9 @@ const Dashboard = () => {
                 </p>
               )}
             </section>
+            )}
           </div>
+        )}
       </main>
     </div>
   );
