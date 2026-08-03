@@ -3,8 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, FileUp, Loader2 } from "lucide-react";
 import { ImportLoftModal } from "./components/ImportLoftModal";
+import { ImportCobmaisModal } from "@/pages/cobmais/components/ImportCobmaisModal";
+import { CobmaisLoftPanel } from "./components/CobmaisLoftPanel";
 import { ResumoCards } from "./components/ResumoCards";
 import { MovimentacoesPanel } from "./components/MovimentacoesPanel";
 import { ContratosTable } from "./components/ContratosTable";
@@ -14,6 +17,8 @@ import { fmtDateTime, usePortalLoft, useResumo } from "./lib/usePortalLoft";
 const PortalLoft = () => {
   const navigate = useNavigate();
   const [importOpen, setImportOpen] = useState(false);
+  const [cobmaisOpen, setCobmaisOpen] = useState(false);
+  const [cobmaisKey, setCobmaisKey] = useState(0);
   const [contrato, setContrato] = useState<string | null>(null);
   const {
     loading,
@@ -45,7 +50,14 @@ const PortalLoft = () => {
         </div>
       </header>
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        <Card>
+        <Tabs defaultValue="portal" className="space-y-6">
+          <TabsList>
+            <TabsTrigger value="portal">Portal Loft</TabsTrigger>
+            <TabsTrigger value="cobmais">Cobmais × Loft</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="portal" className="space-y-6 mt-0">
+            <Card>
           <CardContent className="p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h2 className="text-base font-semibold">Snapshots do portal da garantidora</h2>
@@ -62,7 +74,7 @@ const PortalLoft = () => {
               Importar novo CSV
             </Button>
           </CardContent>
-        </Card>
+            </Card>
 
         {loading ? (
           <div className="flex items-center gap-2 text-sm text-muted-foreground py-10">
@@ -95,9 +107,20 @@ const PortalLoft = () => {
             <ContratosTable snapshots={snapshots} onSelect={setContrato} />
           </>
         )}
+          </TabsContent>
+
+          <TabsContent value="cobmais" className="mt-0">
+            <CobmaisLoftPanel key={cobmaisKey} onImport={() => setCobmaisOpen(true)} />
+          </TabsContent>
+        </Tabs>
       </main>
 
       <ImportLoftModal open={importOpen} onOpenChange={setImportOpen} onDone={reload} />
+      <ImportCobmaisModal
+        open={cobmaisOpen}
+        onOpenChange={setCobmaisOpen}
+        onDone={() => setCobmaisKey((k) => k + 1)}
+      />
       <HistoricoDrawer contrato={contrato} onOpenChange={(o) => !o && setContrato(null)} />
     </div>
   );
