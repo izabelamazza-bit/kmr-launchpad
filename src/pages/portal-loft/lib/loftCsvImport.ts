@@ -207,6 +207,7 @@ export async function importLoftCsv(
     .from("guarantor_portal_imports")
     .insert({
       garantidora: "Loft",
+      tipo: "contrato",
       nome_arquivo: file.name,
       total_linhas: totalLinhas,
       importado_por: auth?.user?.id ?? null,
