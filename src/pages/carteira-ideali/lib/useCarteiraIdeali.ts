@@ -52,6 +52,11 @@ export interface CarteiraData {
   carteiraAtivaMes: number;
 }
 
+/** Fatura com dado incompleto: em aberto (PE) e sem valor de boleto. */
+export function isIncompleta(i: Pick<InvoiceRow, "status_fatura" | "valor_boleto">): boolean {
+  return i.status_fatura === "PE" && i.valor_boleto === null;
+}
+
 function todayUTC(): number {
   const n = new Date();
   return Date.UTC(n.getFullYear(), n.getMonth(), n.getDate());
@@ -128,13 +133,11 @@ export function useCarteiraIdeali() {
       const afetados = new Set<string>();
       const afetadosIncompletos = new Set<string>();
       for (const inv of invoices) {
-        if (inv.dado_incompleto) {
+        if (isIncompleta(inv)) {
           faturasIncompletas += 1;
-          if (inv.status_fatura === "PE") {
-            afetadosIncompletos.add(inv.codigo_contrato);
-          }
+          afetadosIncompletos.add(inv.codigo_contrato);
         }
-        if (inv.status_fatura === "PE" && !inv.dado_incompleto) {
+        if (inv.status_fatura === "PE" && inv.valor_boleto !== null) {
           afetados.add(inv.codigo_contrato);
           valorEmAtraso += inv.valor_boleto ?? 0;
         }
@@ -154,14 +157,14 @@ export function useCarteiraIdeali() {
           if (!oldest || i.vencimento_fatura < oldest.vencimento_fatura) oldest = i;
         }
         const valor = open
-          .filter((i) => !i.dado_incompleto)
+          .filter((i) => i.valor_boleto !== null)
           .reduce((s, i) => s + (i.valor_boleto ?? 0), 0);
 
         return {
           ...c,
           oldestOpen: oldest,
           diasEmAtraso: oldest ? diasEmAtrasoDe(oldest.vencimento_fatura) : null,
-          hasIncomplete: invs.some((i) => i.dado_incompleto),
+          hasIncomplete: invs.some(isIncompleta),
           valorEmAtraso: valor,
         };
       });
