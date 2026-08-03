@@ -9,9 +9,19 @@ const PAGE = 1000;
 
 export const digits = (v: string | null | undefined) => (v ?? "").replace(/\D/g, "");
 
-/** Status no Cobmais derivado do texto de OBSERVAÇÃO. */
-export function statusCobmais(observacao: string | null): "Ativo" | "Rescindido" {
-  return /rescind/i.test(observacao ?? "") ? "Rescindido" : "Ativo";
+export type StatusCobmais = "Ativo" | "Rescindido" | "Não informado";
+
+/**
+ * Status no Cobmais derivado do texto de OBSERVAÇÃO.
+ * Vazio ou texto não reconhecido NUNCA é assumido como "Ativo" — vira
+ * "Não informado", para não esconder dado ausente numa tela de exposição.
+ */
+export function statusCobmais(observacao: string | null): StatusCobmais {
+  const txt = (observacao ?? "").trim();
+  if (!txt) return "Não informado";
+  if (/rescind|encerrad|distrat|finalizad/i.test(txt)) return "Rescindido";
+  if (/ativ|vigente|em vigor|em andamento/i.test(txt)) return "Ativo";
+  return "Não informado";
 }
 
 export interface CobmaisLoftRow {
@@ -23,7 +33,7 @@ export interface CobmaisLoftRow {
   atraso: number;
   risco: number;
   observacao: string | null;
-  statusCobmais: "Ativo" | "Rescindido";
+  statusCobmais: StatusCobmais;
   /** Contrato correspondente no snapshot mais recente do Portal Loft (por CPF). */
   portal: PortalSnapshot | null;
 }

@@ -24,7 +24,7 @@ function StatusPortal({ row }: { row: CobmaisLoftRow }) {
       </Badge>
     );
   }
-  const status = (row.portal.status ?? "").trim() || "Sem status";
+  const status = (row.portal.status ?? "").trim() || "Não informado";
   const s = status.toLowerCase();
   const cor =
     s === "ativo"
@@ -101,14 +101,20 @@ export function CobmaisLoftTable({ rows, sortKey, sortAsc, onSort }: Props) {
                       className={`font-normal ${
                         r.statusCobmais === "Rescindido"
                           ? "border-amber-500/40 text-amber-600"
-                          : "border-[#2F80ED]/40 text-[#2F80ED]"
+                          : r.statusCobmais === "Ativo"
+                            ? "border-[#2F80ED]/40 text-[#2F80ED]"
+                            : "border-muted-foreground/30 text-muted-foreground"
                       }`}
                     >
                       {r.statusCobmais}
                     </Badge>
                   </TooltipTrigger>
                   <TooltipContent className="max-w-xs">
-                    {r.observacao?.trim() || "Sem observação no relatório"}
+                    {r.statusCobmais === "Não informado"
+                      ? r.observacao?.trim()
+                        ? `Texto não reconhecido no relatório: "${r.observacao.trim()}"`
+                        : "Sem observação no relatório Cobmais — status do contrato não informado"
+                      : r.observacao?.trim() || "Sem observação no relatório"}
                   </TooltipContent>
                 </Tooltip>
               </TableCell>
