@@ -99,6 +99,9 @@ export function useCobmaisLoft(): CobmaisLoftData {
           .from("guarantor_portal_imports")
           .select("id, data_importacao")
           .eq("garantidora", "Loft")
+          // Só importações de contrato têm snapshots com CPF — sem este filtro a
+          // importação de inadimplência (mais recente) zerava o cruzamento.
+          .eq("tipo", "contrato")
           .order("data_importacao", { ascending: false })
           .limit(1),
       ]);
