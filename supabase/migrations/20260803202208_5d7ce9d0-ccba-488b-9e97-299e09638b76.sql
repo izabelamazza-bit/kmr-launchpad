@@ -1,0 +1,1 @@
+UPDATE public.ideali_invoices SET dado_incompleto = (status_fatura = 'PE' AND valor_boleto IS NULL) WHERE dado_incompleto <> (status_fatura = 'PE' AND valor_boleto IS NULL);
