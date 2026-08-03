@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, ArrowRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { StatusBadge } from "./StatusBadge";
+import { PendenciasTab } from "./PendenciasTab";
+import { fetchPendencias, type Pendencia } from "../lib/useInadimplenciaLoft";
 import { fmtBool, fmtDate, fmtDateTime, fmtMoney, type Snapshot } from "../lib/usePortalLoft";
 
 type Kind = "text" | "money" | "date" | "bool" | "num";
@@ -49,6 +52,32 @@ export function HistoricoDrawer({ contrato, onOpenChange }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rows, setRows] = useState<(Snapshot & { data_importacao: string | null })[]>([]);
+  const [pendencias, setPendencias] = useState<Pendencia[]>([]);
+  const [pendLoading, setPendLoading] = useState(false);
+  const [pendError, setPendError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!contrato) return;
+    let cancelled = false;
+    setPendLoading(true);
+    setPendError(null);
+    fetchPendencias(contrato)
+      .then((res) => {
+        if (!cancelled) setPendencias(res);
+      })
+      .catch((e: unknown) => {
+        if (!cancelled) {
+          setPendencias([]);
+          setPendError(e instanceof Error ? e.message : "Falha ao carregar as pendências.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setPendLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [contrato]);
 
   useEffect(() => {
     if (!contrato) return;
@@ -92,6 +121,13 @@ export function HistoricoDrawer({ contrato, onOpenChange }: Props) {
           </SheetDescription>
         </SheetHeader>
 
+        <Tabs defaultValue="historico" className="mt-6">
+          <TabsList>
+            <TabsTrigger value="historico">Histórico</TabsTrigger>
+            <TabsTrigger value="pendencias">Pendências</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="historico" className="mt-0">
         {loading ? (
           <div className="flex items-center gap-2 text-sm text-muted-foreground py-8">
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -149,6 +185,12 @@ export function HistoricoDrawer({ contrato, onOpenChange }: Props) {
             })}
           </ol>
         )}
+          </TabsContent>
+
+          <TabsContent value="pendencias" className="mt-0">
+            <PendenciasTab rows={pendencias} loading={pendLoading} error={pendError} />
+          </TabsContent>
+        </Tabs>
       </SheetContent>
     </Sheet>
   );

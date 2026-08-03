@@ -478,6 +478,27 @@ export type Database = {
         }
         Relationships: []
       }
+      guarantor_portal_code_lookup: {
+        Row: {
+          campo: string
+          codigo: string
+          id: string
+          rotulo: string | null
+        }
+        Insert: {
+          campo: string
+          codigo: string
+          id?: string
+          rotulo?: string | null
+        }
+        Update: {
+          campo?: string
+          codigo?: string
+          id?: string
+          rotulo?: string | null
+        }
+        Relationships: []
+      }
       guarantor_portal_imports: {
         Row: {
           data_importacao: string
@@ -485,6 +506,7 @@ export type Database = {
           id: string
           importado_por: string | null
           nome_arquivo: string | null
+          tipo: string
           total_linhas: number | null
         }
         Insert: {
@@ -493,6 +515,7 @@ export type Database = {
           id?: string
           importado_por?: string | null
           nome_arquivo?: string | null
+          tipo?: string
           total_linhas?: number | null
         }
         Update: {
@@ -501,9 +524,78 @@ export type Database = {
           id?: string
           importado_por?: string | null
           nome_arquivo?: string | null
+          tipo?: string
           total_linhas?: number | null
         }
         Relationships: []
+      }
+      guarantor_portal_inadimplencia: {
+        Row: {
+          contract_status_codigo: string | null
+          contrato: string
+          criado_em: string | null
+          data_importacao: string
+          data_pagamento: string | null
+          data_pendencia: string | null
+          details_json: Json
+          dt_vencimento: string | null
+          expiration_days: number | null
+          forma_pgto_codigo: string | null
+          id: string
+          imob_status: string | null
+          import_id: string | null
+          pendencia_id: string
+          status_codigo: string | null
+          valor: number | null
+          valor_atual: number | null
+        }
+        Insert: {
+          contract_status_codigo?: string | null
+          contrato: string
+          criado_em?: string | null
+          data_importacao?: string
+          data_pagamento?: string | null
+          data_pendencia?: string | null
+          details_json?: Json
+          dt_vencimento?: string | null
+          expiration_days?: number | null
+          forma_pgto_codigo?: string | null
+          id?: string
+          imob_status?: string | null
+          import_id?: string | null
+          pendencia_id: string
+          status_codigo?: string | null
+          valor?: number | null
+          valor_atual?: number | null
+        }
+        Update: {
+          contract_status_codigo?: string | null
+          contrato?: string
+          criado_em?: string | null
+          data_importacao?: string
+          data_pagamento?: string | null
+          data_pendencia?: string | null
+          details_json?: Json
+          dt_vencimento?: string | null
+          expiration_days?: number | null
+          forma_pgto_codigo?: string | null
+          id?: string
+          imob_status?: string | null
+          import_id?: string | null
+          pendencia_id?: string
+          status_codigo?: string | null
+          valor?: number | null
+          valor_atual?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guarantor_portal_inadimplencia_import_id_fkey"
+            columns: ["import_id"]
+            isOneToOne: false
+            referencedRelation: "guarantor_portal_imports"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       guarantor_portal_snapshots: {
         Row: {

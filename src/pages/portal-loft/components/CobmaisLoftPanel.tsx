@@ -12,6 +12,7 @@ import {
   useCobmaisLoft,
   useCobmaisLoftFiltrado,
 } from "../lib/useCobmaisLoft";
+import { useInadimplenciaLoft } from "../lib/useInadimplenciaLoft";
 
 interface Props {
   onImport: () => void;
@@ -19,6 +20,7 @@ interface Props {
 
 export function CobmaisLoftPanel({ onImport }: Props) {
   const { loading, error, rows, ultimaImportacaoCobmais, ultimaImportacaoPortal } = useCobmaisLoft();
+  const { index: pendencias } = useInadimplenciaLoft();
   const [faixa, setFaixa] = useState("0");
   const [busca, setBusca] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("risco");
@@ -134,6 +136,7 @@ export function CobmaisLoftPanel({ onImport }: Props) {
                 sortKey={sortKey}
                 sortAsc={sortAsc}
                 onSort={handleSort}
+                pendencias={pendencias}
               />
             </CardContent>
           </Card>

@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, FileUp, Loader2 } from "lucide-react";
 import { ImportLoftModal } from "./components/ImportLoftModal";
+import { ImportInadimplenciaModal } from "./components/ImportInadimplenciaModal";
 import { ImportCobmaisModal } from "@/pages/cobmais/components/ImportCobmaisModal";
 import { CobmaisLoftPanel } from "./components/CobmaisLoftPanel";
 import { ResumoCards } from "./components/ResumoCards";
@@ -17,6 +18,7 @@ import { fmtDateTime, usePortalLoft, useResumo } from "./lib/usePortalLoft";
 const PortalLoft = () => {
   const navigate = useNavigate();
   const [importOpen, setImportOpen] = useState(false);
+  const [inadOpen, setInadOpen] = useState(false);
   const [cobmaisOpen, setCobmaisOpen] = useState(false);
   const [cobmaisKey, setCobmaisKey] = useState(0);
   const [contrato, setContrato] = useState<string | null>(null);
@@ -29,6 +31,7 @@ const PortalLoft = () => {
     snapshots,
     movements,
     novos,
+    ultimas,
     reload,
   } = usePortalLoft();
   const resumo = useResumo(snapshots, movements);
@@ -58,21 +61,31 @@ const PortalLoft = () => {
 
           <TabsContent value="portal" className="space-y-6 mt-0">
             <Card>
-          <CardContent className="p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <CardContent className="p-6 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div>
               <h2 className="text-base font-semibold">Snapshots do portal da garantidora</h2>
-              <p className="text-sm text-muted-foreground mt-1">
-                {currentImport
-                  ? `Última importação: ${fmtDateTime(currentImport.data_importacao)} por ${
-                      importedByName ?? "usuário não identificado"
-                    }${currentImport.nome_arquivo ? ` — ${currentImport.nome_arquivo}` : ""}`
-                  : "Nenhuma importação registrada ainda."}
-              </p>
+              <div className="mt-2 space-y-0.5 text-sm text-muted-foreground">
+                <p>Contratos: {fmtDateTime(ultimas.contrato)}</p>
+                <p>Movimentações: {fmtDateTime(ultimas.movimentacao)}</p>
+                <p>Inadimplência: {fmtDateTime(ultimas.inadimplencia)}</p>
+              </div>
+              {currentImport && (
+                <p className="text-xs text-muted-foreground mt-2">
+                  Última de contratos por {importedByName ?? "usuário não identificado"}
+                  {currentImport.nome_arquivo ? ` — ${currentImport.nome_arquivo}` : ""}
+                </p>
+              )}
             </div>
-            <Button onClick={() => setImportOpen(true)} className="w-full sm:w-auto">
-              <FileUp className="h-4 w-4 mr-2" />
-              Importar novo CSV
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button onClick={() => setImportOpen(true)} className="w-full sm:w-auto">
+                <FileUp className="h-4 w-4 mr-2" />
+                Importar novo CSV
+              </Button>
+              <Button variant="outline" onClick={() => setInadOpen(true)} className="w-full sm:w-auto">
+                <FileUp className="h-4 w-4 mr-2" />
+                Importar inadimplência
+              </Button>
+            </div>
           </CardContent>
             </Card>
 
@@ -116,6 +129,14 @@ const PortalLoft = () => {
       </main>
 
       <ImportLoftModal open={importOpen} onOpenChange={setImportOpen} onDone={reload} />
+      <ImportInadimplenciaModal
+        open={inadOpen}
+        onOpenChange={setInadOpen}
+        onDone={() => {
+          reload();
+          setCobmaisKey((k) => k + 1);
+        }}
+      />
       <ImportCobmaisModal
         open={cobmaisOpen}
         onOpenChange={setCobmaisOpen}

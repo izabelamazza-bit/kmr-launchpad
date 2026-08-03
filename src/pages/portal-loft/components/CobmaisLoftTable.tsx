@@ -6,6 +6,7 @@ import { SinistroLoftBadge } from "./SinistroLoftBadge";
 import { ValorProgramadoCell } from "./ValorProgramadoCell";
 import { fmtMoney } from "../lib/usePortalLoft";
 import type { CobmaisLoftRow } from "../lib/useCobmaisLoft";
+import { normContrato, type PendenciaIndex } from "../lib/useInadimplenciaLoft";
 
 export type SortKey = "risco" | "atraso";
 
@@ -14,6 +15,7 @@ interface Props {
   sortKey: SortKey;
   sortAsc: boolean;
   onSort: (key: SortKey) => void;
+  pendencias: PendenciaIndex;
 }
 
 function StatusPortal({ row }: { row: CobmaisLoftRow }) {
@@ -44,7 +46,7 @@ function StatusPortal({ row }: { row: CobmaisLoftRow }) {
   );
 }
 
-export function CobmaisLoftTable({ rows, sortKey, sortAsc, onSort }: Props) {
+export function CobmaisLoftTable({ rows, sortKey, sortAsc, onSort, pendencias }: Props) {
   if (rows.length === 0) {
     return (
       <p className="text-sm text-muted-foreground py-8 text-center">
@@ -84,7 +86,9 @@ export function CobmaisLoftTable({ rows, sortKey, sortAsc, onSort }: Props) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {rows.map((r) => (
+          {rows.map((r) => {
+            const pend = pendencias.get(normContrato(r.contrato));
+            return (
             <TableRow key={r.id}>
               <TableCell className="font-medium whitespace-nowrap">{r.cpf}</TableCell>
               <TableCell className="max-w-[220px] truncate">{r.cliente ?? "—"}</TableCell>
@@ -122,13 +126,14 @@ export function CobmaisLoftTable({ rows, sortKey, sortAsc, onSort }: Props) {
                 <StatusPortal row={r} />
               </TableCell>
               <TableCell>
-                <SinistroLoftBadge row={r} />
+                <SinistroLoftBadge row={r} pendencia={pend} />
               </TableCell>
               <TableCell className="text-right">
-                <ValorProgramadoCell row={r} />
+                <ValorProgramadoCell row={r} pendencia={pend} />
               </TableCell>
             </TableRow>
-          ))}
+            );
+          })}
         </TableBody>
       </Table>
     </div>
