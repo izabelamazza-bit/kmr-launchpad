@@ -24,6 +24,12 @@ async function fetchSnapshotsByImport(importId: string): Promise<Snapshot[]> {
   return out;
 }
 
+export interface UltimasImportacoes {
+  contrato: string | null;
+  movimentacao: string | null;
+  inadimplencia: string | null;
+}
+
 export interface PortalLoftData {
   loading: boolean;
   error: string | null;
@@ -33,6 +39,7 @@ export interface PortalLoftData {
   snapshots: Snapshot[];
   movements: Movement[];
   novos: number;
+  ultimas: UltimasImportacoes;
   reload: () => void;
 }
 
@@ -45,6 +52,11 @@ export function usePortalLoft(): PortalLoftData {
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
   const [movements, setMovements] = useState<Movement[]>([]);
   const [novos, setNovos] = useState(0);
+  const [ultimas, setUltimas] = useState<UltimasImportacoes>({
+    contrato: null,
+    movimentacao: null,
+    inadimplencia: null,
+  });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -54,9 +66,24 @@ export function usePortalLoft(): PortalLoftData {
         .from("guarantor_portal_imports")
         .select("*")
         .eq("garantidora", "Loft")
+        .eq("tipo", "contrato")
         .order("data_importacao", { ascending: false })
         .limit(2);
       if (impErr) throw new Error(impErr.message);
+
+      const { data: todas, error: todasErr } = await supabase
+        .from("guarantor_portal_imports")
+        .select("tipo, data_importacao")
+        .eq("garantidora", "Loft")
+        .order("data_importacao", { ascending: false });
+      if (todasErr) throw new Error(todasErr.message);
+      const maisRecente = (tipo: string) =>
+        (todas ?? []).find((r) => r.tipo === tipo)?.data_importacao ?? null;
+      setUltimas({
+        contrato: maisRecente("contrato"),
+        movimentacao: maisRecente("movimentacao"),
+        inadimplencia: maisRecente("inadimplencia"),
+      });
 
       const atual = (imports?.[0] ?? null) as PortalImport | null;
       const anterior = (imports?.[1] ?? null) as PortalImport | null;
@@ -119,6 +146,7 @@ export function usePortalLoft(): PortalLoftData {
     snapshots,
     movements,
     novos,
+    ultimas,
     reload: () => void load(),
   };
 }
