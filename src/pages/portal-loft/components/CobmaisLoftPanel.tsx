@@ -15,7 +15,6 @@ import {
 
 interface Props {
   onImport: () => void;
-  reloadKey?: number;
 }
 
 export function CobmaisLoftPanel({ onImport }: Props) {
