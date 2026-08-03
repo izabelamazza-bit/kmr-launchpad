@@ -56,7 +56,7 @@ export function useIdealiResumo() {
             (d) => d.status_documento_drive !== "Contrato assinado encontrado",
           ).length,
           valorInadimplencia: invoices
-            .filter((i) => i.status_fatura === "PE" && !i.dado_incompleto)
+            .filter((i) => i.status_fatura === "PE" && i.valor_boleto !== null)
             .reduce((s, i) => s + Number(i.valor_boleto ?? 0), 0),
         });
       } finally {

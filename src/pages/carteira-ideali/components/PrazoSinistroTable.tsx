@@ -6,6 +6,7 @@ import { AlertTriangle } from "lucide-react";
 import {
   GARANTIDORAS_SINISTRO,
   diasRestantesSinistro,
+  isIncompleta,
   type ContractAggregate,
 } from "../lib/useCarteiraIdeali";
 
@@ -58,7 +59,7 @@ export function PrazoSinistroTable({ contracts }: { contracts: ContractAggregate
                       <TableCell className="font-medium whitespace-nowrap">
                         <span className="inline-flex items-center gap-1">
                           {c.codigo_contrato}
-                          {c.oldestOpen?.dado_incompleto && (
+                          {c.oldestOpen && isIncompleta(c.oldestOpen) && (
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <AlertTriangle className="h-3.5 w-3.5 text-[#F2994A]" />

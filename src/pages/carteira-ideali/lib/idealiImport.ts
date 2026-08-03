@@ -284,7 +284,7 @@ export async function parseIdealiFile(file: File): Promise<IdealiParseResult> {
 
     const valorBoleto = num(get(row, "valor_boleto"));
     const valorPago = num(get(row, "valor_pago_fatura"));
-    const incompleto = statusFatura === "PE" && (valorBoleto === null || valorPago === null);
+    const incompleto = statusFatura === "PE" && valorBoleto === null;
     if (incompleto) faturasIncompletas += 1;
 
     invoices.push({
