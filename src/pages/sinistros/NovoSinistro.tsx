@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
-import { CalendarIcon, Plus, Trash2, ArrowLeft, LogOut } from "lucide-react";
+import { CalendarIcon, Plus, Trash2, ArrowLeft, LogOut, Check, ChevronsUpDown } from "lucide-react";
 import { z } from "zod";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -22,6 +22,14 @@ import {
 } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { validateCPF } from "@/lib/validators";
@@ -46,6 +54,12 @@ interface ChecklistItem {
   label: string;
   checked: boolean;
   file: File | null;
+}
+
+interface ContratoOption {
+  imoview_number: string;
+  locatario_nome: string | null;
+  locatario_cpf: string | null;
 }
 
 const CHECKLIST_OCUPADO: string[] = [
