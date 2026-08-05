@@ -32,7 +32,7 @@ import {
 } from "@/components/ui/command";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { validateCPF } from "@/lib/validators";
+import { validateCPF, formatCurrency } from "@/lib/validators";
 import { useEnvironment } from "@/contexts/EnvironmentContext";
 import logoKMR from "@/assets/Logo_KMR.png";
 
@@ -40,7 +40,6 @@ import FileUploadField from "@/components/sinistros/FileUploadField";
 import CurrencyInput from "@/components/sinistros/CurrencyInput";
 import MultiFileUploadField from "@/components/sinistros/MultiFileUploadField";
 import { calcularEncargos } from "@/pages/sinistros/lib/encargos";
-import { formatCurrency } from "@/lib/validators";
 
 type StatusImovel = "ocupado" | "desocupado";
 type EmpresaSinistro = "Rotina" | "Alugar";
