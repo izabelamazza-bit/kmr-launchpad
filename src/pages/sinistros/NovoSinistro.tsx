@@ -340,6 +340,10 @@ const NovoSinistro = () => {
         data_vencimento: format(aluguelVencimento, "yyyy-MM-dd"),
         valor: aluguelValor,
         boleto_path: aluguelPath,
+        valor_multa: encargosAluguel.multa,
+        valor_juros: encargosAluguel.juros,
+        valor_total: encargosAluguel.total,
+        dias_atraso: encargosAluguel.diasAtraso,
       });
       for (const f of aluguelExtras) {
         const path = await uploadFile(sinistro.id, f, "aluguel");
