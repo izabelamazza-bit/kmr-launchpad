@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { CalendarIcon, Plus, Trash2, ArrowLeft, LogOut, Check, ChevronsUpDown } from "lucide-react";
@@ -32,13 +32,14 @@ import {
 } from "@/components/ui/command";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { validateCPF } from "@/lib/validators";
+import { validateCPF, formatCurrency } from "@/lib/validators";
 import { useEnvironment } from "@/contexts/EnvironmentContext";
 import logoKMR from "@/assets/Logo_KMR.png";
 
 import FileUploadField from "@/components/sinistros/FileUploadField";
 import CurrencyInput from "@/components/sinistros/CurrencyInput";
 import MultiFileUploadField from "@/components/sinistros/MultiFileUploadField";
+import { calcularEncargos } from "@/pages/sinistros/lib/encargos";
 
 type StatusImovel = "ocupado" | "desocupado";
 type EmpresaSinistro = "Rotina" | "Alugar";
@@ -120,6 +121,10 @@ const NovoSinistro = () => {
   const [aluguelBoletos, setAluguelBoletos] = useState<File[]>([]);
   const [aluguelVencimento, setAluguelVencimento] = useState<Date | undefined>();
   const [aluguelValor, setAluguelValor] = useState<number>(0);
+  const encargosAluguel = useMemo(
+    () => calcularEncargos(aluguelValor, aluguelVencimento),
+    [aluguelValor, aluguelVencimento],
+  );
 
   // Consumos
   const [consumos, setConsumos] = useState<ContaConsumo[]>([]);
@@ -335,6 +340,10 @@ const NovoSinistro = () => {
         data_vencimento: format(aluguelVencimento, "yyyy-MM-dd"),
         valor: aluguelValor,
         boleto_path: aluguelPath,
+        valor_multa: encargosAluguel.multa,
+        valor_juros: encargosAluguel.juros,
+        valor_total: encargosAluguel.total,
+        dias_atraso: encargosAluguel.diasAtraso,
       });
       for (const f of aluguelExtras) {
         const path = await uploadFile(sinistro.id, f, "aluguel");
@@ -620,6 +629,31 @@ const NovoSinistro = () => {
             <div className="space-y-2">
               <Label>Valor original (sem multa/juros)</Label>
               <CurrencyInput value={aluguelValor} onChange={setAluguelValor} />
+            </div>
+            <div className="sm:col-span-2 grid gap-4 sm:grid-cols-3 rounded-md border bg-muted/40 p-4">
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">
+                  Multa (10%)
+                </Label>
+                <p className="font-medium">{formatCurrency(encargosAluguel.multa)}</p>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">
+                  Juros (1% ao mês pro-rata)
+                </Label>
+                <p className="font-medium">{formatCurrency(encargosAluguel.juros)}</p>
+                <p className="text-xs text-muted-foreground">
+                  {encargosAluguel.diasAtraso} dia(s) de atraso
+                </p>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">
+                  Valor total atualizado
+                </Label>
+                <p className="text-lg font-bold text-primary">
+                  {formatCurrency(encargosAluguel.total)}
+                </p>
+              </div>
             </div>
           </CardContent>
         </Card>

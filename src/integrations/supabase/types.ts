@@ -1242,30 +1242,42 @@ export type Database = {
           created_at: string
           data_vencimento: string
           descricao: string | null
+          dias_atraso: number | null
           id: string
           sinistro_id: string
           tipo: string
           valor: number
+          valor_juros: number | null
+          valor_multa: number | null
+          valor_total: number | null
         }
         Insert: {
           boleto_path?: string | null
           created_at?: string
           data_vencimento: string
           descricao?: string | null
+          dias_atraso?: number | null
           id?: string
           sinistro_id: string
           tipo: string
           valor?: number
+          valor_juros?: number | null
+          valor_multa?: number | null
+          valor_total?: number | null
         }
         Update: {
           boleto_path?: string | null
           created_at?: string
           data_vencimento?: string
           descricao?: string | null
+          dias_atraso?: number | null
           id?: string
           sinistro_id?: string
           tipo?: string
           valor?: number
+          valor_juros?: number | null
+          valor_multa?: number | null
+          valor_total?: number | null
         }
         Relationships: [
           {
