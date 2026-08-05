@@ -622,6 +622,31 @@ const NovoSinistro = () => {
               <Label>Valor original (sem multa/juros)</Label>
               <CurrencyInput value={aluguelValor} onChange={setAluguelValor} />
             </div>
+            <div className="sm:col-span-2 grid gap-4 sm:grid-cols-3 rounded-md border bg-muted/40 p-4">
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">
+                  Multa (10%)
+                </Label>
+                <p className="font-medium">{formatCurrency(encargosAluguel.multa)}</p>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">
+                  Juros (1% ao mês pro-rata)
+                </Label>
+                <p className="font-medium">{formatCurrency(encargosAluguel.juros)}</p>
+                <p className="text-xs text-muted-foreground">
+                  {encargosAluguel.diasAtraso} dia(s) de atraso
+                </p>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">
+                  Valor total atualizado
+                </Label>
+                <p className="text-lg font-bold text-primary">
+                  {formatCurrency(encargosAluguel.total)}
+                </p>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
