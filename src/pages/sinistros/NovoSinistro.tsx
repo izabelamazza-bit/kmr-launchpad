@@ -429,6 +429,18 @@ const NovoSinistro = () => {
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2">
             <div className="sm:col-span-2 space-y-2">
+              <Label htmlFor="empresa">Empresa</Label>
+              <Select value={empresa} onValueChange={(v) => handleEmpresaChange(v as EmpresaSinistro)}>
+                <SelectTrigger id="empresa">
+                  <SelectValue placeholder="Selecione a empresa" />
+                </SelectTrigger>
+                <SelectContent className="bg-popover z-50">
+                  <SelectItem value="Rotina">Rotina</SelectItem>
+                  <SelectItem value="Alugar">Alugar</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="sm:col-span-2 space-y-2">
               <Label htmlFor="nome">Nome completo</Label>
               <Input id="nome" value={nome} onChange={(e) => setNome(e.target.value)} maxLength={150} />
             </div>
@@ -444,24 +456,60 @@ const NovoSinistro = () => {
             </div>
             <div className="space-y-2">
               <Label htmlFor="contrato">Código do contrato (Imoview)</Label>
-              <Input
-                id="contrato"
-                value={codigoContrato}
-                onChange={(e) => setCodigoContrato(e.target.value)}
-                maxLength={60}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="empresa">Empresa</Label>
-              <Select value={empresa} onValueChange={(v) => setEmpresa(v as EmpresaSinistro)}>
-                <SelectTrigger id="empresa">
-                  <SelectValue placeholder="Selecione a empresa" />
-                </SelectTrigger>
-                <SelectContent className="bg-popover z-50">
-                  <SelectItem value="Rotina">Rotina</SelectItem>
-                  <SelectItem value="Alugar">Alugar</SelectItem>
-                </SelectContent>
-              </Select>
+              <Popover open={contratoOpen} onOpenChange={setContratoOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    id="contrato"
+                    type="button"
+                    variant="outline"
+                    role="combobox"
+                    disabled={!empresa}
+                    className={cn(
+                      "w-full justify-between font-normal",
+                      !codigoContrato && "text-muted-foreground",
+                    )}
+                  >
+                    {codigoContrato ||
+                      (!empresa
+                        ? "Selecione a empresa primeiro"
+                        : contratosLoading
+                          ? "Carregando contratos..."
+                          : "Selecionar contrato")}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0 bg-popover z-50" align="start">
+                  <Command>
+                    <CommandInput placeholder="Buscar por código, nome ou CPF..." />
+                    <CommandList>
+                      <CommandEmpty>Nenhum contrato encontrado.</CommandEmpty>
+                      <CommandGroup>
+                        {contratos.map((c) => (
+                          <CommandItem
+                            key={c.imoview_number}
+                            value={`${c.imoview_number} ${c.locatario_nome ?? ""} ${c.locatario_cpf ?? ""}`}
+                            onSelect={() => handleContratoSelect(c)}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                codigoContrato === c.imoview_number ? "opacity-100" : "opacity-0",
+                              )}
+                            />
+                            <div className="min-w-0">
+                              <div className="font-medium truncate">{c.imoview_number}</div>
+                              <div className="text-xs text-muted-foreground truncate">
+                                {c.locatario_nome ?? "Sem nome"}
+                                {c.locatario_cpf ? ` • ${c.locatario_cpf}` : ""}
+                              </div>
+                            </div>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
           </CardContent>
         </Card>
