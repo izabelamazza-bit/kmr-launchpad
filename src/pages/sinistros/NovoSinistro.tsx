@@ -140,6 +140,7 @@ const NovoSinistro = () => {
 
   // Observações
   const [observacoes, setObservacoes] = useState("");
+  const [observacoesFiles, setObservacoesFiles] = useState<File[]>([]);
 
   useEffect(() => {
     const items = statusImovel === "ocupado" ? CHECKLIST_OCUPADO : CHECKLIST_DESOCUPADO;
@@ -404,6 +405,17 @@ const NovoSinistro = () => {
             file_path: path,
           });
         }
+      }
+
+      // 7. Anexos das observações
+      for (const f of observacoesFiles) {
+        const path = await uploadFile(sinistro.id, f, "observacoes");
+        await supabase.from("sinistro_anexos").insert({
+          sinistro_id: sinistro.id,
+          nome: f.name,
+          tipo: "Observações",
+          file_path: path,
+        });
       }
 
       toast({ title: "Sinistro registrado", description: "Confira o resumo antes de abrir." });
@@ -861,6 +873,13 @@ const NovoSinistro = () => {
                 color: "#4F4F4F",
               }}
             />
+            <div className="mt-3 space-y-2">
+              <Label>Anexos das observações</Label>
+              <MultiFileUploadField
+                value={observacoesFiles}
+                onChange={setObservacoesFiles}
+              />
+            </div>
           </CardContent>
         </Card>
 
