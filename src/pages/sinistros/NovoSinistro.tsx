@@ -121,6 +121,10 @@ const NovoSinistro = () => {
   const [aluguelBoletos, setAluguelBoletos] = useState<File[]>([]);
   const [aluguelVencimento, setAluguelVencimento] = useState<Date | undefined>();
   const [aluguelValor, setAluguelValor] = useState<number>(0);
+  const encargosAluguel = useMemo(
+    () => calcularEncargos(aluguelValor, aluguelVencimento),
+    [aluguelValor, aluguelVencimento],
+  );
 
   // Consumos
   const [consumos, setConsumos] = useState<ContaConsumo[]>([]);
