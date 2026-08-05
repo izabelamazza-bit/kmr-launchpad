@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/validators";
 import logoKMR from "@/assets/Logo_KMR.png";
 import { useEnvironment } from "@/contexts/EnvironmentContext";
+import { calcularEncargos } from "@/pages/sinistros/lib/encargos";
 
 interface Sinistro {
   id: string;
@@ -113,7 +114,12 @@ const ResumoSinistro = () => {
     navigate("/login");
   };
 
-  const total = debitos.reduce((sum, d) => sum + Number(d.valor), 0);
+  // Encargos sempre recalculados em relação à data de hoje (nunca o valor salvo)
+  const debitosCalculados = debitos.map((d) => ({
+    ...d,
+    encargos: calcularEncargos(Number(d.valor), d.data_vencimento),
+  }));
+  const total = debitosCalculados.reduce((sum, d) => sum + d.encargos.total, 0);
 
   const downloadFile = async (path: string) => {
     const { data, error } = await supabase.storage
@@ -286,26 +292,39 @@ const ResumoSinistro = () => {
                     <th className="py-2">Tipo</th>
                     <th className="py-2">Descrição</th>
                     <th className="py-2">Vencimento</th>
-                    <th className="py-2 text-right">Valor</th>
+                    <th className="py-2 text-right">Valor original</th>
+                    <th className="py-2 text-right">Multa</th>
+                    <th className="py-2 text-right">Juros</th>
+                    <th className="py-2 text-right">Total atualizado</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {debitos.map((d) => (
+                  {debitosCalculados.map((d) => (
                     <tr key={d.id} className="border-b last:border-0">
                       <td className="py-2 capitalize">{d.tipo}</td>
                       <td className="py-2">{d.descricao || "—"}</td>
                       <td className="py-2">
                         {format(new Date(d.data_vencimento + "T00:00:00"), "dd/MM/yyyy")}
+                        {d.encargos.diasAtraso > 0 && (
+                          <span className="block text-xs text-muted-foreground">
+                            {d.encargos.diasAtraso} dia(s) de atraso
+                          </span>
+                        )}
                       </td>
-                      <td className="py-2 text-right font-medium">
+                      <td className="py-2 text-right">
                         {formatCurrency(Number(d.valor))}
+                      </td>
+                      <td className="py-2 text-right">{formatCurrency(d.encargos.multa)}</td>
+                      <td className="py-2 text-right">{formatCurrency(d.encargos.juros)}</td>
+                      <td className="py-2 text-right font-medium">
+                        {formatCurrency(d.encargos.total)}
                       </td>
                     </tr>
                   ))}
                 </tbody>
                 <tfoot>
                   <tr>
-                    <td colSpan={3} className="pt-3 text-right font-semibold">
+                    <td colSpan={6} className="pt-3 text-right font-semibold">
                       Total consolidado
                     </td>
                     <td className="pt-3 text-right text-lg font-bold text-primary">
