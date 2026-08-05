@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { CalendarIcon, Plus, Trash2, ArrowLeft, LogOut, Check, ChevronsUpDown } from "lucide-react";
@@ -39,6 +39,8 @@ import logoKMR from "@/assets/Logo_KMR.png";
 import FileUploadField from "@/components/sinistros/FileUploadField";
 import CurrencyInput from "@/components/sinistros/CurrencyInput";
 import MultiFileUploadField from "@/components/sinistros/MultiFileUploadField";
+import { calcularEncargos } from "@/pages/sinistros/lib/encargos";
+import { formatCurrency } from "@/lib/validators";
 
 type StatusImovel = "ocupado" | "desocupado";
 type EmpresaSinistro = "Rotina" | "Alugar";
