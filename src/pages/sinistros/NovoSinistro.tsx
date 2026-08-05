@@ -47,13 +47,13 @@ interface ContaConsumo {
   descricao: string;
   data_vencimento: Date | undefined;
   valor: number;
-  boleto: File | null;
+  boletos: File[];
 }
 
 interface ChecklistItem {
   label: string;
   checked: boolean;
-  file: File | null;
+  files: File[];
 }
 
 interface ContratoOption {
@@ -79,6 +79,14 @@ const CHECKLIST_DESOCUPADO: string[] = [
   "E-mail de rescisão",
   "Boletos dos débitos",
   "Dois orçamentos (se aplicável)",
+];
+
+// Itens do checklist que aceitam múltiplos arquivos
+const CHECKLIST_MULTI: string[] = [
+  "Água (se houver)",
+  "Lixo (se houver)",
+  "IPTU (se houver)",
+  "Apólice de seguro",
 ];
 
 const baseSchema = z.object({
@@ -109,7 +117,7 @@ const NovoSinistro = () => {
   const [contratoOpen, setContratoOpen] = useState(false);
 
   // Aluguel
-  const [aluguelBoleto, setAluguelBoleto] = useState<File | null>(null);
+  const [aluguelBoletos, setAluguelBoletos] = useState<File[]>([]);
   const [aluguelVencimento, setAluguelVencimento] = useState<Date | undefined>();
   const [aluguelValor, setAluguelValor] = useState<number>(0);
 
@@ -127,7 +135,7 @@ const NovoSinistro = () => {
 
   // Checklist
   const [checklist, setChecklist] = useState<ChecklistItem[]>(
-    CHECKLIST_OCUPADO.map((l) => ({ label: l, checked: false, file: null })),
+    CHECKLIST_OCUPADO.map((l) => ({ label: l, checked: false, files: [] })),
   );
 
   // Observações
@@ -137,7 +145,7 @@ const NovoSinistro = () => {
     const items = statusImovel === "ocupado" ? CHECKLIST_OCUPADO : CHECKLIST_DESOCUPADO;
     setChecklist((prev) => {
       const map = new Map(prev.map((i) => [i.label, i]));
-      return items.map((label) => map.get(label) ?? { label, checked: false, file: null });
+      return items.map((label) => map.get(label) ?? { label, checked: false, files: [] });
     });
   }, [statusImovel]);
 
@@ -191,7 +199,7 @@ const NovoSinistro = () => {
   const addConsumo = () => {
     setConsumos((c) => [
       ...c,
-      { descricao: "", data_vencimento: undefined, valor: 0, boleto: null },
+      { descricao: "", data_vencimento: undefined, valor: 0, boletos: [] },
     ]);
   };
 
@@ -315,8 +323,9 @@ const NovoSinistro = () => {
 
       // 2. Upload e insert do débito de aluguel
       let aluguelPath: string | null = null;
-      if (aluguelBoleto) {
-        aluguelPath = await uploadFile(sinistro.id, aluguelBoleto, "aluguel");
+      const aluguelExtras: File[] = aluguelBoletos.slice(1);
+      if (aluguelBoletos[0]) {
+        aluguelPath = await uploadFile(sinistro.id, aluguelBoletos[0], "aluguel");
       }
       await supabase.from("sinistro_debitos").insert({
         sinistro_id: sinistro.id,
@@ -326,11 +335,20 @@ const NovoSinistro = () => {
         valor: aluguelValor,
         boleto_path: aluguelPath,
       });
+      for (const f of aluguelExtras) {
+        const path = await uploadFile(sinistro.id, f, "aluguel");
+        await supabase.from("sinistro_anexos").insert({
+          sinistro_id: sinistro.id,
+          nome: f.name,
+          tipo: "Boleto do aluguel",
+          file_path: path,
+        });
+      }
 
       // 3. Consumos
       for (const c of consumos) {
         let path: string | null = null;
-        if (c.boleto) path = await uploadFile(sinistro.id, c.boleto, "consumo");
+        if (c.boletos[0]) path = await uploadFile(sinistro.id, c.boletos[0], "consumo");
         await supabase.from("sinistro_debitos").insert({
           sinistro_id: sinistro.id,
           tipo: "consumo",
@@ -339,15 +357,25 @@ const NovoSinistro = () => {
           valor: c.valor,
           boleto_path: path,
         });
+        for (const f of c.boletos.slice(1)) {
+          const extraPath = await uploadFile(sinistro.id, f, "consumo");
+          await supabase.from("sinistro_anexos").insert({
+            sinistro_id: sinistro.id,
+            nome: f.name,
+            tipo: `Boleto - ${c.descricao.trim()}`,
+            file_path: extraPath,
+          });
+        }
       }
 
       // 4. Anexos do checklist
       for (const item of checklist) {
-        if (item.checked && item.file) {
-          const path = await uploadFile(sinistro.id, item.file, "checklist");
+        if (!item.checked) continue;
+        for (const f of item.files) {
+          const path = await uploadFile(sinistro.id, f, "checklist");
           await supabase.from("sinistro_anexos").insert({
             sinistro_id: sinistro.id,
-            nome: item.file.name,
+            nome: f.name,
             tipo: item.label,
             file_path: path,
           });
@@ -545,7 +573,11 @@ const NovoSinistro = () => {
           <CardContent className="grid gap-4 sm:grid-cols-2">
             <div className="sm:col-span-2 space-y-2">
               <Label>Boleto do aluguel</Label>
-              <FileUploadField value={aluguelBoleto} onChange={setAluguelBoleto} />
+              <MultiFileUploadField
+                value={aluguelBoletos}
+                onChange={setAluguelBoletos}
+                label="Selecionar arquivos"
+              />
             </div>
             <div className="space-y-2">
               <Label>Data de vencimento</Label>
@@ -655,9 +687,9 @@ const NovoSinistro = () => {
                   </div>
                   <div className="sm:col-span-2 space-y-2">
                     <Label>Boleto</Label>
-                    <FileUploadField
-                      value={c.boleto}
-                      onChange={(f) => updateConsumo(idx, { boleto: f })}
+                    <MultiFileUploadField
+                      value={c.boletos}
+                      onChange={(files) => updateConsumo(idx, { boletos: files })}
                     />
                   </div>
                 </div>
@@ -785,11 +817,19 @@ const NovoSinistro = () => {
                   </label>
                   {item.checked && (
                     <div className="w-full sm:w-72">
-                      <FileUploadField
-                        value={item.file}
-                        onChange={(f) => updateChecklist(idx, { file: f })}
-                        label="Anexar arquivo"
-                      />
+                      {CHECKLIST_MULTI.includes(item.label) ? (
+                        <MultiFileUploadField
+                          value={item.files}
+                          onChange={(files) => updateChecklist(idx, { files })}
+                          label="Anexar arquivos"
+                        />
+                      ) : (
+                        <FileUploadField
+                          value={item.files[0] ?? null}
+                          onChange={(f) => updateChecklist(idx, { files: f ? [f] : [] })}
+                          label="Anexar arquivo"
+                        />
+                      )}
                     </div>
                   )}
                 </div>
