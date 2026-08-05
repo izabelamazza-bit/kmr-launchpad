@@ -358,6 +358,36 @@ const ResumoSinistro = () => {
 
         <Card>
           <CardHeader>
+            <CardTitle>Observações</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {sinistro.observacoes ? (
+              <p className="text-sm text-foreground whitespace-pre-wrap">{sinistro.observacoes}</p>
+            ) : (
+              <p className="text-sm text-muted-foreground">Nenhuma observação registrada.</p>
+            )}
+            {anexos.filter((a) => a.tipo === "Observações").length > 0 && (
+              <ul className="space-y-2">
+                {anexos
+                  .filter((a) => a.tipo === "Observações")
+                  .map((a) => (
+                    <li key={a.id} className="flex items-center gap-2">
+                      <FileText className="h-4 w-4 text-primary shrink-0" />
+                      <button
+                        className="text-sm text-primary hover:underline truncate"
+                        onClick={() => downloadFile(a.file_path)}
+                      >
+                        {a.nome}
+                      </button>
+                    </li>
+                  ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
             <CardTitle>Histórico</CardTitle>
             <p className="text-sm text-muted-foreground">
               Atualizações e registros sobre o andamento do caso.
