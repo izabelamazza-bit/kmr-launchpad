@@ -47,13 +47,13 @@ interface ContaConsumo {
   descricao: string;
   data_vencimento: Date | undefined;
   valor: number;
-  boleto: File | null;
+  boletos: File[];
 }
 
 interface ChecklistItem {
   label: string;
   checked: boolean;
-  file: File | null;
+  files: File[];
 }
 
 interface ContratoOption {
@@ -79,6 +79,14 @@ const CHECKLIST_DESOCUPADO: string[] = [
   "E-mail de rescisão",
   "Boletos dos débitos",
   "Dois orçamentos (se aplicável)",
+];
+
+// Itens do checklist que aceitam múltiplos arquivos
+const CHECKLIST_MULTI: string[] = [
+  "Água (se houver)",
+  "Lixo (se houver)",
+  "IPTU (se houver)",
+  "Apólice de seguro",
 ];
 
 const baseSchema = z.object({
@@ -109,7 +117,7 @@ const NovoSinistro = () => {
   const [contratoOpen, setContratoOpen] = useState(false);
 
   // Aluguel
-  const [aluguelBoleto, setAluguelBoleto] = useState<File | null>(null);
+  const [aluguelBoletos, setAluguelBoletos] = useState<File[]>([]);
   const [aluguelVencimento, setAluguelVencimento] = useState<Date | undefined>();
   const [aluguelValor, setAluguelValor] = useState<number>(0);
 
@@ -127,7 +135,7 @@ const NovoSinistro = () => {
 
   // Checklist
   const [checklist, setChecklist] = useState<ChecklistItem[]>(
-    CHECKLIST_OCUPADO.map((l) => ({ label: l, checked: false, file: null })),
+    CHECKLIST_OCUPADO.map((l) => ({ label: l, checked: false, files: [] })),
   );
 
   // Observações
@@ -137,7 +145,7 @@ const NovoSinistro = () => {
     const items = statusImovel === "ocupado" ? CHECKLIST_OCUPADO : CHECKLIST_DESOCUPADO;
     setChecklist((prev) => {
       const map = new Map(prev.map((i) => [i.label, i]));
-      return items.map((label) => map.get(label) ?? { label, checked: false, file: null });
+      return items.map((label) => map.get(label) ?? { label, checked: false, files: [] });
     });
   }, [statusImovel]);
 
@@ -191,7 +199,7 @@ const NovoSinistro = () => {
   const addConsumo = () => {
     setConsumos((c) => [
       ...c,
-      { descricao: "", data_vencimento: undefined, valor: 0, boleto: null },
+      { descricao: "", data_vencimento: undefined, valor: 0, boletos: [] },
     ]);
   };
 
