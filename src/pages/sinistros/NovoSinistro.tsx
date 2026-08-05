@@ -104,6 +104,9 @@ const NovoSinistro = () => {
   const [empresa, setEmpresa] = useState<EmpresaSinistro | "">(
     environment === "Rotina" || environment === "Alugar" ? environment : "",
   );
+  const [contratos, setContratos] = useState<ContratoOption[]>([]);
+  const [contratosLoading, setContratosLoading] = useState(false);
+  const [contratoOpen, setContratoOpen] = useState(false);
 
   // Aluguel
   const [aluguelBoleto, setAluguelBoleto] = useState<File | null>(null);
@@ -137,6 +140,41 @@ const NovoSinistro = () => {
       return items.map((label) => map.get(label) ?? { label, checked: false, file: null });
     });
   }, [statusImovel]);
+
+  // Contratos da empresa selecionada
+  useEffect(() => {
+    if (!empresa) {
+      setContratos([]);
+      return;
+    }
+    let active = true;
+    (async () => {
+      setContratosLoading(true);
+      const { data } = await supabase
+        .from("audit_contracts")
+        .select("imoview_number, locatario_nome, locatario_cpf")
+        .eq("empresa", empresa)
+        .order("imoview_number");
+      if (!active) return;
+      setContratos((data ?? []) as ContratoOption[]);
+      setContratosLoading(false);
+    })();
+    return () => {
+      active = false;
+    };
+  }, [empresa]);
+
+  const handleEmpresaChange = (value: EmpresaSinistro) => {
+    setEmpresa(value);
+    setCodigoContrato("");
+  };
+
+  const handleContratoSelect = (contrato: ContratoOption) => {
+    setCodigoContrato(contrato.imoview_number);
+    if (contrato.locatario_nome) setNome(contrato.locatario_nome);
+    if (contrato.locatario_cpf) setCpf(contrato.locatario_cpf);
+    setContratoOpen(false);
+  };
 
   // Auth guard
   useEffect(() => {
