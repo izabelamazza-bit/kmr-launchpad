@@ -23,6 +23,7 @@
 ## Detalhes técnicos
 
 - `lib/useInadimplenciaLoft.ts`: `PendenciaResumoContrato` ganha `ultimaAtualizacao` (maior data entre `criado_em`, `data_pendencia`, `dt_vencimento`, `data_pagamento` das pendências do contrato) e helpers `diasDesde()` / `estaParado()` reutilizáveis.
+  - Comentário obrigatório junto a `ultimaAtualizacao`: o cálculo usa **apenas** dados de pendência (`guarantor_portal_inadimplencia`) porque as movimentações reais da Loft (`movimentacoes.csv`) ainda não foram importadas; quando essa importação existir, `ultimaAtualizacao` deve passar a considerar também a nota mais recente (maior data entre pendência e nota) — revisitar quando a aba "Movimentações" existir.
 - `lib/useCobmaisLoft.ts`: nova propriedade `contratoLoft` na `CobmaisLoftRow` (do `portal.contrato`, com fallback no contrato Cobmais); `FAIXAS` ganha a opção `sem-retorno`; `useCobmaisLoftFiltrado` passa a receber o índice de pendências para aplicar esse filtro.
 - `components/SinistroLoftBadge.tsx`: renderiza as duas linhas, o "há X dias", o indicador de atenção e a lógica de "parado" (status sem `conclu`).
 - `components/CobmaisLoftTable.tsx`: a célula recebe `onClick` (com `cursor-pointer` e `role="button"`) chamando um novo callback `onAbrirHistorico(contratoLoft)`; a busca da pendência passa a usar `r.contratoLoft`.
