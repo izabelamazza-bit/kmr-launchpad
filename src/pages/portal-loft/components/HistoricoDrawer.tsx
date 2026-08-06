@@ -45,10 +45,12 @@ function show(value: unknown, kind: Kind): string {
 
 interface Props {
   contrato: string | null;
+  /** Aba aberta ao montar o drawer. Padrão: "historico". */
+  abaInicial?: "historico" | "pendencias";
   onOpenChange: (open: boolean) => void;
 }
 
-export function HistoricoDrawer({ contrato, onOpenChange }: Props) {
+export function HistoricoDrawer({ contrato, abaInicial = "historico", onOpenChange }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rows, setRows] = useState<(Snapshot & { data_importacao: string | null })[]>([]);
@@ -121,7 +123,7 @@ export function HistoricoDrawer({ contrato, onOpenChange }: Props) {
           </SheetDescription>
         </SheetHeader>
 
-        <Tabs defaultValue="historico" className="mt-6">
+        <Tabs key={`${contrato}-${abaInicial}`} defaultValue={abaInicial} className="mt-6">
           <TabsList>
             <TabsTrigger value="historico">Histórico</TabsTrigger>
             <TabsTrigger value="pendencias">Pendências</TabsTrigger>
