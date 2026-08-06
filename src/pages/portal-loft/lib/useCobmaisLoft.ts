@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
+import { estaParado, normContrato, type PendenciaIndex } from "./useInadimplenciaLoft";
 
 export type CobmaisLatestLoft = Database["public"]["Views"]["cobmais_latest_loft"]["Row"];
 type PortalSnapshot = Database["public"]["Tables"]["guarantor_portal_snapshots"]["Row"];
@@ -36,6 +37,11 @@ export interface CobmaisLoftRow {
   statusCobmais: StatusCobmais;
   /** Contrato correspondente no snapshot mais recente do Portal Loft (por CPF). */
   portal: PortalSnapshot | null;
+  /**
+   * Código do contrato usado para buscar pendências da Loft: o contrato do
+   * Portal Loft (encontrado por CPF), com fallback no contrato do Cobmais.
+   */
+  contratoLoft: string | null;
 }
 
 export interface CobmaisLoftData {
@@ -135,6 +141,7 @@ export function useCobmaisLoft(): CobmaisLoftData {
       setRows(
         cobmais.map((c) => {
           const cpfDigits = digits(c.cpf_cnpj);
+          const portal = cpfDigits ? porCpf.get(cpfDigits) ?? null : null;
           return {
             id: c.id ?? cpfDigits,
             cpf: c.cpf_cnpj ?? "—",
@@ -145,7 +152,8 @@ export function useCobmaisLoft(): CobmaisLoftData {
             risco: Number(c.risco ?? 0),
             observacao: c.status_cobranca,
             statusCobmais: statusCobmais(c.status_cobranca),
-            portal: cpfDigits ? porCpf.get(cpfDigits) ?? null : null,
+            portal,
+            contratoLoft: portal?.contrato ?? c.contrato ?? null,
           };
         }),
       );
@@ -175,12 +183,24 @@ export const FAIXAS = [
   { value: "30", label: "Atraso > 30 dias" },
   { value: "60", label: "Atraso > 60 dias" },
   { value: "90", label: "Atraso > 90 dias" },
+  { value: "sem-retorno", label: "Sem retorno da Loft (5+ dias)" },
 ] as const;
 
-export function useCobmaisLoftFiltrado(rows: CobmaisLoftRow[], faixa: string, busca: string) {
+export function useCobmaisLoftFiltrado(
+  rows: CobmaisLoftRow[],
+  faixa: string,
+  busca: string,
+  pendencias?: PendenciaIndex,
+) {
   return useMemo(() => {
-    const min = Number(faixa) || 0;
-    const emAtraso = rows.filter((r) => r.atraso > 0 && r.atraso > min);
+    const semRetorno = faixa === "sem-retorno";
+    const min = semRetorno ? 0 : Number(faixa) || 0;
+    let emAtraso = rows.filter((r) => r.atraso > 0 && r.atraso > min);
+    if (semRetorno) {
+      emAtraso = emAtraso.filter((r) =>
+        estaParado(pendencias?.get(normContrato(r.contratoLoft))),
+      );
+    }
     const q = busca.trim().toLowerCase();
     const qd = digits(busca);
     const filtradas = emAtraso.filter((r) => {
@@ -191,7 +211,7 @@ export function useCobmaisLoftFiltrado(rows: CobmaisLoftRow[], faixa: string, bu
       return byText || byCpf;
     });
     return { emAtraso, filtradas };
-  }, [rows, faixa, busca]);
+  }, [rows, faixa, busca, pendencias]);
 }
 
 export function resumoCobmaisLoft(emAtraso: CobmaisLoftRow[]) {
