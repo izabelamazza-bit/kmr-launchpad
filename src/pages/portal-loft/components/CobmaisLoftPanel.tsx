@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertTriangle, FileUp, Loader2, Search } from "lucide-react";
 import { CobmaisLoftTable, type SortKey } from "./CobmaisLoftTable";
+import { HistoricoDrawer } from "./HistoricoDrawer";
 import { fmtDateTime, fmtMoney } from "../lib/usePortalLoft";
 import {
   FAIXAS,
@@ -25,8 +26,10 @@ export function CobmaisLoftPanel({ onImport }: Props) {
   const [busca, setBusca] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("risco");
   const [sortAsc, setSortAsc] = useState(false);
+  const [contratoDrawer, setContratoDrawer] = useState<string | null>(null);
+  const [abaDrawer, setAbaDrawer] = useState<"pendencias" | "historico">("historico");
 
-  const { emAtraso, filtradas } = useCobmaisLoftFiltrado(rows, faixa, busca);
+  const { emAtraso, filtradas } = useCobmaisLoftFiltrado(rows, faixa, busca, pendencias);
   const resumo = useMemo(() => resumoCobmaisLoft(emAtraso), [emAtraso]);
 
   const ordenadas = useMemo(() => {
@@ -137,11 +140,23 @@ export function CobmaisLoftPanel({ onImport }: Props) {
                 sortAsc={sortAsc}
                 onSort={handleSort}
                 pendencias={pendencias}
+                onAbrirHistorico={(contrato, aba) => {
+                  setAbaDrawer(aba);
+                  setContratoDrawer(contrato);
+                }}
               />
             </CardContent>
           </Card>
         </>
       )}
+
+      <HistoricoDrawer
+        contrato={contratoDrawer}
+        abaInicial={abaDrawer}
+        onOpenChange={(open) => {
+          if (!open) setContratoDrawer(null);
+        }}
+      />
     </div>
   );
 }
