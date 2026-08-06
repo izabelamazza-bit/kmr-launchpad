@@ -18,9 +18,41 @@ export interface PendenciaResumoContrato {
   /** Quantidade de pendências sem data_pagamento. */
   qtdEmAberto: number;
   total: number;
+  /**
+   * Data da última atualização conhecida do caso na Loft.
+   *
+   * ATENÇÃO / REVISITAR: hoje considera APENAS dados de pendência
+   * (guarantor_portal_inadimplencia), porque as movimentações reais da Loft
+   * (movimentacoes.csv) ainda não foram importadas neste projeto. Quando essa
+   * importação existir (tabela de notas + aba "Movimentações" no drawer),
+   * `ultimaAtualizacao` deve passar a considerar também a nota mais recente do
+   * contrato — ou seja, a MAIOR data entre pendência e nota. O indicador de
+   * "sem retorno da Loft (5+ dias)" depende deste campo e deve ser revisto junto.
+   */
+  ultimaAtualizacao: string | null;
 }
 
 export type PendenciaIndex = Map<string, PendenciaResumoContrato>;
+
+/** Dias corridos entre uma data ISO e hoje. Retorna null quando não há data. */
+export function diasDesde(iso: string | null | undefined): number | null {
+  if (!iso) return null;
+  const t = new Date(iso).getTime();
+  if (Number.isNaN(t)) return null;
+  return Math.max(0, Math.floor((Date.now() - t) / 86_400_000));
+}
+
+const semAcento = (v: string) =>
+  v.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+/** Caso em aberto (status não concluído) e sem atualização há N dias ou mais. */
+export function estaParado(resumo: PendenciaResumoContrato | undefined, dias = 5): boolean {
+  if (!resumo) return false;
+  const status = semAcento(resumo.maisRecente.imob_status ?? "");
+  if (/conclu/.test(status)) return false;
+  const d = diasDesde(resumo.ultimaAtualizacao);
+  return d !== null && d >= dias;
+}
 
 export async function fetchPendencias(contrato?: string): Promise<Pendencia[]> {
   const out: Pendencia[] = [];
@@ -37,6 +69,21 @@ export async function fetchPendencias(contrato?: string): Promise<Pendencia[]> {
 
 const ordem = (p: Pendencia) => p.criado_em ?? p.data_pendencia ?? "";
 
+/** Maior data conhecida da pendência (criação, vencimento ou pagamento). */
+const maiorData = (p: Pendencia): string | null => {
+  const datas = [p.criado_em, p.data_pendencia, p.dt_vencimento, p.data_pagamento].filter(
+    (d): d is string => !!d,
+  );
+  if (datas.length === 0) return null;
+  return datas.reduce((a, b) => (new Date(a).getTime() >= new Date(b).getTime() ? a : b));
+};
+
+const maisRecenteDe = (a: string | null, b: string | null): string | null => {
+  if (!a) return b;
+  if (!b) return a;
+  return new Date(a).getTime() >= new Date(b).getTime() ? a : b;
+};
+
 export function buildPendenciaIndex(rows: Pendencia[]): PendenciaIndex {
   const idx: PendenciaIndex = new Map();
   for (const p of rows) {
@@ -49,10 +96,12 @@ export function buildPendenciaIndex(rows: Pendencia[]): PendenciaIndex {
         valorEmAberto: p.data_pagamento ? 0 : Number(p.valor_atual ?? 0),
         qtdEmAberto: p.data_pagamento ? 0 : 1,
         total: 1,
+        ultimaAtualizacao: maiorData(p),
       });
       continue;
     }
     if (ordem(p) > ordem(atual.maisRecente)) atual.maisRecente = p;
+    atual.ultimaAtualizacao = maisRecenteDe(atual.ultimaAtualizacao, maiorData(p));
     if (!p.data_pagamento) {
       atual.valorEmAberto += Number(p.valor_atual ?? 0);
       atual.qtdEmAberto += 1;
