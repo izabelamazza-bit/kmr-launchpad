@@ -16,6 +16,7 @@ interface Props {
   sortAsc: boolean;
   onSort: (key: SortKey) => void;
   pendencias: PendenciaIndex;
+  onAbrirHistorico: (contrato: string, aba: "pendencias" | "historico") => void;
 }
 
 function StatusPortal({ row }: { row: CobmaisLoftRow }) {
@@ -46,7 +47,14 @@ function StatusPortal({ row }: { row: CobmaisLoftRow }) {
   );
 }
 
-export function CobmaisLoftTable({ rows, sortKey, sortAsc, onSort, pendencias }: Props) {
+export function CobmaisLoftTable({
+  rows,
+  sortKey,
+  sortAsc,
+  onSort,
+  pendencias,
+  onAbrirHistorico,
+}: Props) {
   if (rows.length === 0) {
     return (
       <p className="text-sm text-muted-foreground py-8 text-center">
@@ -87,7 +95,7 @@ export function CobmaisLoftTable({ rows, sortKey, sortAsc, onSort, pendencias }:
         </TableHeader>
         <TableBody>
           {rows.map((r) => {
-            const pend = pendencias.get(normContrato(r.contrato));
+            const pend = pendencias.get(normContrato(r.contratoLoft));
             return (
             <TableRow key={r.id}>
               <TableCell className="font-medium whitespace-nowrap">{r.cpf}</TableCell>
@@ -125,7 +133,20 @@ export function CobmaisLoftTable({ rows, sortKey, sortAsc, onSort, pendencias }:
               <TableCell>
                 <StatusPortal row={r} />
               </TableCell>
-              <TableCell>
+              <TableCell
+                role="button"
+                tabIndex={0}
+                className={r.contratoLoft ? "cursor-pointer hover:bg-accent/40" : undefined}
+                onClick={() =>
+                  r.contratoLoft && onAbrirHistorico(r.contratoLoft, pend ? "pendencias" : "historico")
+                }
+                onKeyDown={(e) => {
+                  if ((e.key === "Enter" || e.key === " ") && r.contratoLoft) {
+                    e.preventDefault();
+                    onAbrirHistorico(r.contratoLoft, pend ? "pendencias" : "historico");
+                  }
+                }}
+              >
                 <SinistroLoftBadge row={r} pendencia={pend} />
               </TableCell>
               <TableCell className="text-right">
