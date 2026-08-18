@@ -30,6 +30,8 @@ Nova função de backend `sync-credpago-api` que busca os dados na API CredPago 
   - `supabase/functions/sync-credpago-api/index.ts` — auth, roteamento por recurso, paginação, retry, resumo.
   - `supabase/functions/sync-credpago-api/mappers.ts` — conversores de tipo e mapeamento campo→coluna.
 - Conversores portados de `src/pages/portal-loft/lib/inadimplenciaCsvImport.ts` e `loftCsvImport.ts` (`parseDateOnly`, `parseTimestamp`, `parseNumber`, `parseInt32`, booleanos, texto vazio → null), adaptados para consumir JSON em vez de CSV. Os módulos do frontend permanecem intactos (código de `src/` não é deployável em funções).
+- Aviso de duplicação: comentário destacado no topo de `mappers.ts`, `loftCsvImport.ts` e `inadimplenciaCsvImport.ts` apontando o arquivo irmão — "esta lógica de conversão existe duplicada em [caminho]. Se alterar uma, altere a outra."
+- Validação de schema por recurso: antes de gravar, confere se todos os campos esperados (lista mapeada em `mappers.ts`) existem no primeiro item retornado pela API. Se faltar algum, o recurso é abortado sem gravar nada e o resumo traz o erro "campo X esperado não encontrado na resposta da API — schema pode ter mudado". Os outros recursos continuam.
 - Gravação em lotes de 500 usando o service role:
   - `contratos`: cria um registro em `guarantor_portal_imports` (`tipo='contrato'`, `origem='api'`, `nome_arquivo='API CredPago'`) e insere todos os snapshots em `guarantor_portal_snapshots` com esse `import_id`.
   - `inadimplencia`: import com `tipo='inadimplencia'` + upsert em `guarantor_portal_inadimplencia` por `pendencia_id` (campo `id` da API); `details_json` normalizado para array/objeto.
