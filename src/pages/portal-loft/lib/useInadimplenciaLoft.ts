@@ -21,13 +21,11 @@ export interface PendenciaResumoContrato {
   /**
    * Data da última atualização conhecida do caso na Loft.
    *
-   * ATENÇÃO / REVISITAR: hoje considera APENAS dados de pendência
-   * (guarantor_portal_inadimplencia), porque as movimentações reais da Loft
-   * (movimentacoes.csv) ainda não foram importadas neste projeto. Quando essa
-   * importação existir (tabela de notas + aba "Movimentações" no drawer),
-   * `ultimaAtualizacao` deve passar a considerar também a nota mais recente do
-   * contrato — ou seja, a MAIOR data entre pendência e nota. O indicador de
-   * "sem retorno da Loft (5+ dias)" depende deste campo e deve ser revisto junto.
+   * Cálculo: MAIOR data entre os dados de pendência
+   * (guarantor_portal_inadimplencia: criação, vencimento e pagamento) e a nota
+   * (movimentação) mais recente do contrato em guarantor_portal_case_notes,
+   * quando o índice de notas é passado para `buildPendenciaIndex`.
+   * O indicador de "sem retorno da Loft (5+ dias)" depende deste campo.
    */
   ultimaAtualizacao: string | null;
 }
@@ -84,7 +82,11 @@ const maisRecenteDe = (a: string | null, b: string | null): string | null => {
   return new Date(a).getTime() >= new Date(b).getTime() ? a : b;
 };
 
-export function buildPendenciaIndex(rows: Pendencia[]): PendenciaIndex {
+export function buildPendenciaIndex(
+  rows: Pendencia[],
+  /** Índice contrato normalizado → data da nota mais recente (opcional). */
+  notas?: Map<string, string>,
+): PendenciaIndex {
   const idx: PendenciaIndex = new Map();
   for (const p of rows) {
     const key = normContrato(p.contrato);
@@ -108,10 +110,16 @@ export function buildPendenciaIndex(rows: Pendencia[]): PendenciaIndex {
     }
     atual.total += 1;
   }
+  if (notas) {
+    for (const [key, data] of notas) {
+      const atual = idx.get(key);
+      if (atual) atual.ultimaAtualizacao = maisRecenteDe(atual.ultimaAtualizacao, data);
+    }
+  }
   return idx;
 }
 
-export function useInadimplenciaLoft() {
+export function useInadimplenciaLoft(notas?: Map<string, string>) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [index, setIndex] = useState<PendenciaIndex>(new Map());
@@ -120,13 +128,13 @@ export function useInadimplenciaLoft() {
     setLoading(true);
     setError(null);
     try {
-      setIndex(buildPendenciaIndex(await fetchPendencias()));
+      setIndex(buildPendenciaIndex(await fetchPendencias(), notas));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Falha ao carregar as pendências do Portal Loft.");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [notas]);
 
   useEffect(() => {
     void load();

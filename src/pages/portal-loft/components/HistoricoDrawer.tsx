@@ -6,7 +6,9 @@ import { Loader2, ArrowRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { StatusBadge } from "./StatusBadge";
 import { PendenciasTab } from "./PendenciasTab";
+import { MovimentacoesTab } from "./MovimentacoesTab";
 import { fetchPendencias, type Pendencia } from "../lib/useInadimplenciaLoft";
+import { fetchCaseNotes, type CaseNote } from "../lib/useCaseNotes";
 import { fmtBool, fmtDate, fmtDateTime, fmtMoney, type Snapshot } from "../lib/usePortalLoft";
 
 type Kind = "text" | "money" | "date" | "bool" | "num";
@@ -46,7 +48,7 @@ function show(value: unknown, kind: Kind): string {
 interface Props {
   contrato: string | null;
   /** Aba aberta ao montar o drawer. Padrão: "historico". */
-  abaInicial?: "historico" | "pendencias";
+  abaInicial?: "historico" | "movimentacoes" | "pendencias";
   onOpenChange: (open: boolean) => void;
 }
 
@@ -57,6 +59,32 @@ export function HistoricoDrawer({ contrato, abaInicial = "historico", onOpenChan
   const [pendencias, setPendencias] = useState<Pendencia[]>([]);
   const [pendLoading, setPendLoading] = useState(false);
   const [pendError, setPendError] = useState<string | null>(null);
+  const [notas, setNotas] = useState<CaseNote[]>([]);
+  const [notasLoading, setNotasLoading] = useState(false);
+  const [notasError, setNotasError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!contrato) return;
+    let cancelled = false;
+    setNotasLoading(true);
+    setNotasError(null);
+    fetchCaseNotes(contrato)
+      .then((res) => {
+        if (!cancelled) setNotas(res);
+      })
+      .catch((e: unknown) => {
+        if (!cancelled) {
+          setNotas([]);
+          setNotasError(e instanceof Error ? e.message : "Falha ao carregar as movimentações.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setNotasLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [contrato]);
 
   useEffect(() => {
     if (!contrato) return;
@@ -126,6 +154,7 @@ export function HistoricoDrawer({ contrato, abaInicial = "historico", onOpenChan
         <Tabs key={`${contrato}-${abaInicial}`} defaultValue={abaInicial} className="mt-6">
           <TabsList>
             <TabsTrigger value="historico">Histórico</TabsTrigger>
+            <TabsTrigger value="movimentacoes">Movimentações</TabsTrigger>
             <TabsTrigger value="pendencias">Pendências</TabsTrigger>
           </TabsList>
 
@@ -187,6 +216,10 @@ export function HistoricoDrawer({ contrato, abaInicial = "historico", onOpenChan
             })}
           </ol>
         )}
+          </TabsContent>
+
+          <TabsContent value="movimentacoes" className="mt-0">
+            <MovimentacoesTab rows={notas} loading={notasLoading} error={notasError} />
           </TabsContent>
 
           <TabsContent value="pendencias" className="mt-0">

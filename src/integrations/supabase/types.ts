@@ -478,6 +478,53 @@ export type Database = {
         }
         Relationships: []
       }
+      guarantor_portal_case_notes: {
+        Row: {
+          contrato: string
+          criado_em: string | null
+          data_importacao: string
+          descricao: string | null
+          id: string
+          id_blocklist_valor: string | null
+          import_id: string | null
+          nota_id: string
+          operation_user_name: string | null
+          real_estate_user_name: string | null
+        }
+        Insert: {
+          contrato: string
+          criado_em?: string | null
+          data_importacao?: string
+          descricao?: string | null
+          id?: string
+          id_blocklist_valor?: string | null
+          import_id?: string | null
+          nota_id: string
+          operation_user_name?: string | null
+          real_estate_user_name?: string | null
+        }
+        Update: {
+          contrato?: string
+          criado_em?: string | null
+          data_importacao?: string
+          descricao?: string | null
+          id?: string
+          id_blocklist_valor?: string | null
+          import_id?: string | null
+          nota_id?: string
+          operation_user_name?: string | null
+          real_estate_user_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guarantor_portal_case_notes_import_id_fkey"
+            columns: ["import_id"]
+            isOneToOne: false
+            referencedRelation: "guarantor_portal_imports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       guarantor_portal_code_lookup: {
         Row: {
           campo: string
@@ -506,6 +553,7 @@ export type Database = {
           id: string
           importado_por: string | null
           nome_arquivo: string | null
+          origem: string
           tipo: string
           total_linhas: number | null
         }
@@ -515,6 +563,7 @@ export type Database = {
           id?: string
           importado_por?: string | null
           nome_arquivo?: string | null
+          origem?: string
           tipo?: string
           total_linhas?: number | null
         }
@@ -524,6 +573,7 @@ export type Database = {
           id?: string
           importado_por?: string | null
           nome_arquivo?: string | null
+          origem?: string
           tipo?: string
           total_linhas?: number | null
         }

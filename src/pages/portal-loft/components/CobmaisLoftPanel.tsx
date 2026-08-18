@@ -14,6 +14,8 @@ import {
   useCobmaisLoftFiltrado,
 } from "../lib/useCobmaisLoft";
 import { useInadimplenciaLoft } from "../lib/useInadimplenciaLoft";
+import { useCaseNotesLoft } from "../lib/useCaseNotes";
+import { normContrato } from "../lib/useInadimplenciaLoft";
 
 interface Props {
   onImport: () => void;
@@ -21,13 +23,16 @@ interface Props {
 
 export function CobmaisLoftPanel({ onImport }: Props) {
   const { loading, error, rows, ultimaImportacaoCobmais, ultimaImportacaoPortal } = useCobmaisLoft();
-  const { index: pendencias } = useInadimplenciaLoft();
+  const { index: notas } = useCaseNotesLoft();
+  const { index: pendencias } = useInadimplenciaLoft(notas);
   const [faixa, setFaixa] = useState("0");
   const [busca, setBusca] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("risco");
   const [sortAsc, setSortAsc] = useState(false);
   const [contratoDrawer, setContratoDrawer] = useState<string | null>(null);
-  const [abaDrawer, setAbaDrawer] = useState<"pendencias" | "historico">("historico");
+  const [abaDrawer, setAbaDrawer] = useState<"pendencias" | "movimentacoes" | "historico">(
+    "historico",
+  );
 
   const { emAtraso, filtradas } = useCobmaisLoftFiltrado(rows, faixa, busca, pendencias);
   const resumo = useMemo(() => resumoCobmaisLoft(emAtraso), [emAtraso]);
@@ -141,7 +146,10 @@ export function CobmaisLoftPanel({ onImport }: Props) {
                 onSort={handleSort}
                 pendencias={pendencias}
                 onAbrirHistorico={(contrato, aba) => {
-                  setAbaDrawer(aba);
+                  const key = normContrato(contrato);
+                  setAbaDrawer(
+                    aba === "pendencias" ? "pendencias" : notas.has(key) ? "movimentacoes" : aba,
+                  );
                   setContratoDrawer(contrato);
                 }}
               />
