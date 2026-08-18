@@ -1,3 +1,9 @@
+// =============================================================================
+// ATENÇÃO: esta lógica de conversão de tipos existe DUPLICADA em
+//   supabase/functions/sync-credpago-api/mappers.ts
+// (Edge Functions não podem importar código de src/.)
+// Se alterar uma, altere a outra.
+// =============================================================================
 import Papa from "papaparse";
 import { supabase } from "@/integrations/supabase/client";
 
