@@ -73,6 +73,8 @@ export function parseBool(raw: unknown): boolean | null {
 // ---------------------------------------------------------------------------
 
 export const CONTRATOS_FIELDS = [
+  "id",
+  "carga_em",
   "contrato",
   "valor_locaticio",
   "valor_aluguel",
@@ -106,29 +108,33 @@ export const CONTRATOS_FIELDS = [
 ] as const;
 
 export const INADIMPLENCIA_FIELDS = [
-  "contrato",
   "id",
-  "imobStatus",
+  "carga_em",
+  "contrato",
+  "id_inadimplencia",
+  "imob_status",
   "status",
-  "contractStatus",
+  "contract_status",
   "valor",
-  "valorAtual",
-  "dataPendencia",
-  "criadoEm",
-  "dataPagamento",
-  "dtVencimento",
-  "formaPgtoInadimplencia",
-  "expirationDays",
+  "valor_atual",
+  "data_pendencia",
+  "criado_em",
+  "data_pagamento",
+  "dt_vencimento",
+  "forma_pgto_inadimplencia",
+  "expiration_days",
   "details_json",
 ] as const;
 
 export const MOVIMENTACOES_FIELDS = [
-  "contrato",
   "id",
-  "criadoEm",
-  "operationUserName",
-  "realEstateUserName",
-  "idBlocklistValor",
+  "carga_em",
+  "contrato",
+  "id_movimentacao",
+  "criado_em",
+  "operation_user_name",
+  "real_estate_user_name",
+  "id_blocklist_valor",
   "descricao",
 ] as const;
 
@@ -204,37 +210,37 @@ function normalizeDetails(raw: unknown): unknown {
 
 export function mapPendencia(item: Row): Row | null {
   const contrato = text(item.contrato);
-  const pendencia = text(item.id);
+  const pendencia = text(item.id_inadimplencia);
   if (!contrato || !pendencia) return null;
   return {
     contrato,
     pendencia_id: pendencia,
-    imob_status: text(item.imobStatus),
+    imob_status: text(item.imob_status),
     status_codigo: text(item.status),
-    contract_status_codigo: text(item.contractStatus),
+    contract_status_codigo: text(item.contract_status),
     valor: parseNumber(item.valor),
-    valor_atual: parseNumber(item.valorAtual),
-    data_pendencia: parseDateOnly(item.dataPendencia),
-    criado_em: parseTimestamp(item.criadoEm),
-    data_pagamento: parseDateOnly(item.dataPagamento),
-    dt_vencimento: parseDateOnly(item.dtVencimento),
-    forma_pgto_codigo: text(item.formaPgtoInadimplencia),
-    expiration_days: parseInt32(item.expirationDays),
+    valor_atual: parseNumber(item.valor_atual),
+    data_pendencia: parseDateOnly(item.data_pendencia),
+    criado_em: parseTimestamp(item.criado_em),
+    data_pagamento: parseDateOnly(item.data_pagamento),
+    dt_vencimento: parseDateOnly(item.dt_vencimento),
+    forma_pgto_codigo: text(item.forma_pgto_inadimplencia),
+    expiration_days: parseInt32(item.expiration_days),
     details_json: normalizeDetails(item.details_json),
   };
 }
 
 export function mapNota(item: Row): Row | null {
   const contrato = text(item.contrato);
-  const nota = text(item.id);
+  const nota = text(item.id_movimentacao);
   if (!contrato || !nota) return null;
   return {
     contrato,
     nota_id: nota,
-    criado_em: parseTimestamp(item.criadoEm),
-    operation_user_name: text(item.operationUserName),
-    real_estate_user_name: text(item.realEstateUserName),
-    id_blocklist_valor: text(item.idBlocklistValor),
+    criado_em: parseTimestamp(item.criado_em),
+    operation_user_name: text(item.operation_user_name),
+    real_estate_user_name: text(item.real_estate_user_name),
+    id_blocklist_valor: text(item.id_blocklist_valor),
     descricao: text(item.descricao),
   };
 }
