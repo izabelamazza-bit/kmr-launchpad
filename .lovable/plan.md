@@ -20,7 +20,8 @@ Ordenação por coluna única e estável:
 Direção `ASC` fixa. Coluna definida por recurso em um único ponto do código.
 
 ### 3. Reimportar `contratos` do zero e provar a estabilidade
-- Apagar a importação de contratos criada pela API (o import e seus snapshots), preservando as importações manuais de CSV.
+- Apagar a importação de contratos criada pela API de forma completa: primeiro `DELETE` de todos os `guarantor_portal_snapshots` com aquele `import_id`, depois `DELETE` do próprio registro em `guarantor_portal_imports`. Confirmo por contagem que ambos ficaram em zero. As importações manuais de CSV (`origem = 'manual'`) não são tocadas.
+- A nova execução **cria um `import_id` novo do zero** (a função sempre faz `insert` em `guarantor_portal_imports` e nunca `update`/reaproveitamento de import anterior), então não há como sobrar resíduo da tentativa com paginação instável misturado aos dados novos.
 - Rodar `recurso=contratos` novamente.
 - Prova exigida: **soma dos itens lidos em todas as páginas == campo `total` do envelope da API**, exatamente. Vou reportar os dois números lado a lado, mais a contagem de ids distintos. Se `lidos > total` ou `ids distintos < total`, a paginação ainda está instável e não avanço.
 - Verificação extra de "pulos": comparar o conjunto de ids da API com o conjunto de ids da última importação manual de CSV — listar o que existe no CSV e não veio pela API.
