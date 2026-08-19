@@ -204,7 +204,8 @@ async function processar(db: Db, recurso: Recurso, token: string): Promise<Resum
   const agora = new Date().toISOString();
 
   if (recurso === "contratos") {
-    const rows = items.map(mapContrato).filter((r): r is Row => r !== null);
+    // A API pode devolver o mesmo contrato repetido entre páginas — 1 linha por contrato.
+    const rows = dedup(items.map(mapContrato).filter((r): r is Row => r !== null), "contrato");
     const importId = await criarImport(db, "contrato", items.length);
     resumo.gravados = await gravar(
       db,
