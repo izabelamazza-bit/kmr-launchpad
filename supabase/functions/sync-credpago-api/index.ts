@@ -427,6 +427,17 @@ Deno.serve(async (req) => {
       return json(await probeOrdenacao(alvo, token));
     }
 
+    // Diagnóstico: devolve os primeiros itens crus para inspecionar chaves e repetições.
+    if (url.searchParams.get("probe") === "raw") {
+      const alvo = (RECURSOS.includes(recursoParam as Recurso) ? recursoParam : "contratos") as Recurso;
+      const res = await fetch(
+        `${BASE_URL}/${alvo}?limit=6&offset=0&order_by=${ORDER_BY[alvo]}&order_dir=ASC`,
+        { headers: { Authorization: `Bearer ${token}`, Accept: "application/json" } },
+      );
+      const { items, total } = extractItems(await res.json());
+      return json({ recurso: alvo, total, campos: Object.keys(items[0] ?? {}), items });
+    }
+
     let alvos: Recurso[];
     if (!recursoParam) {
       alvos = RECURSOS;
