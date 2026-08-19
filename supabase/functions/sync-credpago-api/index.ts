@@ -20,9 +20,35 @@ const RETRY_WAIT_MS = 2000;
 type Recurso = "contratos" | "inadimplencia" | "movimentacoes";
 const RECURSOS: Recurso[] = ["contratos", "inadimplencia", "movimentacoes"];
 
+/** Coluna única/estável usada para ordenar a paginação de cada recurso. */
+const ORDER_BY: Record<Recurso, string> = {
+  contratos: "contrato",
+  inadimplencia: "id",
+  movimentacoes: "id",
+};
+
+/**
+ * Estilo de parâmetros de ordenação aceito pela API (descoberto via ?probe=1).
+ * Sem ordenação determinística a paginação por offset pode duplicar E pular registros.
+ */
+const ORDER_STYLE: { by: string; dir: string; asc: string } = {
+  by: "order_by",
+  dir: "order_dir",
+  asc: "ASC",
+};
+
+/** Chave única de cada item, para medir duplicados/pulos na leitura. */
+function itemKey(recurso: Recurso, item: Row): string {
+  return String(recurso === "contratos" ? item.contrato : item.id);
+}
+
 interface ResumoRecurso {
   recurso: Recurso;
+  total_api: number | null;
   lidos: number;
+  distintos: number;
+  duplicados_descartados: number;
+  paginacao_consistente: boolean;
   gravados: number;
   novos: number;
   atualizados: number;
@@ -64,7 +90,9 @@ function extractItems(payload: unknown): { items: Row[]; total: number | null } 
 
 /** Busca uma página com retry em erro 500. Nunca loga o token. */
 async function fetchPagina(recurso: Recurso, offset: number, token: string) {
-  const url = `${BASE_URL}/${recurso}?limit=${LIMIT}&offset=${offset}`;
+  const url =
+    `${BASE_URL}/${recurso}?limit=${LIMIT}&offset=${offset}` +
+    `&${ORDER_STYLE.by}=${encodeURIComponent(ORDER_BY[recurso])}&${ORDER_STYLE.dir}=${ORDER_STYLE.asc}`;
   for (let tentativa = 1; tentativa <= MAX_RETRIES; tentativa++) {
     let res: Response;
     try {
