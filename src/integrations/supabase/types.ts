@@ -1562,6 +1562,7 @@ export type Database = {
         Returns: boolean
       }
       is_supervisor_or_admin: { Args: { _user_id: string }; Returns: boolean }
+      verify_sync_token: { Args: { _token: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "supervisor" | "analista"

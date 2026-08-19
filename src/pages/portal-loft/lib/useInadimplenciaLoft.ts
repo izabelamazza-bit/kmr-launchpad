@@ -11,8 +11,11 @@ export const normContrato = (v: string | null | undefined) =>
   (v ?? "").trim().replace(/\s+/g, "").replace(/^0+/, "").toUpperCase();
 
 export interface PendenciaResumoContrato {
-  /** Pendência mais recente por criado_em (fallback: data_pendencia). */
-  maisRecente: Pendencia;
+  /**
+   * Pendência mais recente por criado_em (fallback: data_pendencia).
+   * Ausente quando o contrato só tem movimentação (nota) e nenhuma pendência.
+   */
+  maisRecente?: Pendencia;
   /** Soma de valor_atual das pendências sem data_pagamento. */
   valorEmAberto: number;
   /** Quantidade de pendências sem data_pagamento. */
@@ -46,7 +49,7 @@ const semAcento = (v: string) =>
 /** Caso em aberto (status não concluído) e sem atualização há N dias ou mais. */
 export function estaParado(resumo: PendenciaResumoContrato | undefined, dias = 5): boolean {
   if (!resumo) return false;
-  const status = semAcento(resumo.maisRecente.imob_status ?? "");
+  const status = semAcento(resumo.maisRecente?.imob_status ?? "");
   if (/conclu/.test(status)) return false;
   const d = diasDesde(resumo.ultimaAtualizacao);
   return d !== null && d >= dias;
@@ -102,7 +105,7 @@ export function buildPendenciaIndex(
       });
       continue;
     }
-    if (ordem(p) > ordem(atual.maisRecente)) atual.maisRecente = p;
+    if (!atual.maisRecente || ordem(p) > ordem(atual.maisRecente)) atual.maisRecente = p;
     atual.ultimaAtualizacao = maisRecenteDe(atual.ultimaAtualizacao, maiorData(p));
     if (!p.data_pagamento) {
       atual.valorEmAberto += Number(p.valor_atual ?? 0);
@@ -113,7 +116,18 @@ export function buildPendenciaIndex(
   if (notas) {
     for (const [key, data] of notas) {
       const atual = idx.get(key);
-      if (atual) atual.ultimaAtualizacao = maisRecenteDe(atual.ultimaAtualizacao, data);
+      if (atual) {
+        atual.ultimaAtualizacao = maisRecenteDe(atual.ultimaAtualizacao, data);
+      } else {
+        // Contrato com movimentação registrada e nenhuma pendência importada:
+        // ainda assim conta para o cálculo de "sem retorno da Loft".
+        idx.set(key, {
+          valorEmAberto: 0,
+          qtdEmAberto: 0,
+          total: 0,
+          ultimaAtualizacao: data,
+        });
+      }
     }
   }
   return idx;

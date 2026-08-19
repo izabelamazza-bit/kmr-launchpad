@@ -25,9 +25,43 @@ async function fetchSnapshotsByImport(importId: string): Promise<Snapshot[]> {
 }
 
 export interface UltimasImportacoes {
-  contrato: string | null;
-  movimentacao: string | null;
-  inadimplencia: string | null;
+  contrato: UltimaImportacao;
+  movimentacao: UltimaImportacao;
+  inadimplencia: UltimaImportacao;
+}
+
+export type TipoImportacao = keyof UltimasImportacoes;
+
+export interface UltimaImportacao {
+  /** Data da importação mais recente do tipo, de qualquer origem. */
+  data: string | null;
+  /** Origem da importação mais recente ('api', 'manual', 'rpa'). */
+  origem: string | null;
+  /** Data da importação mais recente com origem = 'api'. */
+  dataApi: string | null;
+}
+
+/** Janela tolerada para a sincronização automática diária (06:00) — 30 horas. */
+export const LIMITE_ATRASO_HORAS = 30;
+
+export const rotuloTipo: Record<TipoImportacao, string> = {
+  contrato: "Contratos",
+  movimentacao: "Movimentações",
+  inadimplencia: "Inadimplência",
+};
+
+export const rotuloOrigem = (origem: string | null) =>
+  origem === "api" ? "API" : origem === "rpa" ? "RPA" : origem === "manual" ? "Manual" : "—";
+
+/** Tipos cuja última sincronização via API passou da janela tolerada. */
+export function recursosAtrasados(ultimas: UltimasImportacoes): TipoImportacao[] {
+  const limite = Date.now() - LIMITE_ATRASO_HORAS * 3_600_000;
+  return (Object.keys(rotuloTipo) as TipoImportacao[]).filter((tipo) => {
+    const d = ultimas[tipo].dataApi;
+    if (!d) return true;
+    const t = new Date(d).getTime();
+    return Number.isNaN(t) || t < limite;
+  });
 }
 
 export interface PortalLoftData {
@@ -53,9 +87,9 @@ export function usePortalLoft(): PortalLoftData {
   const [movements, setMovements] = useState<Movement[]>([]);
   const [novos, setNovos] = useState(0);
   const [ultimas, setUltimas] = useState<UltimasImportacoes>({
-    contrato: null,
-    movimentacao: null,
-    inadimplencia: null,
+    contrato: { data: null, origem: null, dataApi: null },
+    movimentacao: { data: null, origem: null, dataApi: null },
+    inadimplencia: { data: null, origem: null, dataApi: null },
   });
 
   const load = useCallback(async () => {
@@ -73,16 +107,23 @@ export function usePortalLoft(): PortalLoftData {
 
       const { data: todas, error: todasErr } = await supabase
         .from("guarantor_portal_imports")
-        .select("tipo, data_importacao")
+        .select("tipo, origem, data_importacao")
         .eq("garantidora", "Loft")
         .order("data_importacao", { ascending: false });
       if (todasErr) throw new Error(todasErr.message);
-      const maisRecente = (tipo: string) =>
-        (todas ?? []).find((r) => r.tipo === tipo)?.data_importacao ?? null;
+      const resumoTipo = (tipo: string): UltimaImportacao => {
+        const doTipo = (todas ?? []).filter((r) => r.tipo === tipo);
+        const ultima = doTipo[0];
+        return {
+          data: ultima?.data_importacao ?? null,
+          origem: ultima?.origem ?? null,
+          dataApi: doTipo.find((r) => r.origem === "api")?.data_importacao ?? null,
+        };
+      };
       setUltimas({
-        contrato: maisRecente("contrato"),
-        movimentacao: maisRecente("movimentacao"),
-        inadimplencia: maisRecente("inadimplencia"),
+        contrato: resumoTipo("contrato"),
+        movimentacao: resumoTipo("movimentacao"),
+        inadimplencia: resumoTipo("inadimplencia"),
       });
 
       const atual = (imports?.[0] ?? null) as PortalImport | null;
