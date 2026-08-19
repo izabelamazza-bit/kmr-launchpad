@@ -46,13 +46,6 @@ function itemKey(_recurso: Recurso, item: Row): string {
   return String(item.id);
 }
 
-/** Chave de negócio (o que deve existir uma única vez no banco). */
-const BUSINESS_KEY: Record<Recurso, string> = {
-  contratos: "contrato",
-  inadimplencia: "id_inadimplencia",
-  movimentacoes: "id_movimentacao",
-};
-
 /** Mantém apenas as linhas da carga mais recente (`carga_em` máximo). */
 function apenasUltimaCarga(recurso: Recurso, items: Row[]): { items: Row[]; carga: string | null } {
   const cargas = items.map((i) => String(i.carga_em ?? "")).filter((c) => c !== "");
