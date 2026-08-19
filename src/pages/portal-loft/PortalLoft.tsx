@@ -4,7 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, FileUp, Loader2 } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertTriangle, ArrowLeft, FileUp, Loader2 } from "lucide-react";
 import { ImportLoftModal } from "./components/ImportLoftModal";
 import { ImportInadimplenciaModal } from "./components/ImportInadimplenciaModal";
 import { ImportCobmaisModal } from "@/pages/cobmais/components/ImportCobmaisModal";
@@ -13,7 +14,25 @@ import { ResumoCards } from "./components/ResumoCards";
 import { MovimentacoesPanel } from "./components/MovimentacoesPanel";
 import { ContratosTable } from "./components/ContratosTable";
 import { HistoricoDrawer } from "./components/HistoricoDrawer";
-import { fmtDateTime, usePortalLoft, useResumo } from "./lib/usePortalLoft";
+import {
+  fmtDateTime,
+  recursosAtrasados,
+  rotuloOrigem,
+  rotuloTipo,
+  usePortalLoft,
+  useResumo,
+  type TipoImportacao,
+  type UltimaImportacao,
+} from "./lib/usePortalLoft";
+
+const LinhaSincronizacao = ({ tipo, info }: { tipo: TipoImportacao; info: UltimaImportacao }) => (
+  <p>
+    {rotuloTipo[tipo]}: {fmtDateTime(info.data)}
+    {info.data && (
+      <span className="ml-1 text-xs uppercase tracking-wide">({rotuloOrigem(info.origem)})</span>
+    )}
+  </p>
+);
 
 const PortalLoft = () => {
   const navigate = useNavigate();
@@ -35,6 +54,7 @@ const PortalLoft = () => {
     reload,
   } = usePortalLoft();
   const resumo = useResumo(snapshots, movements);
+  const atrasados = loading ? [] : recursosAtrasados(ultimas);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -53,6 +73,22 @@ const PortalLoft = () => {
         </div>
       </header>
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        {atrasados.length > 0 && (
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Sincronização atrasada</AlertTitle>
+            <AlertDescription>
+              Sem sincronização automática nas últimas 30 horas para:{" "}
+              {atrasados
+                .map(
+                  (t) =>
+                    `${rotuloTipo[t]} (${ultimas[t].dataApi ? `última em ${fmtDateTime(ultimas[t].dataApi)}` : "nunca sincronizado"})`,
+                )
+                .join(", ")}
+              .
+            </AlertDescription>
+          </Alert>
+        )}
         <Tabs defaultValue="portal" className="space-y-6">
           <TabsList>
             <TabsTrigger value="portal">Portal Loft</TabsTrigger>
@@ -65,9 +101,9 @@ const PortalLoft = () => {
             <div>
               <h2 className="text-base font-semibold">Snapshots do portal da garantidora</h2>
               <div className="mt-2 space-y-0.5 text-sm text-muted-foreground">
-                <p>Contratos: {fmtDateTime(ultimas.contrato)}</p>
-                <p>Movimentações: {fmtDateTime(ultimas.movimentacao)}</p>
-                <p>Inadimplência: {fmtDateTime(ultimas.inadimplencia)}</p>
+                <LinhaSincronizacao tipo="contrato" info={ultimas.contrato} />
+                <LinhaSincronizacao tipo="movimentacao" info={ultimas.movimentacao} />
+                <LinhaSincronizacao tipo="inadimplencia" info={ultimas.inadimplencia} />
               </div>
               {currentImport && (
                 <p className="text-xs text-muted-foreground mt-2">
