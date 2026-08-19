@@ -20,9 +20,51 @@ const RETRY_WAIT_MS = 2000;
 type Recurso = "contratos" | "inadimplencia" | "movimentacoes";
 const RECURSOS: Recurso[] = ["contratos", "inadimplencia", "movimentacoes"];
 
+/**
+ * Coluna única/estável usada para ordenar a paginação de cada recurso.
+ * A API expõe uma tabela de cargas append-only: `id` é a chave da linha
+ * (sequencial e única), enquanto `contrato`/`id_inadimplencia` repetem entre cargas.
+ */
+const ORDER_BY: Record<Recurso, string> = {
+  contratos: "id",
+  inadimplencia: "id",
+  movimentacoes: "id",
+};
+
+/**
+ * Estilo de parâmetros de ordenação aceito pela API (descoberto via ?probe=1).
+ * Sem ordenação determinística a paginação por offset pode duplicar E pular registros.
+ */
+const ORDER_STYLE: { by: string; dir: string; asc: string } = {
+  by: "order_by",
+  dir: "order_dir",
+  asc: "ASC",
+};
+
+/** Chave única da LINHA na API (para medir duplicados/pulos na leitura). */
+function itemKey(_recurso: Recurso, item: Row): string {
+  return String(item.id);
+}
+
+/** Mantém apenas as linhas da carga mais recente (`carga_em` máximo). */
+function apenasUltimaCarga(recurso: Recurso, items: Row[]): { items: Row[]; carga: string | null } {
+  const cargas = items.map((i) => String(i.carga_em ?? "")).filter((c) => c !== "");
+  if (cargas.length === 0) return { items, carga: null };
+  const ultima = cargas.reduce((a, b) => (b > a ? b : a));
+  const filtrados = items.filter((i) => String(i.carga_em ?? "") === ultima);
+  console.log(`[${recurso}] carga mais recente=${ultima}: ${filtrados.length} de ${items.length} linha(s)`);
+  return { items: filtrados, carga: ultima };
+}
+
 interface ResumoRecurso {
   recurso: Recurso;
+  total_api: number | null;
   lidos: number;
+  distintos: number;
+  duplicados_descartados: number;
+  paginacao_consistente: boolean;
+  carga_em: string | null;
+  linhas_ultima_carga: number;
   gravados: number;
   novos: number;
   atualizados: number;
@@ -64,7 +106,9 @@ function extractItems(payload: unknown): { items: Row[]; total: number | null } 
 
 /** Busca uma página com retry em erro 500. Nunca loga o token. */
 async function fetchPagina(recurso: Recurso, offset: number, token: string) {
-  const url = `${BASE_URL}/${recurso}?limit=${LIMIT}&offset=${offset}`;
+  const url =
+    `${BASE_URL}/${recurso}?limit=${LIMIT}&offset=${offset}` +
+    `&${ORDER_STYLE.by}=${encodeURIComponent(ORDER_BY[recurso])}&${ORDER_STYLE.dir}=${ORDER_STYLE.asc}`;
   for (let tentativa = 1; tentativa <= MAX_RETRIES; tentativa++) {
     let res: Response;
     try {
@@ -108,8 +152,14 @@ async function fetchPagina(recurso: Recurso, offset: number, token: string) {
   throw new RecursoError(`não foi possível buscar offset=${offset}`);
 }
 
+interface Leitura {
+  items: Row[];
+  totalApi: number | null;
+  distintos: number;
+}
+
 /** Lê todas as páginas do recurso, validando o schema no primeiro item. */
-async function coletar(recurso: Recurso, token: string): Promise<Row[]> {
+async function coletar(recurso: Recurso, token: string): Promise<Leitura> {
   const expected = CONFIG[recurso].fields;
   const todos: Row[] = [];
   let offset = 0;
@@ -139,8 +189,11 @@ async function coletar(recurso: Recurso, token: string): Promise<Row[]> {
     if (total === null && pagina.items.length < LIMIT) break;
   }
 
-  console.log(`[${recurso}] leitura concluída: ${todos.length} item(ns), total informado=${total ?? "n/d"}`);
-  return todos;
+  const distintos = new Set(todos.map((i) => itemKey(recurso, i))).size;
+  console.log(
+    `[${recurso}] leitura concluída: lidos=${todos.length} distintos=${distintos} total_api=${total ?? "n/d"}`,
+  );
+  return { items: todos, totalApi: total, distintos };
 }
 
 type Db = ReturnType<typeof createClient>;
@@ -195,16 +248,54 @@ async function gravar(
 }
 
 async function processar(db: Db, recurso: Recurso, token: string): Promise<ResumoRecurso> {
-  const resumo: ResumoRecurso = { recurso, lidos: 0, gravados: 0, novos: 0, atualizados: 0, erros: [] };
+  const resumo: ResumoRecurso = {
+    recurso,
+    total_api: null,
+    lidos: 0,
+    distintos: 0,
+    duplicados_descartados: 0,
+    paginacao_consistente: false,
+    carga_em: null,
+    linhas_ultima_carga: 0,
+    gravados: 0,
+    novos: 0,
+    atualizados: 0,
+    erros: [],
+  };
 
-  const items = await coletar(recurso, token);
-  resumo.lidos = items.length;
-  if (items.length === 0) return resumo;
+  const leitura = await coletar(recurso, token);
+  const todas = leitura.items;
+  resumo.total_api = leitura.totalApi;
+  resumo.lidos = todas.length;
+  resumo.distintos = leitura.distintos;
+  resumo.duplicados_descartados = todas.length - leitura.distintos;
+  resumo.paginacao_consistente =
+    leitura.totalApi === null
+      ? false
+      : todas.length === leitura.totalApi && leitura.distintos === leitura.totalApi;
+
+  if (!resumo.paginacao_consistente) {
+    const alvo = leitura.totalApi === null ? "n/d" : String(leitura.totalApi);
+    resumo.erros.push(
+      `paginação inconsistente: total informado pela API=${alvo}, lidos=${todas.length}, distintos=${leitura.distintos}. ` +
+        `Nada foi gravado para '${recurso}'.`,
+    );
+    console.error(`[${recurso}] paginação inconsistente — gravação abortada`);
+    return resumo;
+  }
+
+  if (todas.length === 0) return resumo;
+
+  // A API é uma tabela de cargas diárias (append-only): usar só a carga mais recente.
+  const ultima = apenasUltimaCarga(recurso, todas);
+  const items = ultima.items;
+  resumo.carga_em = ultima.carga;
+  resumo.linhas_ultima_carga = items.length;
 
   const agora = new Date().toISOString();
 
   if (recurso === "contratos") {
-    // A API pode devolver o mesmo contrato repetido entre páginas — 1 linha por contrato.
+    // Rede de segurança: 1 linha por contrato dentro da carga.
     const rows = dedup(items.map(mapContrato).filter((r): r is Row => r !== null), "contrato");
     const importId = await criarImport(db, "contrato", items.length);
     resumo.gravados = await gravar(
@@ -280,6 +371,63 @@ async function autorizado(req: Request): Promise<boolean> {
   return !error && !!data.user;
 }
 
+function erroResumo(recurso: Recurso, msg: string): ResumoRecurso {
+  return {
+    recurso,
+    total_api: null,
+    lidos: 0,
+    distintos: 0,
+    duplicados_descartados: 0,
+    paginacao_consistente: false,
+    gravados: 0,
+    novos: 0,
+    atualizados: 0,
+    erros: [msg],
+  };
+}
+
+/**
+ * Diagnóstico: descobre qual formato de parâmetro de ordenação a API respeita.
+ * Só lê 5 registros por variante e devolve as chaves na ordem recebida.
+ * Nunca expõe o token.
+ */
+async function probeOrdenacao(recurso: Recurso, token: string) {
+  const col = ORDER_BY[recurso];
+  const variantes: { nome: string; qs: string }[] = [
+    { nome: "sem ordenação", qs: "" },
+    { nome: "order_by ASC", qs: `&order_by=${col}&order_dir=ASC` },
+    { nome: "order_by DESC", qs: `&order_by=${col}&order_dir=DESC` },
+    { nome: "sort asc", qs: `&sort=${col}&order=asc` },
+    { nome: "sort desc", qs: `&sort=${col}&order=desc` },
+    { nome: "orderBy asc", qs: `&orderBy=${col}&orderDir=asc` },
+    { nome: "orderBy desc", qs: `&orderBy=${col}&orderDir=desc` },
+  ];
+
+  const out: Record<string, unknown>[] = [];
+  for (const v of variantes) {
+    const url = `${BASE_URL}/${recurso}?limit=5&offset=0${v.qs}`;
+    try {
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+      });
+      if (!res.ok) {
+        out.push({ variante: v.nome, status: res.status });
+        continue;
+      }
+      const { items, total } = extractItems(await res.json());
+      out.push({
+        variante: v.nome,
+        status: res.status,
+        total,
+        chaves: items.map((i) => itemKey(recurso, i)),
+      });
+    } catch (e) {
+      out.push({ variante: v.nome, erro: (e as Error).message });
+    }
+  }
+  return { recurso, coluna_ordenacao: col, variantes: out };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -296,6 +444,22 @@ Deno.serve(async (req) => {
     if (!recursoParam && req.method === "POST") {
       const body = await req.json().catch(() => ({}));
       recursoParam = (body as { recurso?: string }).recurso ?? null;
+    }
+
+    if (url.searchParams.get("probe") === "1") {
+      const alvo = (RECURSOS.includes(recursoParam as Recurso) ? recursoParam : "contratos") as Recurso;
+      return json(await probeOrdenacao(alvo, token));
+    }
+
+    // Diagnóstico: devolve os primeiros itens crus para inspecionar chaves e repetições.
+    if (url.searchParams.get("probe") === "raw") {
+      const alvo = (RECURSOS.includes(recursoParam as Recurso) ? recursoParam : "contratos") as Recurso;
+      const res = await fetch(
+        `${BASE_URL}/${alvo}?limit=6&offset=0&order_by=${ORDER_BY[alvo]}&order_dir=ASC`,
+        { headers: { Authorization: `Bearer ${token}`, Accept: "application/json" } },
+      );
+      const { items, total } = extractItems(await res.json());
+      return json({ recurso: alvo, total, campos: Object.keys(items[0] ?? {}), items });
     }
 
     let alvos: Recurso[];
@@ -322,13 +486,13 @@ Deno.serve(async (req) => {
         if (e instanceof TokenInvalidoError) {
           console.error(`[${recurso}] token inválido — execução abortada`);
           return json(
-            { error: e.message, recursos: [...resumos, { recurso, lidos: 0, gravados: 0, novos: 0, atualizados: 0, erros: [e.message] }] },
+            { error: e.message, recursos: [...resumos, erroResumo(recurso, e.message)] },
             401,
           );
         }
         const msg = e instanceof Error ? e.message : String(e);
         console.error(`[${recurso}] erro: ${msg}`);
-        resumos.push({ recurso, lidos: 0, gravados: 0, novos: 0, atualizados: 0, erros: [msg] });
+        resumos.push(erroResumo(recurso, msg));
       }
     }
 
@@ -338,7 +502,9 @@ Deno.serve(async (req) => {
       executado_em: new Date().toISOString(),
       recursos: resumos,
       totais: {
+        total_api: resumos.reduce((s, r) => s + (r.total_api ?? 0), 0),
         lidos: resumos.reduce((s, r) => s + r.lidos, 0),
+        distintos: resumos.reduce((s, r) => s + r.distintos, 0),
         gravados: resumos.reduce((s, r) => s + r.gravados, 0),
         novos: resumos.reduce((s, r) => s + r.novos, 0),
         atualizados: resumos.reduce((s, r) => s + r.atualizados, 0),
