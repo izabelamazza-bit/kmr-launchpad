@@ -232,10 +232,40 @@ async function gravar(
 }
 
 async function processar(db: Db, recurso: Recurso, token: string): Promise<ResumoRecurso> {
-  const resumo: ResumoRecurso = { recurso, lidos: 0, gravados: 0, novos: 0, atualizados: 0, erros: [] };
+  const resumo: ResumoRecurso = {
+    recurso,
+    total_api: null,
+    lidos: 0,
+    distintos: 0,
+    duplicados_descartados: 0,
+    paginacao_consistente: false,
+    gravados: 0,
+    novos: 0,
+    atualizados: 0,
+    erros: [],
+  };
 
-  const items = await coletar(recurso, token);
+  const leitura = await coletar(recurso, token);
+  const items = leitura.items;
+  resumo.total_api = leitura.totalApi;
   resumo.lidos = items.length;
+  resumo.distintos = leitura.distintos;
+  resumo.duplicados_descartados = items.length - leitura.distintos;
+  resumo.paginacao_consistente =
+    leitura.totalApi === null
+      ? false
+      : items.length === leitura.totalApi && leitura.distintos === leitura.totalApi;
+
+  if (!resumo.paginacao_consistente) {
+    const alvo = leitura.totalApi === null ? "n/d" : String(leitura.totalApi);
+    resumo.erros.push(
+      `paginação inconsistente: total informado pela API=${alvo}, lidos=${items.length}, distintos=${leitura.distintos}. ` +
+        `Nada foi gravado para '${recurso}'.`,
+    );
+    console.error(`[${recurso}] paginação inconsistente — gravação abortada`);
+    return resumo;
+  }
+
   if (items.length === 0) return resumo;
 
   const agora = new Date().toISOString();
