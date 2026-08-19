@@ -15,8 +15,8 @@ import {
  * e, abaixo, previsão/pagamento. Sem dado, mantém o aviso de integração pendente
  * (nunca inventa status).
  *
- * A "última atualização" vem só de pendências enquanto as movimentações reais da
- * Loft não forem importadas — ver comentário em useInadimplenciaLoft.ts.
+ * A "última atualização" considera a maior data entre pendências e movimentações
+ * (notas) do contrato — ver comentário em useInadimplenciaLoft.ts.
  */
 export function SinistroLoftBadge({ pendencia }: { row: CobmaisLoftRow; pendencia?: PendenciaResumoContrato }) {
   if (!pendencia) {
@@ -37,13 +37,19 @@ export function SinistroLoftBadge({ pendencia }: { row: CobmaisLoftRow; pendenci
     );
   }
 
-  const p = pendencia.maisRecente;
   const dias = diasDesde(pendencia.ultimaAtualizacao);
   const parado = estaParado(pendencia);
+  const p = pendencia.maisRecente;
   return (
     <div className="whitespace-nowrap">
       <div className="flex items-center gap-1.5">
-        <PendenciaStatusBadge status={p.imob_status} />
+        {p ? (
+          <PendenciaStatusBadge status={p.imob_status} />
+        ) : (
+          <Badge variant="secondary" className="font-normal">
+            Só movimentação
+          </Badge>
+        )}
         <span className="text-xs text-muted-foreground">
           {dias === null
             ? "sem data de atualização"
@@ -63,9 +69,9 @@ export function SinistroLoftBadge({ pendencia }: { row: CobmaisLoftRow; pendenci
         )}
       </div>
       <p className="text-xs mt-1">
-        {p.data_pagamento ? (
+        {p?.data_pagamento ? (
           <span className="text-[#27AE60] font-medium">Pago em {fmtDate(p.data_pagamento)}</span>
-        ) : p.dt_vencimento ? (
+        ) : p?.dt_vencimento ? (
           <span className="text-muted-foreground">Previsto para {fmtDate(p.dt_vencimento)}</span>
         ) : (
           <span className="text-muted-foreground">Sem previsão informada</span>
