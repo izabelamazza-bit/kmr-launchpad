@@ -262,6 +262,8 @@ async function processar(db: Db, recurso: Recurso, token: string): Promise<Resum
     distintos: 0,
     duplicados_descartados: 0,
     paginacao_consistente: false,
+    carga_em: null,
+    linhas_ultima_carga: 0,
     gravados: 0,
     novos: 0,
     atualizados: 0,
@@ -269,32 +271,38 @@ async function processar(db: Db, recurso: Recurso, token: string): Promise<Resum
   };
 
   const leitura = await coletar(recurso, token);
-  const items = leitura.items;
+  const todas = leitura.items;
   resumo.total_api = leitura.totalApi;
-  resumo.lidos = items.length;
+  resumo.lidos = todas.length;
   resumo.distintos = leitura.distintos;
-  resumo.duplicados_descartados = items.length - leitura.distintos;
+  resumo.duplicados_descartados = todas.length - leitura.distintos;
   resumo.paginacao_consistente =
     leitura.totalApi === null
       ? false
-      : items.length === leitura.totalApi && leitura.distintos === leitura.totalApi;
+      : todas.length === leitura.totalApi && leitura.distintos === leitura.totalApi;
 
   if (!resumo.paginacao_consistente) {
     const alvo = leitura.totalApi === null ? "n/d" : String(leitura.totalApi);
     resumo.erros.push(
-      `paginação inconsistente: total informado pela API=${alvo}, lidos=${items.length}, distintos=${leitura.distintos}. ` +
+      `paginação inconsistente: total informado pela API=${alvo}, lidos=${todas.length}, distintos=${leitura.distintos}. ` +
         `Nada foi gravado para '${recurso}'.`,
     );
     console.error(`[${recurso}] paginação inconsistente — gravação abortada`);
     return resumo;
   }
 
-  if (items.length === 0) return resumo;
+  if (todas.length === 0) return resumo;
+
+  // A API é uma tabela de cargas diárias (append-only): usar só a carga mais recente.
+  const ultima = apenasUltimaCarga(recurso, todas);
+  const items = ultima.items;
+  resumo.carga_em = ultima.carga;
+  resumo.linhas_ultima_carga = items.length;
 
   const agora = new Date().toISOString();
 
   if (recurso === "contratos") {
-    // A API pode devolver o mesmo contrato repetido entre páginas — 1 linha por contrato.
+    // Rede de segurança: 1 linha por contrato dentro da carga.
     const rows = dedup(items.map(mapContrato).filter((r): r is Row => r !== null), "contrato");
     const importId = await criarImport(db, "contrato", items.length);
     resumo.gravados = await gravar(
