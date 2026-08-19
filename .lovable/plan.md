@@ -38,3 +38,28 @@ Uma lacuna real permanece e será corrigida: a nota só é aplicada quando o con
 - `src/pages/portal-loft/PortalLoft.tsx`: renderiza origem ao lado de cada data e o banner de atraso (Alert do shadcn, variante destrutiva discreta, tokens do design system).
 - `src/pages/portal-loft/lib/useInadimplenciaLoft.ts`: em `buildPendenciaIndex`, criar entrada derivada de nota quando não houver pendência para aquele contrato — sem `maisRecente`, então `PendenciaResumoContrato.maisRecente` passa a ser opcional e `estaParado` trata a ausência de status como caso aberto. Ajustes de tipo em `SinistroLoftBadge`/`CobmaisLoftTable` onde `maisRecente` é lido.
 - Nenhuma mudança na Edge Function.
+
+## Confirmações pedidas
+
+**1. Como investigar uma chamada que falhou silenciosamente**
+
+Sim, dá para auditar depois, em dois lugares:
+
+- `cron.job_run_details` — registra cada disparo do agendamento (início, fim, status, mensagem). Prova que o cron rodou.
+- `net._http_response` — tabela do próprio `pg_net` com o resultado de cada `net.http_post` (status HTTP, corpo da resposta, mensagem de erro em caso de timeout/erro de rede), casada pelo `id` do request. Atenção: o `pg_net` mantém essas linhas por poucas horas (retenção curta por padrão), então a consulta serve para investigar no mesmo dia — o banner de 30h continua sendo o sinal de longo prazo.
+- Como o resumo por recurso já é devolvido no corpo da resposta HTTP, o `response_body` em `net._http_response` traz o JSON completo daquela execução (lidos, gravados, `paginacao_consistente`, erros).
+
+Vou entregar as duas consultas prontas ao final para você rodar quando quiser investigar.
+
+**2. `cron.unschedule` defensivo**
+
+Sim — a remoção é feita apenas quando existe um job com o nome exato `sync-credpago-diario`, dentro de um `if exists (select 1 from cron.job where jobname = 'sync-credpago-diario')`. Nenhum outro job é lido, alterado ou removido. Hoje, aliás, não existe nenhum job agendado no projeto (o `pg_cron` ainda não está instalado).
+
+## Ajuste no detalhe técnico do agendamento (autenticação do cron)
+
+O valor do secret `SYNC_INTERNAL_SECRET` não é legível por mim (secrets são armazenados criptografados), então não posso embutir esse valor no comando do cron. Em vez de rotacionar o secret, o agendamento usa um token próprio guardado no banco:
+
+- Migração cria o schema privado `private` com a tabela `private.sync_secrets` e um token aleatório para o nome `credpago_cron`. O schema não é exposto pela API e não tem permissão para `anon`/`authenticated`.
+- Função `public.verify_sync_token(_token)` (security definer, `execute` só para `service_role`) confere o token.
+- A Edge Function passa a aceitar, além do JWT e do `x-sync-secret` já existentes, o header `x-cron-token`, validado por essa função.
+- O comando do cron lê o token do banco na hora da execução (`select value from private.sync_secrets where name = 'credpago_cron'`), então nenhum segredo fica em texto no meu lado nem precisa ser rotacionado.
