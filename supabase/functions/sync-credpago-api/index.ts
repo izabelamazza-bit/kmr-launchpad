@@ -136,8 +136,14 @@ async function fetchPagina(recurso: Recurso, offset: number, token: string) {
   throw new RecursoError(`não foi possível buscar offset=${offset}`);
 }
 
+interface Leitura {
+  items: Row[];
+  totalApi: number | null;
+  distintos: number;
+}
+
 /** Lê todas as páginas do recurso, validando o schema no primeiro item. */
-async function coletar(recurso: Recurso, token: string): Promise<Row[]> {
+async function coletar(recurso: Recurso, token: string): Promise<Leitura> {
   const expected = CONFIG[recurso].fields;
   const todos: Row[] = [];
   let offset = 0;
@@ -167,8 +173,11 @@ async function coletar(recurso: Recurso, token: string): Promise<Row[]> {
     if (total === null && pagina.items.length < LIMIT) break;
   }
 
-  console.log(`[${recurso}] leitura concluída: ${todos.length} item(ns), total informado=${total ?? "n/d"}`);
-  return todos;
+  const distintos = new Set(todos.map((i) => itemKey(recurso, i))).size;
+  console.log(
+    `[${recurso}] leitura concluída: lidos=${todos.length} distintos=${distintos} total_api=${total ?? "n/d"}`,
+  );
+  return { items: todos, totalApi: total, distintos };
 }
 
 type Db = ReturnType<typeof createClient>;
