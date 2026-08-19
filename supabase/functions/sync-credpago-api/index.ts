@@ -363,6 +363,20 @@ async function autorizado(req: Request): Promise<boolean> {
   const header = req.headers.get("x-sync-secret");
   if (syncSecret && header && header === syncSecret) return true;
 
+  // Chamada do agendamento (pg_cron): token guardado em private.sync_secrets e
+  // conferido por public.verify_sync_token (execute apenas para service_role).
+  const cronToken = req.headers.get("x-cron-token");
+  if (cronToken) {
+    const admin = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      { auth: { persistSession: false } },
+    );
+    const { data, error } = await admin.rpc("verify_sync_token", { _token: cronToken });
+    if (!error && data === true) return true;
+    console.error("[auth] x-cron-token inválido", error?.message ?? "");
+  }
+
   const auth = req.headers.get("Authorization");
   const jwt = auth?.startsWith("Bearer ") ? auth.slice(7) : null;
   if (!jwt) return false;
