@@ -347,6 +347,63 @@ async function autorizado(req: Request): Promise<boolean> {
   return !error && !!data.user;
 }
 
+function erroResumo(recurso: Recurso, msg: string): ResumoRecurso {
+  return {
+    recurso,
+    total_api: null,
+    lidos: 0,
+    distintos: 0,
+    duplicados_descartados: 0,
+    paginacao_consistente: false,
+    gravados: 0,
+    novos: 0,
+    atualizados: 0,
+    erros: [msg],
+  };
+}
+
+/**
+ * Diagnóstico: descobre qual formato de parâmetro de ordenação a API respeita.
+ * Só lê 5 registros por variante e devolve as chaves na ordem recebida.
+ * Nunca expõe o token.
+ */
+async function probeOrdenacao(recurso: Recurso, token: string) {
+  const col = ORDER_BY[recurso];
+  const variantes: { nome: string; qs: string }[] = [
+    { nome: "sem ordenação", qs: "" },
+    { nome: "order_by ASC", qs: `&order_by=${col}&order_dir=ASC` },
+    { nome: "order_by DESC", qs: `&order_by=${col}&order_dir=DESC` },
+    { nome: "sort asc", qs: `&sort=${col}&order=asc` },
+    { nome: "sort desc", qs: `&sort=${col}&order=desc` },
+    { nome: "orderBy asc", qs: `&orderBy=${col}&orderDir=asc` },
+    { nome: "orderBy desc", qs: `&orderBy=${col}&orderDir=desc` },
+  ];
+
+  const out: Record<string, unknown>[] = [];
+  for (const v of variantes) {
+    const url = `${BASE_URL}/${recurso}?limit=5&offset=0${v.qs}`;
+    try {
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+      });
+      if (!res.ok) {
+        out.push({ variante: v.nome, status: res.status });
+        continue;
+      }
+      const { items, total } = extractItems(await res.json());
+      out.push({
+        variante: v.nome,
+        status: res.status,
+        total,
+        chaves: items.map((i) => itemKey(recurso, i)),
+      });
+    } catch (e) {
+      out.push({ variante: v.nome, erro: (e as Error).message });
+    }
+  }
+  return { recurso, coluna_ordenacao: col, variantes: out };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -363,6 +420,11 @@ Deno.serve(async (req) => {
     if (!recursoParam && req.method === "POST") {
       const body = await req.json().catch(() => ({}));
       recursoParam = (body as { recurso?: string }).recurso ?? null;
+    }
+
+    if (url.searchParams.get("probe") === "1") {
+      const alvo = (RECURSOS.includes(recursoParam as Recurso) ? recursoParam : "contratos") as Recurso;
+      return json(await probeOrdenacao(alvo, token));
     }
 
     let alvos: Recurso[];
@@ -389,13 +451,13 @@ Deno.serve(async (req) => {
         if (e instanceof TokenInvalidoError) {
           console.error(`[${recurso}] token inválido — execução abortada`);
           return json(
-            { error: e.message, recursos: [...resumos, { recurso, lidos: 0, gravados: 0, novos: 0, atualizados: 0, erros: [e.message] }] },
+            { error: e.message, recursos: [...resumos, erroResumo(recurso, e.message)] },
             401,
           );
         }
         const msg = e instanceof Error ? e.message : String(e);
         console.error(`[${recurso}] erro: ${msg}`);
-        resumos.push({ recurso, lidos: 0, gravados: 0, novos: 0, atualizados: 0, erros: [msg] });
+        resumos.push(erroResumo(recurso, msg));
       }
     }
 
@@ -405,7 +467,9 @@ Deno.serve(async (req) => {
       executado_em: new Date().toISOString(),
       recursos: resumos,
       totais: {
+        total_api: resumos.reduce((s, r) => s + (r.total_api ?? 0), 0),
         lidos: resumos.reduce((s, r) => s + r.lidos, 0),
+        distintos: resumos.reduce((s, r) => s + r.distintos, 0),
         gravados: resumos.reduce((s, r) => s + r.gravados, 0),
         novos: resumos.reduce((s, r) => s + r.novos, 0),
         atualizados: resumos.reduce((s, r) => s + r.atualizados, 0),
