@@ -20,9 +20,13 @@ const RETRY_WAIT_MS = 2000;
 type Recurso = "contratos" | "inadimplencia" | "movimentacoes";
 const RECURSOS: Recurso[] = ["contratos", "inadimplencia", "movimentacoes"];
 
-/** Coluna única/estável usada para ordenar a paginação de cada recurso. */
+/**
+ * Coluna única/estável usada para ordenar a paginação de cada recurso.
+ * A API expõe uma tabela de cargas append-only: `id` é a chave da linha
+ * (sequencial e única), enquanto `contrato`/`id_inadimplencia` repetem entre cargas.
+ */
 const ORDER_BY: Record<Recurso, string> = {
-  contratos: "contrato",
+  contratos: "id",
   inadimplencia: "id",
   movimentacoes: "id",
 };
@@ -37,9 +41,26 @@ const ORDER_STYLE: { by: string; dir: string; asc: string } = {
   asc: "ASC",
 };
 
-/** Chave única de cada item, para medir duplicados/pulos na leitura. */
-function itemKey(recurso: Recurso, item: Row): string {
-  return String(recurso === "contratos" ? item.contrato : item.id);
+/** Chave única da LINHA na API (para medir duplicados/pulos na leitura). */
+function itemKey(_recurso: Recurso, item: Row): string {
+  return String(item.id);
+}
+
+/** Chave de negócio (o que deve existir uma única vez no banco). */
+const BUSINESS_KEY: Record<Recurso, string> = {
+  contratos: "contrato",
+  inadimplencia: "id_inadimplencia",
+  movimentacoes: "id_movimentacao",
+};
+
+/** Mantém apenas as linhas da carga mais recente (`carga_em` máximo). */
+function apenasUltimaCarga(recurso: Recurso, items: Row[]): { items: Row[]; carga: string | null } {
+  const cargas = items.map((i) => String(i.carga_em ?? "")).filter((c) => c !== "");
+  if (cargas.length === 0) return { items, carga: null };
+  const ultima = cargas.reduce((a, b) => (b > a ? b : a));
+  const filtrados = items.filter((i) => String(i.carga_em ?? "") === ultima);
+  console.log(`[${recurso}] carga mais recente=${ultima}: ${filtrados.length} de ${items.length} linha(s)`);
+  return { items: filtrados, carga: ultima };
 }
 
 interface ResumoRecurso {
@@ -49,6 +70,8 @@ interface ResumoRecurso {
   distintos: number;
   duplicados_descartados: number;
   paginacao_consistente: boolean;
+  carga_em: string | null;
+  linhas_ultima_carga: number;
   gravados: number;
   novos: number;
   atualizados: number;
