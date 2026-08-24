@@ -170,13 +170,26 @@ export class MissingCpfColumnError extends Error {
   }
 }
 
+export interface FormatDiff {
+  nome: CobmaisFormatName;
+  missing: string[];
+  extra: string[];
+}
+
 export class HeaderMismatchError extends Error {
-  constructor(public missing: string[], public extra: string[]) {
-    const parts: string[] = [];
-    if (missing.length) parts.push(`faltando: ${missing.join(", ")}`);
-    if (extra.length) parts.push(`inesperadas: ${extra.join(", ")}`);
+  constructor(public diffs: FormatDiff[]) {
+    const describe = (d: FormatDiff) => {
+      const parts: string[] = [];
+      if (d.missing.length) parts.push(`faltando: ${d.missing.join(", ")}`);
+      if (d.extra.length) parts.push(`inesperadas: ${d.extra.join(", ")}`);
+      const cols = COBMAIS_FORMATS.find((f) => f.nome === d.nome)?.headers ?? [];
+      return (
+        `Formato ${d.nome} (${cols.length} colunas: ${cols.join(", ")}) — ${parts.join(" | ")}`
+      );
+    };
     super(
-      `O cabeçalho da aba "${COBMAIS_SHEET}" não corresponde ao formato esperado (${parts.join(" | ")}).`,
+      `O cabeçalho da aba "${COBMAIS_SHEET}" não corresponde a nenhum dos formatos aceitos. ` +
+        diffs.map(describe).join(" ;; "),
     );
     this.name = "HeaderMismatchError";
   }
@@ -187,7 +200,33 @@ export interface CobmaisParseResult {
   totalLinhas: number;
   ignoradas: number;
   porGarantidora: Record<string, number>;
+  formato: CobmaisFormatName;
 }
+
+/**
+ * Detecta o formato do cabeçalho comparando com cada lista aceita,
+ * exigindo a ordem exata de colunas. Retorna null se não bater com nenhum.
+ */
+export function detectFormat(headerRow: string[]): CobmaisFormat | null {
+  const found = headerRow.map(key);
+  return (
+    COBMAIS_FORMATS.find(
+      (f) =>
+        f.headers.length === found.length &&
+        f.headers.every((h, i) => key(h) === found[i]),
+    ) ?? null
+  );
+}
+
+function diffAgainstFormats(headerRow: string[]): FormatDiff[] {
+  const found = headerRow.map(key);
+  return COBMAIS_FORMATS.map((f) => ({
+    nome: f.nome,
+    missing: f.headers.filter((h) => !found.includes(key(h))),
+    extra: headerRow.filter((h) => !f.headers.some((e) => key(e) === key(h))),
+  }));
+}
+
 
 function contarGarantidoras(rows: CobmaisSnapshotRow[]): Record<string, number> {
   const out: Record<string, number> = {};
