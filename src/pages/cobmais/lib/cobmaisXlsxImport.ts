@@ -5,7 +5,19 @@ export const COBMAIS_SHEET = "Cobrança";
 
 export const COBMAIS_CPF_HEADER = "CPF/CNPJ";
 
-export const COBMAIS_HEADERS = [
+const HEADERS_A = [
+  "CPF/CNPJ",
+  "CLIENTE",
+  "CREDOR",
+  "CONTRATO",
+  "ATRASO",
+  "PRODUTO",
+  "OBSERVAÇÃO",
+  "RISCO",
+  "MARCADOR",
+] as const;
+
+const HEADERS_B = [
   "CPF/CNPJ",
   "CLIENTE",
   "CREDOR",
@@ -19,6 +31,20 @@ export const COBMAIS_HEADERS = [
   "ULTIMO CONTATO",
   "MARCADOR",
 ] as const;
+
+export type CobmaisFormatName = "A" | "B";
+
+export interface CobmaisFormat {
+  nome: CobmaisFormatName;
+  headers: readonly string[];
+}
+
+/** Formatos aceitos do relatório Cobmais (ordem exata de colunas). */
+export const COBMAIS_FORMATS: readonly CobmaisFormat[] = [
+  { nome: "A", headers: HEADERS_A },
+  { nome: "B", headers: HEADERS_B },
+];
+
 
 export type CobmaisSnapshotRow = {
   cpf_cnpj: string | null;
@@ -144,13 +170,26 @@ export class MissingCpfColumnError extends Error {
   }
 }
 
+export interface FormatDiff {
+  nome: CobmaisFormatName;
+  missing: string[];
+  extra: string[];
+}
+
 export class HeaderMismatchError extends Error {
-  constructor(public missing: string[], public extra: string[]) {
-    const parts: string[] = [];
-    if (missing.length) parts.push(`faltando: ${missing.join(", ")}`);
-    if (extra.length) parts.push(`inesperadas: ${extra.join(", ")}`);
+  constructor(public diffs: FormatDiff[]) {
+    const describe = (d: FormatDiff) => {
+      const parts: string[] = [];
+      if (d.missing.length) parts.push(`faltando: ${d.missing.join(", ")}`);
+      if (d.extra.length) parts.push(`inesperadas: ${d.extra.join(", ")}`);
+      const cols = COBMAIS_FORMATS.find((f) => f.nome === d.nome)?.headers ?? [];
+      return (
+        `Formato ${d.nome} (${cols.length} colunas: ${cols.join(", ")}) — ${parts.join(" | ")}`
+      );
+    };
     super(
-      `O cabeçalho da aba "${COBMAIS_SHEET}" não corresponde ao formato esperado (${parts.join(" | ")}).`,
+      `O cabeçalho da aba "${COBMAIS_SHEET}" não corresponde a nenhum dos formatos aceitos. ` +
+        diffs.map(describe).join(" ;; "),
     );
     this.name = "HeaderMismatchError";
   }
@@ -161,7 +200,33 @@ export interface CobmaisParseResult {
   totalLinhas: number;
   ignoradas: number;
   porGarantidora: Record<string, number>;
+  formato: CobmaisFormatName;
 }
+
+/**
+ * Detecta o formato do cabeçalho comparando com cada lista aceita,
+ * exigindo a ordem exata de colunas. Retorna null se não bater com nenhum.
+ */
+export function detectFormat(headerRow: string[]): CobmaisFormat | null {
+  const found = headerRow.map(key);
+  return (
+    COBMAIS_FORMATS.find(
+      (f) =>
+        f.headers.length === found.length &&
+        f.headers.every((h, i) => key(h) === found[i]),
+    ) ?? null
+  );
+}
+
+function diffAgainstFormats(headerRow: string[]): FormatDiff[] {
+  const found = headerRow.map(key);
+  return COBMAIS_FORMATS.map((f) => ({
+    nome: f.nome,
+    missing: f.headers.filter((h) => !found.includes(key(h))),
+    extra: headerRow.filter((h) => !f.headers.some((e) => key(e) === key(h))),
+  }));
+}
+
 
 function contarGarantidoras(rows: CobmaisSnapshotRow[]): Record<string, number> {
   const out: Record<string, number> = {};
@@ -197,13 +262,12 @@ export async function parseCobmaisXlsx(file: File): Promise<CobmaisParseResult> 
   }
 
   const headerRow = (matrix[0] ?? []).map((c) => String(c ?? "").trim()).filter((c) => c !== "");
-  const expected = [...COBMAIS_HEADERS] as string[];
   const foundKeys = headerRow.map(key);
   // CPF/CNPJ é a coluna crítica do cruzamento: erro dedicado antes de qualquer outro.
   if (!foundKeys.includes(key(COBMAIS_CPF_HEADER))) throw new MissingCpfColumnError(headerRow);
-  const missing = expected.filter((h) => !foundKeys.includes(key(h)));
-  const extra = headerRow.filter((h) => !expected.some((e) => key(e) === key(h)));
-  if (missing.length || extra.length) throw new HeaderMismatchError(missing, extra);
+  const formato = detectFormat(headerRow);
+  if (!formato) throw new HeaderMismatchError(diffAgainstFormats(headerRow));
+  const temExtras = formato.nome === "B";
 
   const idx = (h: string) => foundKeys.indexOf(key(h));
   const col = {
@@ -245,21 +309,22 @@ export async function parseCobmaisXlsx(file: File): Promise<CobmaisParseResult> 
       produto,
       garantidora_normalizada: normalizeProduto(produto),
       status_cobranca: text(raw[col.observacao]),
-      acordo: parseBoolSimNao(raw[col.acordo]),
+      acordo: temExtras ? parseBoolSimNao(raw[col.acordo]) : null,
       risco: parseNum(raw[col.risco]),
-      ultimo_evento: text(raw[col.ultimoEvento]),
-      ultimo_contato: parseDateTimeBR(raw[col.ultimoContato]),
+      ultimo_evento: temExtras ? text(raw[col.ultimoEvento]) : null,
+      ultimo_contato: temExtras ? parseDateTimeBR(raw[col.ultimoContato]) : null,
       marcador: text(raw[col.marcador]),
     });
   }
-
 
   return {
     rows,
     totalLinhas: rows.length + ignoradas,
     ignoradas,
     porGarantidora: contarGarantidoras(rows),
+    formato: formato.nome,
   };
+
 }
 
 export interface ImportCobmaisResult {
