@@ -90,6 +90,37 @@ export function parseInt0(raw: unknown): number | null {
   return n === null ? null : Math.trunc(n);
 }
 
+/** "SIM"/"S"/"TRUE"/"1" -> true; "NÃO"/"N"/"FALSE"/"0" -> false; vazio/desconhecido -> null. */
+export function parseBoolSimNao(raw: unknown): boolean | null {
+  const v = key(String(raw ?? ""));
+  if (!v) return null;
+  if (["sim", "s", "true", "1", "verdadeiro"].includes(v)) return true;
+  if (["nao", "n", "false", "0", "falso"].includes(v)) return false;
+  return null;
+}
+
+/**
+ * Converte "DD/MM/AAAA HH:MM:SS" (hora opcional) em ISO.
+ * Também aceita datas já em ISO. Vazio ou inválido -> null (nunca lança).
+ */
+export function parseDateTimeBR(raw: unknown): string | null {
+  const v = String(raw ?? "").trim();
+  if (!v) return null;
+  const m = v.match(
+    /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[\sT]+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/,
+  );
+  if (m) {
+    const [, d, mo, y, hh = "0", mi = "0", ss = "0"] = m;
+    const dt = new Date(
+      Number(y), Number(mo) - 1, Number(d), Number(hh), Number(mi), Number(ss),
+    );
+    if (Number.isNaN(dt.getTime()) || dt.getMonth() !== Number(mo) - 1) return null;
+    return dt.toISOString();
+  }
+  const iso = new Date(v);
+  return Number.isNaN(iso.getTime()) ? null : iso.toISOString();
+}
+
 export class SheetNotFoundError extends Error {
   constructor(public sheets: string[]) {
     super(
@@ -97,6 +128,19 @@ export class SheetNotFoundError extends Error {
         `Abas disponíveis: ${sheets.length ? sheets.join(", ") : "nenhuma"}.`,
     );
     this.name = "SheetNotFoundError";
+  }
+}
+
+/** Falta a coluna crítica de cruzamento — bloqueia a importação inteira. */
+export class MissingCpfColumnError extends Error {
+  constructor(public found: string[]) {
+    super(
+      `A coluna "${COBMAIS_CPF_HEADER}" não foi encontrada na aba "${COBMAIS_SHEET}". ` +
+        `Ela é obrigatória: todo o cruzamento com o Portal Loft é feito por CPF/CNPJ, ` +
+        `então a importação foi bloqueada e nada foi gravado. ` +
+        `Colunas encontradas: ${found.length ? found.join(", ") : "nenhuma"}.`,
+    );
+    this.name = "MissingCpfColumnError";
   }
 }
 
