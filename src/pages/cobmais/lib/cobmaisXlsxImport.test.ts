@@ -1,5 +1,40 @@
 import { describe, expect, it } from "vitest";
-import { parseBoolSimNao, parseDateTimeBR, normalizeProduto } from "./cobmaisXlsxImport";
+import {
+  parseBoolSimNao,
+  parseDateTimeBR,
+  normalizeProduto,
+  detectFormat,
+  COBMAIS_FORMATS,
+} from "./cobmaisXlsxImport";
+
+describe("detectFormat", () => {
+  const A = [...(COBMAIS_FORMATS[0].headers as readonly string[])];
+  const B = [...(COBMAIS_FORMATS[1].headers as readonly string[])];
+
+  it("detecta o formato A (9 colunas)", () => {
+    expect(detectFormat(A)?.nome).toBe("A");
+    expect(A).toHaveLength(9);
+  });
+
+  it("detecta o formato B (12 colunas)", () => {
+    expect(detectFormat(B)?.nome).toBe("B");
+    expect(B).toHaveLength(12);
+  });
+
+  it("ignora acentos e caixa", () => {
+    expect(detectFormat(A.map((h) => h.toLowerCase()))?.nome).toBe("A");
+    expect(detectFormat(B.map((h) => h.replace("ULTIMO", "ÚLTIMO")))?.nome).toBe("B");
+  });
+
+  it("retorna null para ordem trocada ou coluna extra", () => {
+    const trocado = [...B];
+    [trocado[7], trocado[8]] = [trocado[8], trocado[7]];
+    expect(detectFormat(trocado)).toBeNull();
+    expect(detectFormat([...A, "EXTRA"])).toBeNull();
+    expect(detectFormat(A.slice(1))).toBeNull();
+  });
+});
+
 
 describe("parseBoolSimNao", () => {
   it("reconhece SIM/NÃO com e sem acento e caixa", () => {
