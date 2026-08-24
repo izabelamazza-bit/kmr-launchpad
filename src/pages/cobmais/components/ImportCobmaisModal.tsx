@@ -156,7 +156,7 @@ export function ImportCobmaisModal({ open, onOpenChange, onDone }: Props) {
               <Label className="mb-1.5 block">Arquivo (.xlsx) *</Label>
               <Input
                 type="file"
-                accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 onChange={(e) => {
                   setFile(e.target.files?.[0] ?? null);
                   setError(null);
