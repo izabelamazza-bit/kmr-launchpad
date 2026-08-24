@@ -5,7 +5,19 @@ export const COBMAIS_SHEET = "Cobrança";
 
 export const COBMAIS_CPF_HEADER = "CPF/CNPJ";
 
-export const COBMAIS_HEADERS = [
+const HEADERS_A = [
+  "CPF/CNPJ",
+  "CLIENTE",
+  "CREDOR",
+  "CONTRATO",
+  "ATRASO",
+  "PRODUTO",
+  "OBSERVAÇÃO",
+  "RISCO",
+  "MARCADOR",
+] as const;
+
+const HEADERS_B = [
   "CPF/CNPJ",
   "CLIENTE",
   "CREDOR",
@@ -19,6 +31,20 @@ export const COBMAIS_HEADERS = [
   "ULTIMO CONTATO",
   "MARCADOR",
 ] as const;
+
+export type CobmaisFormatName = "A" | "B";
+
+export interface CobmaisFormat {
+  nome: CobmaisFormatName;
+  headers: readonly string[];
+}
+
+/** Formatos aceitos do relatório Cobmais (ordem exata de colunas). */
+export const COBMAIS_FORMATS: readonly CobmaisFormat[] = [
+  { nome: "A", headers: HEADERS_A },
+  { nome: "B", headers: HEADERS_B },
+];
+
 
 export type CobmaisSnapshotRow = {
   cpf_cnpj: string | null;
