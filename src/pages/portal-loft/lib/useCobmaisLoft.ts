@@ -35,6 +35,9 @@ export interface CobmaisLoftRow {
   risco: number;
   observacao: string | null;
   statusCobmais: StatusCobmais;
+  acordo: boolean | null;
+  ultimoEvento: string | null;
+  ultimoContato: string | null;
   /** Contrato correspondente no snapshot mais recente do Portal Loft (por CPF). */
   portal: PortalSnapshot | null;
   /**
