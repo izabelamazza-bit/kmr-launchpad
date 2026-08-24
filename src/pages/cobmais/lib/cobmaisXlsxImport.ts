@@ -199,6 +199,8 @@ export async function parseCobmaisXlsx(file: File): Promise<CobmaisParseResult> 
   const headerRow = (matrix[0] ?? []).map((c) => String(c ?? "").trim()).filter((c) => c !== "");
   const expected = [...COBMAIS_HEADERS] as string[];
   const foundKeys = headerRow.map(key);
+  // CPF/CNPJ é a coluna crítica do cruzamento: erro dedicado antes de qualquer outro.
+  if (!foundKeys.includes(key(COBMAIS_CPF_HEADER))) throw new MissingCpfColumnError(headerRow);
   const missing = expected.filter((h) => !foundKeys.includes(key(h)));
   const extra = headerRow.filter((h) => !expected.some((e) => key(e) === key(h)));
   if (missing.length || extra.length) throw new HeaderMismatchError(missing, extra);
@@ -212,7 +214,10 @@ export async function parseCobmaisXlsx(file: File): Promise<CobmaisParseResult> 
     atraso: idx("ATRASO"),
     produto: idx("PRODUTO"),
     observacao: idx("OBSERVAÇÃO"),
+    acordo: idx("ACORDO"),
     risco: idx("RISCO"),
+    ultimoEvento: idx("ULTIMO EVENTO"),
+    ultimoContato: idx("ULTIMO CONTATO"),
     marcador: idx("MARCADOR"),
   };
 
@@ -240,10 +245,14 @@ export async function parseCobmaisXlsx(file: File): Promise<CobmaisParseResult> 
       produto,
       garantidora_normalizada: normalizeProduto(produto),
       status_cobranca: text(raw[col.observacao]),
+      acordo: parseBoolSimNao(raw[col.acordo]),
       risco: parseNum(raw[col.risco]),
+      ultimo_evento: text(raw[col.ultimoEvento]),
+      ultimo_contato: parseDateTimeBR(raw[col.ultimoContato]),
       marcador: text(raw[col.marcador]),
     });
   }
+
 
   return {
     rows,
