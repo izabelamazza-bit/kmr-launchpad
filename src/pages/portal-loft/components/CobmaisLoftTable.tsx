@@ -19,6 +19,13 @@ interface Props {
   onAbrirHistorico: (contrato: string, aba: "pendencias" | "historico") => void;
 }
 
+/** "10/08/2026" a partir de um timestamp ISO; vazio/inválido -> null. */
+function fmtDateShort(iso: string | null): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? null : d.toLocaleDateString("pt-BR");
+}
+
 function StatusPortal({ row }: { row: CobmaisLoftRow }) {
   if (!row.portal) {
     return (
