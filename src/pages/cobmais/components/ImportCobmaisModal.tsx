@@ -164,10 +164,12 @@ export function ImportCobmaisModal({ open, onOpenChange, onDone }: Props) {
                 disabled={analyzing}
               />
               <p className="text-xs text-muted-foreground mt-1.5">
-                O arquivo deve conter a aba <span className="font-mono">{COBMAIS_SHEET}</span> com as{" "}
-                {COBMAIS_HEADERS.length} colunas do relatório Cobmais, começando por{" "}
-                <span className="font-mono">CPF/CNPJ</span>. As outras abas são ignoradas.
+                O arquivo deve conter a aba <span className="font-mono">{COBMAIS_SHEET}</span> com{" "}
+                {COBMAIS_FORMATS.map((f) => `${f.headers.length}`).join(" ou ")} colunas do relatório
+                Cobmais, começando por <span className="font-mono">CPF/CNPJ</span>. As outras abas
+                são ignoradas.
               </p>
+
             </div>
 
             {analyzing && (
