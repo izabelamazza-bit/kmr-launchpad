@@ -1,26 +1,50 @@
-# Correção do accept de upload .xlsx no Importar relatório Cobmais
+# Investigação do upload .xlsx no Importar relatório Cobmais
 
-## Problema
-No modal "Importar relatório Cobmais" o seletor de arquivo do sistema operacional está deixando os arquivos `.xlsx` acinzentados/não selecionáveis, indicando regressão no atributo `accept` do input de arquivo.
+## Resposta direta antes de aplicar
+1. **Eu não reproduzi o bug no seletor nativo do sistema operacional.** A proposta anterior foi inferida pela leitura do código e estava incompleta: o valor atual já inclui `.xlsx`, então remover `.xls` não explica, por si só, arquivos `.xlsx` acinzentados.
 
-## Diagnóstico
-O componente `src/pages/cobmais/components/ImportCobmaisModal.tsx` usa atualmente:
+2. **Não vou tratar a remoção de `.xls` como causa raiz sem teste.** O seletor nativo do SO não é inspecionável de forma confiável pelo Playwright headless, então a validação precisa se basear em evidências do DOM/renderização e, se necessário, em um teste manual assistido no preview.
 
-```
+3. **Validação já feita no código/renderização:**
+   - O `Input` do shadcn repassa `accept`, `disabled` e demais props diretamente para o `<input>`.
+   - No modal renderizado em `/portal-loft`, o `<input type="file">` está com:
+
+```text
 accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+disabled=false
 ```
 
-O `Input` do shadcn repassa corretamente as props para o `<input type="file">`, então a causa é o próprio valor do `accept`.
+   - No componente Cobmais, não foi encontrada validação por `file.type` ou MIME após a seleção; o `onChange` apenas salva `e.target.files?.[0]`.
+   - A validação real ocorre depois, em `parseCobmaisXlsx(file)`, lendo o `arrayBuffer` com SheetJS e validando aba/cabeçalho.
 
-## Ação
-1. Alterar o `accept` do `<Input type="file">` no `ImportCobmaisModal.tsx` para:
+## Hipóteses ainda abertas
+- O problema pode estar no comportamento do seletor nativo em algum navegador/SO com a combinação de extensão + MIME.
+- O arquivo do usuário pode estar com extensão, associação ou tipo diferente do esperado, mas isso ainda não explicaria ficar acinzentado antes da seleção.
+- Pode haver diferença entre o preview do usuário e o estado local renderizado, embora o DOM local mostre o `accept` acima.
 
-```
+## Plano de ação seguro
+1. Testar, sem alterar lógica de importação, duas variações de `accept` no input Cobmais:
+   - Valor atual: `.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`
+   - Valor restrito esperado: `.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`
+
+2. Validar no preview com arquivo `.xlsx` real:
+   - confirmar o atributo `accept` renderizado no DOM;
+   - confirmar que o input não está `disabled`;
+   - confirmar que `onChange` recebe o arquivo quando selecionado;
+   - se possível no ambiente visual/manual, confirmar que o arquivo aparece selecionável no seletor nativo.
+
+3. Só aplicar a mudança final se o teste mostrar que o valor restrito destrava o seletor ou se houver outra causa comprovada.
+
+## Mudança candidata, se confirmada
+Alterar o `accept` do upload Cobmais para:
+
+```text
 accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 ```
 
-2. Verificar no preview que o seletor de arquivo agora permite selecionar arquivos `.xlsx` normalmente.
-
-## Valores
-- **Antes da correção:** `.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`
-- **Após a correção:** `.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`
+## Resultado esperado da investigação
+Ao final, reportar com precisão:
+- valor do `accept` antes;
+- valor do `accept` final;
+- se a causa raiz foi o `accept`, estado `disabled`, validação JS, ou outro fator;
+- evidência usada para confirmar que `.xlsx` voltou a ser selecionável/processável.
