@@ -48,3 +48,9 @@ Ao final, reportar com precisão:
 - valor do `accept` final;
 - se a causa raiz foi o `accept`, estado `disabled`, validação JS, ou outro fator;
 - evidência usada para confirmar que `.xlsx` voltou a ser selecionável/processável.
+
+## Ponto de confirmação manual (obrigatório)
+O teste decisivo — o `.xlsx` aparecer selecionável no seletor nativo do sistema operacional — só pode ser confirmado por você no preview real. Portanto:
+- Passos 1 e 2 são executados por mim (DOM/renderização, `disabled`, `onChange`, parser).
+- Ao aplicar a variação restrita do `accept`, eu paro e aviso exatamente o que testar.
+- Nada é considerado resolvido antes da sua confirmação com print.
