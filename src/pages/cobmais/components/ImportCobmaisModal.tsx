@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import {
   parseCobmaisXlsx,
   importCobmaisXlsx,
-  COBMAIS_HEADERS,
+  COBMAIS_FORMATS,
   COBMAIS_SHEET,
   GARANTIDORAS_RASTREADAS,
   type CobmaisParseResult,
