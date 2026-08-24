@@ -3,6 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 
 export const COBMAIS_SHEET = "Cobrança";
 
+export const COBMAIS_CPF_HEADER = "CPF/CNPJ";
+
 export const COBMAIS_HEADERS = [
   "CPF/CNPJ",
   "CLIENTE",
@@ -11,7 +13,10 @@ export const COBMAIS_HEADERS = [
   "ATRASO",
   "PRODUTO",
   "OBSERVAÇÃO",
+  "ACORDO",
   "RISCO",
+  "ULTIMO EVENTO",
+  "ULTIMO CONTATO",
   "MARCADOR",
 ] as const;
 
@@ -24,7 +29,10 @@ export type CobmaisSnapshotRow = {
   produto: string | null;
   garantidora_normalizada: string | null;
   status_cobranca: string | null;
+  acordo: boolean | null;
   risco: number | null;
+  ultimo_evento: string | null;
+  ultimo_contato: string | null;
   marcador: string | null;
 };
 
