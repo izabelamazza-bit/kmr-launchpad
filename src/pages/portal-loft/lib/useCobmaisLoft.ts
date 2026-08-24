@@ -155,6 +155,9 @@ export function useCobmaisLoft(): CobmaisLoftData {
             risco: Number(c.risco ?? 0),
             observacao: c.status_cobranca,
             statusCobmais: statusCobmais(c.status_cobranca),
+            acordo: c.acordo ?? null,
+            ultimoEvento: c.ultimo_evento ?? null,
+            ultimoContato: c.ultimo_contato ?? null,
             portal,
             contratoLoft: portal?.contrato ?? c.contrato ?? null,
           };
