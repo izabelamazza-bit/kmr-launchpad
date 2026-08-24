@@ -307,6 +307,7 @@ export type Database = {
       }
       cobmais_snapshots: {
         Row: {
+          acordo: boolean | null
           atraso: number | null
           cliente: string | null
           contrato: string | null
@@ -320,8 +321,11 @@ export type Database = {
           produto: string | null
           risco: number | null
           status_cobranca: string | null
+          ultimo_contato: string | null
+          ultimo_evento: string | null
         }
         Insert: {
+          acordo?: boolean | null
           atraso?: number | null
           cliente?: string | null
           contrato?: string | null
@@ -335,8 +339,11 @@ export type Database = {
           produto?: string | null
           risco?: number | null
           status_cobranca?: string | null
+          ultimo_contato?: string | null
+          ultimo_evento?: string | null
         }
         Update: {
+          acordo?: boolean | null
           atraso?: number | null
           cliente?: string | null
           contrato?: string | null
@@ -350,6 +357,8 @@ export type Database = {
           produto?: string | null
           risco?: number | null
           status_cobranca?: string | null
+          ultimo_contato?: string | null
+          ultimo_evento?: string | null
         }
         Relationships: [
           {
@@ -1497,6 +1506,7 @@ export type Database = {
       }
       cobmais_latest_loft: {
         Row: {
+          acordo: boolean | null
           atraso: number | null
           cliente: string | null
           contrato: string | null
@@ -1512,6 +1522,8 @@ export type Database = {
           produto: string | null
           risco: number | null
           status_cobranca: string | null
+          ultimo_contato: string | null
+          ultimo_evento: string | null
         }
         Relationships: [
           {

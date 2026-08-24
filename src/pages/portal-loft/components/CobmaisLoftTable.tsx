@@ -19,6 +19,13 @@ interface Props {
   onAbrirHistorico: (contrato: string, aba: "pendencias" | "historico") => void;
 }
 
+/** "10/08/2026" a partir de um timestamp ISO; vazio/inválido -> null. */
+function fmtDateShort(iso: string | null): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? null : d.toLocaleDateString("pt-BR");
+}
+
 function StatusPortal({ row }: { row: CobmaisLoftRow }) {
   if (!row.portal) {
     return (
@@ -106,30 +113,50 @@ export function CobmaisLoftTable({
                 {fmtMoney(r.risco)}
               </TableCell>
               <TableCell>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Badge
-                      variant="outline"
-                      className={`font-normal ${
-                        r.statusCobmais === "Rescindido"
-                          ? "border-amber-500/40 text-amber-600"
-                          : r.statusCobmais === "Ativo"
-                            ? "border-[#2F80ED]/40 text-[#2F80ED]"
-                            : "border-muted-foreground/30 text-muted-foreground"
-                      }`}
-                    >
-                      {r.statusCobmais}
-                    </Badge>
-                  </TooltipTrigger>
-                  <TooltipContent className="max-w-xs">
-                    {r.statusCobmais === "Não informado"
-                      ? r.observacao?.trim()
-                        ? `Texto não reconhecido no relatório: "${r.observacao.trim()}"`
-                        : "Sem observação no relatório Cobmais — status do contrato não informado"
-                      : r.observacao?.trim() || "Sem observação no relatório"}
-                  </TooltipContent>
-                </Tooltip>
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Badge
+                          variant="outline"
+                          className={`font-normal ${
+                            r.statusCobmais === "Rescindido"
+                              ? "border-amber-500/40 text-amber-600"
+                              : r.statusCobmais === "Ativo"
+                                ? "border-[#2F80ED]/40 text-[#2F80ED]"
+                                : "border-muted-foreground/30 text-muted-foreground"
+                          }`}
+                        >
+                          {r.statusCobmais}
+                        </Badge>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        {r.statusCobmais === "Não informado"
+                          ? r.observacao?.trim()
+                            ? `Texto não reconhecido no relatório: "${r.observacao.trim()}"`
+                            : "Sem observação no relatório Cobmais — status do contrato não informado"
+                          : r.observacao?.trim() || "Sem observação no relatório"}
+                      </TooltipContent>
+                    </Tooltip>
+                    {r.acordo === true && (
+                      <Badge
+                        variant="outline"
+                        className="font-normal border-[#27AE60]/40 bg-[#27AE60]/10 text-[#27AE60]"
+                      >
+                        Com acordo
+                      </Badge>
+                    )}
+                  </div>
+                  {(r.ultimoEvento || r.ultimoContato) && (
+                    <p className="text-xs text-muted-foreground">
+                      {[r.ultimoEvento?.trim(), fmtDateShort(r.ultimoContato)]
+                        .filter(Boolean)
+                        .join(" — ")}
+                    </p>
+                  )}
+                </div>
               </TableCell>
+
               <TableCell>
                 <StatusPortal row={r} />
               </TableCell>

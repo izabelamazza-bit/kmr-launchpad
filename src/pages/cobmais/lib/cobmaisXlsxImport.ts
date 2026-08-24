@@ -3,6 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 
 export const COBMAIS_SHEET = "Cobrança";
 
+export const COBMAIS_CPF_HEADER = "CPF/CNPJ";
+
 export const COBMAIS_HEADERS = [
   "CPF/CNPJ",
   "CLIENTE",
@@ -11,7 +13,10 @@ export const COBMAIS_HEADERS = [
   "ATRASO",
   "PRODUTO",
   "OBSERVAÇÃO",
+  "ACORDO",
   "RISCO",
+  "ULTIMO EVENTO",
+  "ULTIMO CONTATO",
   "MARCADOR",
 ] as const;
 
@@ -24,7 +29,10 @@ export type CobmaisSnapshotRow = {
   produto: string | null;
   garantidora_normalizada: string | null;
   status_cobranca: string | null;
+  acordo: boolean | null;
   risco: number | null;
+  ultimo_evento: string | null;
+  ultimo_contato: string | null;
   marcador: string | null;
 };
 
@@ -82,6 +90,37 @@ export function parseInt0(raw: unknown): number | null {
   return n === null ? null : Math.trunc(n);
 }
 
+/** "SIM"/"S"/"TRUE"/"1" -> true; "NÃO"/"N"/"FALSE"/"0" -> false; vazio/desconhecido -> null. */
+export function parseBoolSimNao(raw: unknown): boolean | null {
+  const v = key(String(raw ?? ""));
+  if (!v) return null;
+  if (["sim", "s", "true", "1", "verdadeiro"].includes(v)) return true;
+  if (["nao", "n", "false", "0", "falso"].includes(v)) return false;
+  return null;
+}
+
+/**
+ * Converte "DD/MM/AAAA HH:MM:SS" (hora opcional) em ISO.
+ * Também aceita datas já em ISO. Vazio ou inválido -> null (nunca lança).
+ */
+export function parseDateTimeBR(raw: unknown): string | null {
+  const v = String(raw ?? "").trim();
+  if (!v) return null;
+  const m = v.match(
+    /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[\sT]+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/,
+  );
+  if (m) {
+    const [, d, mo, y, hh = "0", mi = "0", ss = "0"] = m;
+    const dt = new Date(
+      Number(y), Number(mo) - 1, Number(d), Number(hh), Number(mi), Number(ss),
+    );
+    if (Number.isNaN(dt.getTime()) || dt.getMonth() !== Number(mo) - 1) return null;
+    return dt.toISOString();
+  }
+  const iso = new Date(v);
+  return Number.isNaN(iso.getTime()) ? null : iso.toISOString();
+}
+
 export class SheetNotFoundError extends Error {
   constructor(public sheets: string[]) {
     super(
@@ -89,6 +128,19 @@ export class SheetNotFoundError extends Error {
         `Abas disponíveis: ${sheets.length ? sheets.join(", ") : "nenhuma"}.`,
     );
     this.name = "SheetNotFoundError";
+  }
+}
+
+/** Falta a coluna crítica de cruzamento — bloqueia a importação inteira. */
+export class MissingCpfColumnError extends Error {
+  constructor(public found: string[]) {
+    super(
+      `A coluna "${COBMAIS_CPF_HEADER}" não foi encontrada na aba "${COBMAIS_SHEET}". ` +
+        `Ela é obrigatória: todo o cruzamento com o Portal Loft é feito por CPF/CNPJ, ` +
+        `então a importação foi bloqueada e nada foi gravado. ` +
+        `Colunas encontradas: ${found.length ? found.join(", ") : "nenhuma"}.`,
+    );
+    this.name = "MissingCpfColumnError";
   }
 }
 
@@ -147,6 +199,8 @@ export async function parseCobmaisXlsx(file: File): Promise<CobmaisParseResult> 
   const headerRow = (matrix[0] ?? []).map((c) => String(c ?? "").trim()).filter((c) => c !== "");
   const expected = [...COBMAIS_HEADERS] as string[];
   const foundKeys = headerRow.map(key);
+  // CPF/CNPJ é a coluna crítica do cruzamento: erro dedicado antes de qualquer outro.
+  if (!foundKeys.includes(key(COBMAIS_CPF_HEADER))) throw new MissingCpfColumnError(headerRow);
   const missing = expected.filter((h) => !foundKeys.includes(key(h)));
   const extra = headerRow.filter((h) => !expected.some((e) => key(e) === key(h)));
   if (missing.length || extra.length) throw new HeaderMismatchError(missing, extra);
@@ -160,7 +214,10 @@ export async function parseCobmaisXlsx(file: File): Promise<CobmaisParseResult> 
     atraso: idx("ATRASO"),
     produto: idx("PRODUTO"),
     observacao: idx("OBSERVAÇÃO"),
+    acordo: idx("ACORDO"),
     risco: idx("RISCO"),
+    ultimoEvento: idx("ULTIMO EVENTO"),
+    ultimoContato: idx("ULTIMO CONTATO"),
     marcador: idx("MARCADOR"),
   };
 
@@ -188,10 +245,14 @@ export async function parseCobmaisXlsx(file: File): Promise<CobmaisParseResult> 
       produto,
       garantidora_normalizada: normalizeProduto(produto),
       status_cobranca: text(raw[col.observacao]),
+      acordo: parseBoolSimNao(raw[col.acordo]),
       risco: parseNum(raw[col.risco]),
+      ultimo_evento: text(raw[col.ultimoEvento]),
+      ultimo_contato: parseDateTimeBR(raw[col.ultimoContato]),
       marcador: text(raw[col.marcador]),
     });
   }
+
 
   return {
     rows,
