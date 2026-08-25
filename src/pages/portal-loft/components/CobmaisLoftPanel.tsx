@@ -277,7 +277,7 @@ function Resumo({
           onClick();
         }
       }}
-      className={`text-left transition-all ${
+      className={`group text-left transition-all ${
         modo === "filtro"
           ? "cursor-pointer hover:shadow-md hover:border-[#2F80ED]/40"
           : "cursor-default hover:bg-muted/40"
@@ -293,7 +293,7 @@ function Resumo({
         </p>
         {nota && <p className="text-xs text-muted-foreground mt-1">{nota}</p>}
         {modo === "filtro" ? (
-          <p className="text-xs text-[#2F80ED] mt-1 opacity-0 hover:opacity-100 transition-opacity">
+          <p className="text-xs text-[#2F80ED] mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
             {ativo ? "Clique para remover o filtro" : "Clique para filtrar a tabela"}
           </p>
         ) : (
