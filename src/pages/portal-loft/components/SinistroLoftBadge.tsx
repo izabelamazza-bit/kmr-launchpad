@@ -2,7 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { AlertCircle } from "lucide-react";
 import { PendenciaStatusBadge } from "./PendenciaStatusBadge";
-import { fmtDate } from "../lib/usePortalLoft";
+import { fmtDate, fmtMoney } from "../lib/usePortalLoft";
 import type { CobmaisLoftRow } from "../lib/useCobmaisLoft";
 import {
   diasDesde,
@@ -73,10 +73,25 @@ export function SinistroLoftBadge({ pendencia }: { row: CobmaisLoftRow; pendenci
           <span className="text-[#27AE60] font-medium">Pago em {fmtDate(p.data_pagamento)}</span>
         ) : p?.dt_vencimento ? (
           <span className="text-muted-foreground">Previsto para {fmtDate(p.dt_vencimento)}</span>
+        ) : pendencia.qtdProgramada > 0 ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="text-muted-foreground cursor-default">
+                Pendência mais recente sem previsão — {fmtMoney(pendencia.valorProgramado)}{" "}
+                programado em {pendencia.qtdProgramada}{" "}
+                {pendencia.qtdProgramada === 1 ? "pendência anterior" : "pendências anteriores"}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs">
+              A previsão exibida aqui é sempre da pendência mais recente do contrato. O valor
+              programado soma as pendências em aberto que já têm data confirmada pela Loft.
+            </TooltipContent>
+          </Tooltip>
         ) : (
           <span className="text-muted-foreground">Sem previsão informada</span>
         )}
       </p>
+
     </div>
   );
 }
