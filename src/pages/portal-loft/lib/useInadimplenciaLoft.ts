@@ -20,6 +20,13 @@ export interface PendenciaResumoContrato {
   valorEmAberto: number;
   /** Quantidade de pendências sem data_pagamento. */
   qtdEmAberto: number;
+  /**
+   * Soma de valor_atual das pendências sem data_pagamento E com dt_vencimento
+   * preenchido — só o que tem data de previsão confirmada pela Loft.
+   */
+  valorProgramado: number;
+  /** Quantidade de pendências sem data_pagamento e com dt_vencimento. */
+  qtdProgramada: number;
   total: number;
   /**
    * Data da última atualização conhecida do caso na Loft.
@@ -68,6 +75,9 @@ export async function fetchPendencias(contrato?: string): Promise<Pendencia[]> {
   return out;
 }
 
+/** Pendência em aberto com data de previsão/agendamento confirmada pela Loft. */
+const programada = (p: Pendencia) => !p.data_pagamento && !!p.dt_vencimento;
+
 const ordem = (p: Pendencia) => p.criado_em ?? p.data_pendencia ?? "";
 
 /** Maior data conhecida da pendência (criação, vencimento ou pagamento). */
@@ -100,6 +110,8 @@ export function buildPendenciaIndex(
         maisRecente: p,
         valorEmAberto: p.data_pagamento ? 0 : Number(p.valor_atual ?? 0),
         qtdEmAberto: p.data_pagamento ? 0 : 1,
+        valorProgramado: programada(p) ? Number(p.valor_atual ?? 0) : 0,
+        qtdProgramada: programada(p) ? 1 : 0,
         total: 1,
         ultimaAtualizacao: maiorData(p),
       });
@@ -110,6 +122,10 @@ export function buildPendenciaIndex(
     if (!p.data_pagamento) {
       atual.valorEmAberto += Number(p.valor_atual ?? 0);
       atual.qtdEmAberto += 1;
+    }
+    if (programada(p)) {
+      atual.valorProgramado += Number(p.valor_atual ?? 0);
+      atual.qtdProgramada += 1;
     }
     atual.total += 1;
   }
@@ -124,6 +140,8 @@ export function buildPendenciaIndex(
         idx.set(key, {
           valorEmAberto: 0,
           qtdEmAberto: 0,
+          valorProgramado: 0,
+          qtdProgramada: 0,
           total: 0,
           ultimaAtualizacao: data,
         });

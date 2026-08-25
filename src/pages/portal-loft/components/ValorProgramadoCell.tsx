@@ -4,7 +4,11 @@ import type { CobmaisLoftRow } from "../lib/useCobmaisLoft";
 import type { PendenciaResumoContrato } from "../lib/useInadimplenciaLoft";
 
 /**
- * Soma de valor_atual das pendências em aberto (sem data de pagamento) do contrato.
+ * "Valor já programado" = soma de valor_atual apenas das pendências em aberto
+ * (sem data de pagamento) QUE TÊM data de previsão (dt_vencimento) confirmada
+ * pela Loft. Pendências em aberto sem previsão NÃO entram na soma — o valor
+ * total em aberto continua visível nos cards do topo, na coluna "Valor em risco"
+ * e no tooltip abaixo.
  */
 export function ValorProgramadoCell({
   pendencia,
@@ -23,14 +27,18 @@ export function ValorProgramadoCell({
     );
   }
 
-  if (pendencia.qtdEmAberto === 0) {
+  if (pendencia.qtdProgramada === 0) {
     return (
       <Tooltip>
         <TooltipTrigger asChild>
-          <span className="text-muted-foreground cursor-default">{fmtMoney(0)}</span>
+          <span className="text-muted-foreground cursor-default">—</span>
         </TooltipTrigger>
-        <TooltipContent>
-          Todas as {pendencia.total} pendência(s) deste contrato já têm data de pagamento
+        <TooltipContent className="max-w-xs">
+          {pendencia.qtdEmAberto > 0
+            ? `Nenhuma pendência com data de previsão confirmada pela Loft. Há ${fmtMoney(
+                pendencia.valorEmAberto,
+              )} em aberto (${pendencia.qtdEmAberto} pendência(s)) sem data definida.`
+            : `Todas as ${pendencia.total} pendência(s) deste contrato já têm data de pagamento`}
         </TooltipContent>
       </Tooltip>
     );
@@ -40,11 +48,13 @@ export function ValorProgramadoCell({
     <Tooltip>
       <TooltipTrigger asChild>
         <span className="font-semibold text-[#0F2A44] cursor-default whitespace-nowrap">
-          {fmtMoney(pendencia.valorEmAberto)}
+          {fmtMoney(pendencia.valorProgramado)}
         </span>
       </TooltipTrigger>
-      <TooltipContent>
-        Soma de {pendencia.qtdEmAberto} pendência(s) em aberto de {pendencia.total} no total
+      <TooltipContent className="max-w-xs">
+        Soma de {pendencia.qtdProgramada} pendência(s) em aberto com data de previsão confirmada.
+        {pendencia.qtdEmAberto > pendencia.qtdProgramada &&
+          ` Total em aberto do contrato: ${fmtMoney(pendencia.valorEmAberto)}.`}
       </TooltipContent>
     </Tooltip>
   );
