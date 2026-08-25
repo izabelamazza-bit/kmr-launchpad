@@ -11,7 +11,7 @@ Verifiquei os dados e o código antes de propor mudança:
 Portanto não há bug de renderização a corrigir. O que falta é feedback visível do filtro ativo. Será adicionado:
 
 - Chips de filtro ativo perto da busca (faixa de atraso e filtro extra), com "✕" para remover cada um.
-- No cabeçalho da tabela, além de "X de Y", indicar quantos casos foram removidos pelo filtro (ex: "177 de 226 — 49 fora da faixa"), para que a mudança seja evidente mesmo quando as primeiras linhas coincidem.
+- No cabeçalho da tabela, além de "X de Y", indicar o que foi aplicado: sem filtro extra, "177 de 226 — 49 fora da faixa"; com filtro extra, "11 de 226 — filtrado por: sem registro no Portal Loft".
 
 Nenhuma tela, rota, coluna ou componente é removido.
 
