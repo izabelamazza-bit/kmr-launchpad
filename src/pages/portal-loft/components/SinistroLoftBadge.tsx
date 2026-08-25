@@ -68,7 +68,7 @@ export function SinistroLoftBadge({ pendencia }: { row: CobmaisLoftRow; pendenci
           </Tooltip>
         )}
       </div>
-      <p className="text-xs mt-1">
+      <p className="text-xs mt-1 whitespace-normal max-w-[280px]">
         {p?.data_pagamento ? (
           <span className="text-[#27AE60] font-medium">Pago em {fmtDate(p.data_pagamento)}</span>
         ) : p?.dt_vencimento ? (
