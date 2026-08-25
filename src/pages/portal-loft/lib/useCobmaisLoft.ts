@@ -192,11 +192,15 @@ export const FAIXAS = [
   { value: "sem-retorno", label: "Sem retorno da Loft (5+ dias)" },
 ] as const;
 
+/** Filtro extra acionado pelos cards de resumo (combina com a faixa de atraso). */
+export type FiltroExtra = "todos" | "sem-registro" | "encontrados";
+
 export function useCobmaisLoftFiltrado(
   rows: CobmaisLoftRow[],
   faixa: string,
   busca: string,
   pendencias?: PendenciaIndex,
+  extra: FiltroExtra = "todos",
 ) {
   return useMemo(() => {
     const semRetorno = faixa === "sem-retorno";
@@ -210,6 +214,8 @@ export function useCobmaisLoftFiltrado(
     const q = busca.trim().toLowerCase();
     const qd = digits(busca);
     const filtradas = emAtraso.filter((r) => {
+      if (extra === "sem-registro" && r.portal !== null) return false;
+      if (extra === "encontrados" && r.portal === null) return false;
       if (!q) return true;
       const byText =
         (r.cliente ?? "").toLowerCase().includes(q) || (r.contrato ?? "").toLowerCase().includes(q);
@@ -217,7 +223,7 @@ export function useCobmaisLoftFiltrado(
       return byText || byCpf;
     });
     return { emAtraso, filtradas };
-  }, [rows, faixa, busca, pendencias]);
+  }, [rows, faixa, busca, pendencias, extra]);
 }
 
 export function resumoCobmaisLoft(emAtraso: CobmaisLoftRow[]) {
