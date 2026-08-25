@@ -21,9 +21,9 @@ Os 4 cards do topo passam a ser botões:
 
 - "Sem registro no Portal Loft" → aplica filtro extra `sem registro` (apenas linhas com "Encontrado no Portal Loft" = Não), combinado com o filtro de atraso (E).
 - "CPF encontrado no Portal Loft" → filtro extra inverso (apenas encontrados).
-- "Casos Loft em atraso" e "Valor total em risco" → limpam o filtro extra (voltam à visão completa da faixa).
+- "Casos Loft em atraso" e "Valor total em risco" → apenas limpam o filtro extra (voltam à visão completa da faixa). Esses dois recebem tratamento visual distinto (ícone/rótulo de "limpar filtro" no hover e cursor diferente), para não parecerem filtros como os outros dois.
 
-O card ativo ganha destaque visual (borda/anel). O chip "Filtro: sem registro no Portal Loft ✕" permite remover só o filtro extra, preservando a faixa de atraso escolhida no dropdown. Os cards continuam calculados sobre a base da faixa de atraso (não sobre o filtro extra), para seguirem servindo de referência.
+O card de filtro ativo ganha destaque visual (borda/anel). O chip "Filtro: sem registro no Portal Loft ✕" permite remover só o filtro extra, preservando a faixa de atraso escolhida no dropdown. Os 4 cards continuam calculados sobre a faixa de atraso inteira, nunca sobre o subconjunto do filtro extra — comportamento intencional, para seguirem servindo de referência geral.
 
 ## 3. "Valor já programado" — só com data de previsão confirmada
 
