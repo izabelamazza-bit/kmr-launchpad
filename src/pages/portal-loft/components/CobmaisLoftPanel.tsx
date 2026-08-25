@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AlertTriangle, FileUp, Loader2, Search } from "lucide-react";
+import { AlertTriangle, FileUp, Loader2, RotateCcw, Search, X } from "lucide-react";
 import { CobmaisLoftTable, type SortKey } from "./CobmaisLoftTable";
 import { HistoricoDrawer } from "./HistoricoDrawer";
 import { fmtDateTime, fmtMoney } from "../lib/usePortalLoft";
@@ -12,6 +13,7 @@ import {
   resumoCobmaisLoft,
   useCobmaisLoft,
   useCobmaisLoftFiltrado,
+  type FiltroExtra,
 } from "../lib/useCobmaisLoft";
 import { useInadimplenciaLoft } from "../lib/useInadimplenciaLoft";
 import { useCaseNotesLoft } from "../lib/useCaseNotes";
@@ -21,11 +23,17 @@ interface Props {
   onImport: () => void;
 }
 
+const LABEL_EXTRA: Record<Exclude<FiltroExtra, "todos">, string> = {
+  "sem-registro": "sem registro no Portal Loft",
+  encontrados: "CPF encontrado no Portal Loft",
+};
+
 export function CobmaisLoftPanel({ onImport }: Props) {
   const { loading, error, rows, ultimaImportacaoCobmais, ultimaImportacaoPortal } = useCobmaisLoft();
   const { index: notas } = useCaseNotesLoft();
   const { index: pendencias } = useInadimplenciaLoft(notas);
   const [faixa, setFaixa] = useState("0");
+  const [extra, setExtra] = useState<FiltroExtra>("todos");
   const [busca, setBusca] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("risco");
   const [sortAsc, setSortAsc] = useState(false);
@@ -34,7 +42,9 @@ export function CobmaisLoftPanel({ onImport }: Props) {
     "historico",
   );
 
-  const { emAtraso, filtradas } = useCobmaisLoftFiltrado(rows, faixa, busca, pendencias);
+  const { emAtraso, filtradas } = useCobmaisLoftFiltrado(rows, faixa, busca, pendencias, extra);
+  // Cards sempre calculados sobre a faixa de atraso inteira — nunca sobre o
+  // subconjunto do filtro extra (intencional, para servirem de referência geral).
   const resumo = useMemo(() => resumoCobmaisLoft(emAtraso), [emAtraso]);
 
   const ordenadas = useMemo(() => {
@@ -50,6 +60,15 @@ export function CobmaisLoftPanel({ onImport }: Props) {
       setSortAsc(false);
     }
   };
+
+  const faixaLabel = FAIXAS.find((f) => f.value === faixa)?.label ?? "";
+  const fora = rows.filter((r) => r.atraso > 0).length - emAtraso.length;
+  const detalheContagem =
+    extra !== "todos"
+      ? `filtrado por: ${LABEL_EXTRA[extra]}`
+      : fora > 0
+        ? `${fora} fora da faixa`
+        : null;
 
   return (
     <div className="space-y-6">
@@ -95,14 +114,35 @@ export function CobmaisLoftPanel({ onImport }: Props) {
       ) : (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Resumo label="Casos Loft em atraso" value={String(resumo.total)} />
-            <Resumo label="Valor total em risco" value={fmtMoney(resumo.valorRisco)} />
-            <Resumo label="CPF encontrado no Portal Loft" value={String(resumo.encontrados)} />
+            <Resumo
+              label="Casos Loft em atraso"
+              value={String(resumo.total)}
+              modo="reset"
+              ativo={extra === "todos"}
+              onClick={() => setExtra("todos")}
+            />
+            <Resumo
+              label="Valor total em risco"
+              value={fmtMoney(resumo.valorRisco)}
+              modo="reset"
+              ativo={extra === "todos"}
+              onClick={() => setExtra("todos")}
+            />
+            <Resumo
+              label="CPF encontrado no Portal Loft"
+              value={String(resumo.encontrados)}
+              modo="filtro"
+              ativo={extra === "encontrados"}
+              onClick={() => setExtra((v) => (v === "encontrados" ? "todos" : "encontrados"))}
+            />
             <Resumo
               label="Sem registro no Portal Loft"
               value={String(resumo.semRegistro)}
               nota="Potencial sinistro não aberto"
               alerta
+              modo="filtro"
+              ativo={extra === "sem-registro"}
+              onClick={() => setExtra((v) => (v === "sem-registro" ? "todos" : "sem-registro"))}
             />
           </div>
 
@@ -111,7 +151,8 @@ export function CobmaisLoftPanel({ onImport }: Props) {
               <CardTitle className="text-base">
                 Casos Cobmais × Portal Loft
                 <span className="ml-2 text-sm font-normal text-muted-foreground">
-                  {ordenadas.length} de {emAtraso.length}
+                  {ordenadas.length} de {rows.filter((r) => r.atraso > 0).length}
+                  {detalheContagem ? ` — ${detalheContagem}` : ""}
                 </span>
               </CardTitle>
             </CardHeader>
@@ -139,6 +180,22 @@ export function CobmaisLoftPanel({ onImport }: Props) {
                   </SelectContent>
                 </Select>
               </div>
+
+              {(faixa !== "0" || extra !== "todos") && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs text-muted-foreground">Filtros ativos:</span>
+                  {faixa !== "0" && (
+                    <ChipFiltro label={faixaLabel} onRemove={() => setFaixa("0")} />
+                  )}
+                  {extra !== "todos" && (
+                    <ChipFiltro
+                      label={`Filtro: ${LABEL_EXTRA[extra]}`}
+                      onRemove={() => setExtra("todos")}
+                    />
+                  )}
+                </div>
+              )}
+
               <CobmaisLoftTable
                 rows={ordenadas}
                 sortKey={sortKey}
@@ -169,19 +226,63 @@ export function CobmaisLoftPanel({ onImport }: Props) {
   );
 }
 
+function ChipFiltro({ label, onRemove }: { label: string; onRemove: () => void }) {
+  return (
+    <Badge variant="secondary" className="font-normal gap-1 pr-1.5">
+      {label}
+      <button
+        type="button"
+        onClick={onRemove}
+        aria-label={`Remover filtro: ${label}`}
+        className="rounded-sm hover:bg-background/60 p-0.5"
+      >
+        <X className="h-3 w-3" />
+      </button>
+    </Badge>
+  );
+}
+
 function Resumo({
   label,
   value,
   nota,
   alerta,
+  modo,
+  ativo,
+  onClick,
 }: {
   label: string;
   value: string;
   nota?: string;
   alerta?: boolean;
+  /** "filtro" filtra a tabela; "reset" apenas limpa o filtro extra. */
+  modo: "filtro" | "reset";
+  ativo: boolean;
+  onClick: () => void;
 }) {
+  const destaque =
+    modo === "filtro" && ativo
+      ? alerta
+        ? "ring-2 ring-destructive/50"
+        : "ring-2 ring-[#2F80ED]/50"
+      : "";
   return (
-    <Card className={alerta ? "border-destructive/40" : undefined}>
+    <Card
+      role="button"
+      tabIndex={0}
+      onClick={onClick}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onClick();
+        }
+      }}
+      className={`text-left transition-all ${
+        modo === "filtro"
+          ? "cursor-pointer hover:shadow-md hover:border-[#2F80ED]/40"
+          : "cursor-default hover:bg-muted/40"
+      } ${alerta ? "border-destructive/40" : ""} ${destaque}`}
+    >
       <CardContent className="p-5">
         <p className="text-xs uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
           {alerta && <AlertTriangle className="h-3.5 w-3.5 text-destructive" />}
@@ -191,6 +292,16 @@ function Resumo({
           {value}
         </p>
         {nota && <p className="text-xs text-muted-foreground mt-1">{nota}</p>}
+        {modo === "filtro" ? (
+          <p className="text-xs text-[#2F80ED] mt-1 opacity-0 hover:opacity-100 transition-opacity">
+            {ativo ? "Clique para remover o filtro" : "Clique para filtrar a tabela"}
+          </p>
+        ) : (
+          <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+            <RotateCcw className="h-3 w-3" />
+            Limpar filtro extra
+          </p>
+        )}
       </CardContent>
     </Card>
   );
