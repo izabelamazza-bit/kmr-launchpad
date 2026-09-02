@@ -196,6 +196,7 @@ const Users = () => {
 
   const handleEdit = (item: UserRecord) => {
     setEditingId(item.id);
+    setFormTab("dados");
     setForm({
       full_name: item.full_name,
       email: item.email,
