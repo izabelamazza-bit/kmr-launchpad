@@ -241,7 +241,7 @@ const Users = () => {
   ];
 
   return (
-    <CrudLayout title="Usuários" searchValue={search} onSearchChange={setSearch} onNewClick={() => { setEditingId(null); setForm(emptyForm); setErrors({}); setFormOpen(true); }} newLabel="Novo usuário">
+    <CrudLayout title="Usuários" searchValue={search} onSearchChange={setSearch} onNewClick={() => { setEditingId(null); setFormTab("dados"); setForm(emptyForm); setErrors({}); setFormOpen(true); }} newLabel="Novo usuário">
       <DataTable
         columns={columns}
         data={filtered}
