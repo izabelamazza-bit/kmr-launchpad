@@ -98,8 +98,9 @@ const ResetPasswordSection = ({ userId, userName }: ResetPasswordSectionProps) =
       if (method === "email") {
         if (data?.success && !data?.password) {
           toast({
-            title: "Solicitação registrada",
-            description: `A senha temporária de ${userName} foi gerada e será enviada por e-mail.`,
+            variant: "destructive",
+            title: "Envio por e-mail ainda não disponível",
+            description: `A senha de ${userName} foi redefinida, mas o envio por e-mail ainda não está implementado. Use "Resetar e mostrar na tela" para repassá-la por um canal seguro.`,
           });
         }
         if (data?.warning) {
