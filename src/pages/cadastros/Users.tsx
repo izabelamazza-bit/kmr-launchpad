@@ -6,10 +6,12 @@ import CrudLayout from "@/components/crud/CrudLayout";
 import DataTable, { Column } from "@/components/crud/DataTable";
 import DeleteDialog from "@/components/crud/DeleteDialog";
 import FormSheet from "@/components/crud/FormSheet";
+import ResetPasswordSection from "@/pages/cadastros/components/ResetPasswordSection";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { validateEmail } from "@/lib/validators";
 
 interface UserRecord {
