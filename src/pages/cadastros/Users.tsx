@@ -6,10 +6,12 @@ import CrudLayout from "@/components/crud/CrudLayout";
 import DataTable, { Column } from "@/components/crud/DataTable";
 import DeleteDialog from "@/components/crud/DeleteDialog";
 import FormSheet from "@/components/crud/FormSheet";
+import ResetPasswordSection from "@/pages/cadastros/components/ResetPasswordSection";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { validateEmail } from "@/lib/validators";
 
 interface UserRecord {
@@ -64,6 +66,40 @@ const Users = () => {
   const [deleteItem, setDeleteItem] = useState<UserRecord | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [formTab, setFormTab] = useState("dados");
+
+  const editingUser = editingId ? data.find((item) => item.id === editingId) : null;
+
+  const fields = (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <Field label="Nome completo *" error={errors.full_name}>
+        <Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} className={errors.full_name ? "border-destructive" : ""} />
+      </Field>
+      <Field label="E-mail *" error={errors.email}>
+        <Input type="email" value={form.email} disabled={!!editingId} onChange={(e) => setForm({ ...form, email: e.target.value })} className={errors.email ? "border-destructive" : ""} />
+      </Field>
+      <Field label="Perfil *" error={errors.access_profile}>
+        <SearchableSelect options={profileOptions} value={form.access_profile} onChange={(v) => setForm({ ...form, access_profile: v })} placeholder="Selecione..." />
+      </Field>
+      <Field label="Status *" error={errors.status}>
+        <SearchableSelect options={statusOptions} value={form.status} onChange={(v) => setForm({ ...form, status: v })} placeholder="Selecione..." />
+      </Field>
+      {!editingId && (
+        <>
+          <Field label="Senha inicial *" error={errors.password}>
+            <Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className={errors.password ? "border-destructive" : ""} />
+          </Field>
+          <Field label="Confirmar senha *" error={errors.confirm_password}>
+            <Input type="password" value={form.confirm_password} onChange={(e) => setForm({ ...form, confirm_password: e.target.value })} className={errors.confirm_password ? "border-destructive" : ""} />
+          </Field>
+          <div className="sm:col-span-2 text-sm text-muted-foreground bg-muted/50 rounded-md p-3">
+            O usuário poderá fazer login imediatamente com o e-mail e a senha definidos.
+            No primeiro acesso, será obrigado a trocar a senha.
+          </div>
+        </>
+      )}
+    </div>
+  );
 
   // Auth guard
   useEffect(() => {
@@ -160,6 +196,7 @@ const Users = () => {
 
   const handleEdit = (item: UserRecord) => {
     setEditingId(item.id);
+    setFormTab("dados");
     setForm({
       full_name: item.full_name,
       email: item.email,
@@ -205,7 +242,7 @@ const Users = () => {
   ];
 
   return (
-    <CrudLayout title="Usuários" searchValue={search} onSearchChange={setSearch} onNewClick={() => { setEditingId(null); setForm(emptyForm); setErrors({}); setFormOpen(true); }} newLabel="Novo usuário">
+    <CrudLayout title="Usuários" searchValue={search} onSearchChange={setSearch} onNewClick={() => { setEditingId(null); setFormTab("dados"); setForm(emptyForm); setErrors({}); setFormOpen(true); }} newLabel="Novo usuário">
       <DataTable
         columns={columns}
         data={filtered}
@@ -217,35 +254,30 @@ const Users = () => {
       />
 
       <FormSheet open={formOpen} onOpenChange={setFormOpen} title={editingId ? "Editar usuário" : "Novo usuário"} onSubmit={handleSubmit} loading={saving}>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Field label="Nome completo *" error={errors.full_name}>
-            <Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} className={errors.full_name ? "border-destructive" : ""} />
-          </Field>
-          <Field label="E-mail *" error={errors.email}>
-            <Input type="email" value={form.email} disabled={!!editingId} onChange={(e) => setForm({ ...form, email: e.target.value })} className={errors.email ? "border-destructive" : ""} />
-          </Field>
-          <Field label="Perfil *" error={errors.access_profile}>
-            <SearchableSelect options={profileOptions} value={form.access_profile} onChange={(v) => setForm({ ...form, access_profile: v })} placeholder="Selecione..." />
-          </Field>
-          <Field label="Status *" error={errors.status}>
-            <SearchableSelect options={statusOptions} value={form.status} onChange={(v) => setForm({ ...form, status: v })} placeholder="Selecione..." />
-          </Field>
-          {!editingId && (
-            <>
-              <Field label="Senha inicial *" error={errors.password}>
-                <Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className={errors.password ? "border-destructive" : ""} />
-              </Field>
-              <Field label="Confirmar senha *" error={errors.confirm_password}>
-                <Input type="password" value={form.confirm_password} onChange={(e) => setForm({ ...form, confirm_password: e.target.value })} className={errors.confirm_password ? "border-destructive" : ""} />
-              </Field>
-              <div className="sm:col-span-2 text-sm text-muted-foreground bg-muted/50 rounded-md p-3">
-                O usuário poderá fazer login imediatamente com o e-mail e a senha definidos.
-                No primeiro acesso, será obrigado a trocar a senha.
-              </div>
-            </>
-          )}
-        </div>
+        {editingId ? (
+          <Tabs value={formTab} onValueChange={setFormTab}>
+            <TabsList className="w-full sm:w-auto">
+              <TabsTrigger value="dados" className="flex-1 sm:flex-none">Dados</TabsTrigger>
+              <TabsTrigger value="seguranca" className="flex-1 sm:flex-none">Segurança</TabsTrigger>
+            </TabsList>
+            <TabsContent value="dados" className="mt-4">
+              {fields}
+            </TabsContent>
+            <TabsContent value="seguranca" className="mt-4">
+              {editingUser?.user_id ? (
+                <ResetPasswordSection userId={editingUser.user_id} userName={editingUser.full_name} />
+              ) : (
+                <div className="text-sm text-muted-foreground bg-muted/50 rounded-md p-3">
+                  Este cadastro ainda não possui acesso vinculado à autenticação, então não é possível redefinir a senha.
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
+        ) : (
+          fields
+        )}
       </FormSheet>
+
 
       <DeleteDialog open={deleteOpen} onOpenChange={setDeleteOpen} onConfirm={handleDelete} itemName={deleteItem?.full_name} loading={saving} />
     </CrudLayout>
