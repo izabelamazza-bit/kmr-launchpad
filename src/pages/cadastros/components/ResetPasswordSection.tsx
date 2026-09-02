@@ -153,9 +153,9 @@ const ResetPasswordSection = ({ userId, userName }: ResetPasswordSectionProps) =
           type="button"
           onClick={() => handleReset("show")}
           disabled={pending !== null}
-          className="min-h-[44px] w-full sm:flex-1"
+          className="h-auto min-h-[44px] w-full whitespace-normal px-3 py-2 text-center leading-tight sm:flex-1"
         >
-          <KeyRound className="h-4 w-4" />
+          <KeyRound className="h-4 w-4 shrink-0" />
           {pending === "show" ? "Gerando..." : "Resetar e mostrar na tela"}
         </Button>
         <Button
@@ -163,9 +163,9 @@ const ResetPasswordSection = ({ userId, userName }: ResetPasswordSectionProps) =
           variant="outline"
           onClick={() => handleReset("email")}
           disabled={pending !== null}
-          className="min-h-[44px] w-full sm:flex-1"
+          className="h-auto min-h-[44px] w-full whitespace-normal px-3 py-2 text-center leading-tight sm:flex-1"
         >
-          <Mail className="h-4 w-4" />
+          <Mail className="h-4 w-4 shrink-0" />
           {pending === "email" ? "Enviando..." : "Resetar e enviar por e-mail"}
         </Button>
       </div>
