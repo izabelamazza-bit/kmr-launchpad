@@ -32,6 +32,7 @@ const Cobmais = () => {
   const [search, setSearch] = useState("");
   const [garantidora, setGarantidora] = useState("todas");
   const { environment: empresa } = useEnvironment();
+  const [histKey, setHistKey] = useState(0);
   const { loading, error, currentImport, importedByName, snapshots, contagens, reload } =
     useCobmais(empresa);
 
@@ -74,7 +75,7 @@ const Cobmais = () => {
             <h2 className="text-base font-semibold">Última importação</h2>
             <p className="text-sm text-muted-foreground mt-1">
               {currentImport
-                ? `${fmtDateTime(currentImport.data_importacao)} por ${
+                ? `${fmtDateTime(currentImport.data_importacao)} · ${currentImport.empresa} por ${
                     importedByName ?? "usuário não identificado"
                   }${currentImport.nome_arquivo ? ` — ${currentImport.nome_arquivo}` : ""}`
                 : "Nenhuma importação registrada ainda."}
@@ -184,7 +185,13 @@ const Cobmais = () => {
         </CardContent>
       </Card>
 
-      <ImportCobmaisModal open={importOpen} onOpenChange={setImportOpen} onDone={reload} />
+      <HistoricoImportacoes refreshKey={histKey} />
+
+      <ImportCobmaisModal open={importOpen} onOpenChange={setImportOpen} onDone={() => {
+          reload();
+          setHistKey((k) => k + 1);
+        }}
+      />
     </main>
   );
 };
@@ -201,3 +208,67 @@ function Kpi({ label, value }: { label: string; value: number }) {
 }
 
 export default Cobmais;
+interface HistRow {
+  id: string;
+  data_importacao: string;
+  empresa: string;
+  nome_arquivo: string | null;
+  total_linhas: number | null;
+  quem: string | null;
+}
+
+function HistoricoImportacoes({ refreshKey }: { refreshKey: number }) {
+  const [rows, setRows] = useState<HistRow[] | null>(null);
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("cobmais_imports")
+        .select("id, data_importacao, empresa, nome_arquivo, total_linhas, importado_por")
+        .order("data_importacao", { ascending: false })
+        .limit(10);
+      const ids = [...new Set((data ?? []).map((d) => d.importado_por).filter(Boolean))] as string[];
+      const nomes: Record<string, string> = {};
+      if (ids.length) {
+        const { data: regs } = await supabase
+          .from("users_registry")
+          .select("user_id, full_name")
+          .in("user_id", ids);
+        (regs ?? []).forEach((r) => r.user_id && (nomes[r.user_id] = r.full_name));
+      }
+      setRows(
+        (data ?? []).map((d) => ({
+          ...d,
+          quem: d.importado_por ? nomes[d.importado_por] ?? null : null,
+        })),
+      );
+    })();
+  }, [refreshKey]);
+
+  return (
+    <Card>
+      <CardContent className="p-6 space-y-3">
+        <h2 className="text-base font-semibold">Histórico de importações</h2>
+        {rows === null ? (
+          <p className="text-sm text-muted-foreground">Carregando...</p>
+        ) : rows.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Nenhuma importação registrada.</p>
+        ) : (
+          <ul className="divide-y">
+            {rows.map((r) => (
+              <li key={r.id} className="py-2.5 flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 text-sm">
+                <span className="shrink-0">{fmtDateTime(r.data_importacao)}</span>
+                <Badge variant={r.empresa === "Alugar" ? "default" : "secondary"} className="w-fit">
+                  {r.empresa}
+                </Badge>
+                <span className="truncate flex-1 text-muted-foreground">{r.nome_arquivo ?? "—"}</span>
+                <span className="text-xs text-muted-foreground shrink-0">
+                  {r.total_linhas ?? 0} linhas · {r.quem ?? "usuário não identificado"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
