@@ -75,7 +75,7 @@ export function useCobmais(empresa: string) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [empresa]);
 
   useEffect(() => {
     void load();
