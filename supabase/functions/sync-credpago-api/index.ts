@@ -588,24 +588,25 @@ Deno.serve(async (req) => {
     for (const recurso of alvos) {
       console.log(`[${recurso}] iniciando sincronização`);
       try {
-        resumos.push(await processar(db, recurso, token));
+        resumos.push(await processar(db, recurso, token, empresa));
       } catch (e) {
         if (e instanceof TokenInvalidoError) {
           console.error(`[${recurso}] token inválido — execução abortada`);
           return json(
-            { error: e.message, recursos: [...resumos, erroResumo(recurso, e.message)] },
+            { error: e.message, recursos: [...resumos, erroResumo(recurso, e.message, empresa)] },
             401,
           );
         }
         const msg = e instanceof Error ? e.message : String(e);
         console.error(`[${recurso}] erro: ${msg}`);
-        resumos.push(erroResumo(recurso, msg));
+        resumos.push(erroResumo(recurso, msg, empresa));
       }
     }
 
     const totalErros = resumos.reduce((s, r) => s + r.erros.length, 0);
     return json({
       ok: totalErros === 0,
+      empresa,
       executado_em: new Date().toISOString(),
       recursos: resumos,
       totais: {
