@@ -14,6 +14,7 @@ import { ResumoCards } from "./components/ResumoCards";
 import { MovimentacoesPanel } from "./components/MovimentacoesPanel";
 import { ContratosTable } from "./components/ContratosTable";
 import { HistoricoDrawer } from "./components/HistoricoDrawer";
+import { useEnvironment } from "@/contexts/EnvironmentContext";
 import {
   fmtDateTime,
   recursosAtrasados,
