@@ -54,6 +54,18 @@ export function parseNumber(raw: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+/**
+ * CPF normalizado: só dígitos, completado com zeros à esquerda até 11.
+ * A API passou a devolver o CPF como número, o que derrubava o zero inicial
+ * (ex.: 5687424865 no lugar de 05687424865) e quebrava o cruzamento por CPF.
+ * CNPJ (14 dígitos) e valores maiores são preservados como vieram.
+ */
+export function parseCpf(raw: unknown): string | null {
+  const d = (text(raw) ?? "").replace(/\D/g, "");
+  if (!d) return null;
+  return d.length < 11 ? d.padStart(11, "0") : d;
+}
+
 export function parseInt32(raw: unknown): number | null {
   const n = parseNumber(raw);
   return n === null ? null : Math.trunc(n);
@@ -193,6 +205,7 @@ export function mapContrato(item: Row): Row | null {
   CONTRATO_NUM.forEach((f) => (row[f] = parseNumber(item[f])));
   CONTRATO_DATE.forEach((f) => (row[f] = parseDateOnly(item[f])));
   CONTRATO_BOOL.forEach((f) => (row[f] = parseBool(item[f])));
+  row.inquilino_cpf = parseCpf(item.inquilino_cpf);
   return row;
 }
 
