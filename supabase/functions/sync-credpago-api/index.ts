@@ -452,7 +452,8 @@ Deno.serve(async (req) => {
       return json({ error: "Não autorizado. Envie um JWT de usuário válido ou o header x-sync-secret." }, 401);
     }
 
-    const token = Deno.env.get("CREDPAGO_API_TOKEN");
+    // Sanitiza o secret: remove espaços/quebras de linha e prefixo "Bearer " colado por engano.
+    const token = (Deno.env.get("CREDPAGO_API_TOKEN") ?? "").trim().replace(/^Bearer\s+/i, "");
     if (!token) return json({ error: "Secret CREDPAGO_API_TOKEN não configurado." }, 500);
 
     const url = new URL(req.url);
