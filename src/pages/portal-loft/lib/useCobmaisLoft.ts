@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { estaParado, normContrato, type PendenciaIndex } from "./useInadimplenciaLoft";
+import { normCpf } from "./usePortalLoft";
 
 export type CobmaisLatestLoft = Database["public"]["Views"]["cobmais_latest_loft"]["Row"];
 type PortalSnapshot = Database["public"]["Tables"]["guarantor_portal_snapshots"]["Row"];
@@ -147,7 +148,7 @@ export function useCobmaisLoft(empresa: string): CobmaisLoftData {
 
       setRows(
         cobmais.map((c) => {
-          const cpfDigits = digits(c.cpf_cnpj);
+          const cpfDigits = normCpf(c.cpf_cnpj);
           const portal = cpfDigits ? porCpf.get(cpfDigits) ?? null : null;
           return {
             id: c.id ?? cpfDigits,
@@ -172,7 +173,7 @@ export function useCobmaisLoft(empresa: string): CobmaisLoftData {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [empresa]);
 
   useEffect(() => {
     void load();
