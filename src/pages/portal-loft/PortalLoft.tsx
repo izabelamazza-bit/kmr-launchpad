@@ -14,6 +14,7 @@ import { ResumoCards } from "./components/ResumoCards";
 import { MovimentacoesPanel } from "./components/MovimentacoesPanel";
 import { ContratosTable } from "./components/ContratosTable";
 import { HistoricoDrawer } from "./components/HistoricoDrawer";
+import { useEnvironment } from "@/contexts/EnvironmentContext";
 import {
   fmtDateTime,
   recursosAtrasados,
@@ -36,6 +37,7 @@ const LinhaSincronizacao = ({ tipo, info }: { tipo: TipoImportacao; info: Ultima
 
 const PortalLoft = () => {
   const navigate = useNavigate();
+  const { environment: empresa } = useEnvironment();
   const [importOpen, setImportOpen] = useState(false);
   const [inadOpen, setInadOpen] = useState(false);
   const [cobmaisOpen, setCobmaisOpen] = useState(false);
@@ -52,7 +54,7 @@ const PortalLoft = () => {
     novos,
     ultimas,
     reload,
-  } = usePortalLoft();
+  } = usePortalLoft(empresa);
   const resumo = useResumo(snapshots, movements);
   const atrasados = loading ? [] : recursosAtrasados(ultimas);
 

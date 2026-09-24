@@ -58,8 +58,16 @@ function apenasUltimaCarga(recurso: Recurso, items: Row[]): { items: Row[]; carg
   return { items: filtrados, carga: ultima };
 }
 
+/** Empresas atendidas pela integração (texto livre, igual a audit_contracts.empresa). */
+const EMPRESAS = ["Rotina", "Alugar"] as const;
+type Empresa = (typeof EMPRESAS)[number];
+const EMPRESA_PADRAO: Empresa = "Rotina";
+
 interface ResumoRecurso {
   recurso: Recurso;
+  empresa?: Empresa;
+  /** Avisos que não impedem a gravação (ex.: primeira importação da empresa). */
+  avisos?: string[];
   total_api: number | null;
   lidos: number;
   distintos: number;
@@ -200,7 +208,12 @@ async function coletar(recurso: Recurso, token: string): Promise<Leitura> {
 
 type Db = ReturnType<typeof createClient>;
 
-async function criarImport(db: Db, tipo: string, totalLinhas: number): Promise<string> {
+async function criarImport(
+  db: Db,
+  tipo: string,
+  totalLinhas: number,
+  empresa: Empresa,
+): Promise<string> {
   const { data, error } = await db
     .from("guarantor_portal_imports")
     .insert({
@@ -209,11 +222,45 @@ async function criarImport(db: Db, tipo: string, totalLinhas: number): Promise<s
       origem: "api",
       nome_arquivo: "API CredPago",
       total_linhas: totalLinhas,
+      empresa,
     })
     .select("id")
     .single();
   if (error || !data) throw new RecursoError(`não foi possível registrar a importação: ${error?.message}`);
   return data.id as string;
+}
+
+/**
+ * Contratos da importação anterior DA MESMA EMPRESA.
+ * A comparação é sempre intra-empresa: Rotina e Alugar são carteiras distintas
+ * e legitimamente não têm contratos em comum entre si.
+ * Retorna null quando a empresa ainda não tem importação de contrato anterior.
+ */
+async function contratosImportacaoAnterior(db: Db, empresa: Empresa): Promise<Set<string> | null> {
+  const { data: imports, error } = await db
+    .from("guarantor_portal_imports")
+    .select("id")
+    .eq("garantidora", "Loft")
+    .eq("tipo", "contrato")
+    .eq("empresa", empresa)
+    .order("data_importacao", { ascending: false })
+    .limit(1);
+  if (error) throw new RecursoError(`falha ao buscar a importação anterior: ${error.message}`);
+  const anteriorId = imports?.[0]?.id as string | undefined;
+  if (!anteriorId) return null;
+
+  const out = new Set<string>();
+  for (let from = 0; ; from += BATCH) {
+    const { data, error: snapErr } = await db
+      .from("guarantor_portal_snapshots")
+      .select("contrato")
+      .eq("import_id", anteriorId)
+      .range(from, from + BATCH - 1);
+    if (snapErr) throw new RecursoError(`falha ao ler a importação anterior: ${snapErr.message}`);
+    (data ?? []).forEach((r: Record<string, unknown>) => out.add(String(r.contrato)));
+    if (!data || data.length < BATCH) break;
+  }
+  return out;
 }
 
 async function idsExistentes(db: Db, table: string, coluna: string, ids: string[]): Promise<Set<string>> {
@@ -249,9 +296,16 @@ async function gravar(
   return gravados;
 }
 
-async function processar(db: Db, recurso: Recurso, token: string): Promise<ResumoRecurso> {
+async function processar(
+  db: Db,
+  recurso: Recurso,
+  token: string,
+  empresa: Empresa,
+): Promise<ResumoRecurso> {
   const resumo: ResumoRecurso = {
     recurso,
+    empresa,
+    avisos: [],
     total_api: null,
     lidos: 0,
     distintos: 0,
@@ -299,11 +353,35 @@ async function processar(db: Db, recurso: Recurso, token: string): Promise<Resum
   if (recurso === "contratos") {
     // Rede de segurança: 1 linha por contrato dentro da carga.
     const rows = dedup(items.map(mapContrato).filter((r): r is Row => r !== null), "contrato");
-    const importId = await criarImport(db, "contrato", items.length);
+
+    // Proteção contra troca de carteira: a carga precisa ter alguma interseção
+    // com a importação anterior DA MESMA EMPRESA. Sem histórico da empresa
+    // (primeira importação) não há com o que comparar — segue e avisa.
+    const anteriores = await contratosImportacaoAnterior(db, empresa);
+    if (anteriores === null) {
+      const aviso =
+        `primeira importação de contratos da empresa '${empresa}' — ` +
+        `sem importação anterior para comparar, verificação de carteira ignorada.`;
+      resumo.avisos!.push(aviso);
+      console.log(`[contratos] ${aviso}`);
+    } else if (anteriores.size > 0) {
+      const comuns = rows.filter((r) => anteriores.has(String(r.contrato))).length;
+      if (comuns === 0) {
+        resumo.erros.push(
+          `nenhum dos ${rows.length} contratos coincide com a importação anterior de '${empresa}' ` +
+            `(${anteriores.size} contratos) — possível troca de carteira/token. Nada foi gravado.`,
+        );
+        console.error(`[contratos] sem interseção com a carteira anterior de ${empresa} — gravação abortada`);
+        return resumo;
+      }
+      console.log(`[contratos] ${comuns} de ${rows.length} contratos em comum com a importação anterior de ${empresa}`);
+    }
+
+    const importId = await criarImport(db, "contrato", items.length, empresa);
     resumo.gravados = await gravar(
       db,
       "guarantor_portal_snapshots",
-      rows.map((r) => ({ ...r, import_id: importId, data_snapshot: agora })),
+      rows.map((r) => ({ ...r, import_id: importId, empresa, data_snapshot: agora })),
     );
     resumo.novos = resumo.gravados;
     return resumo;
@@ -317,11 +395,11 @@ async function processar(db: Db, recurso: Recurso, token: string): Promise<Resum
       "pendencia_id",
       rows.map((r) => String(r.pendencia_id)),
     );
-    const importId = await criarImport(db, "inadimplencia", items.length);
+    const importId = await criarImport(db, "inadimplencia", items.length, empresa);
     resumo.gravados = await gravar(
       db,
       "guarantor_portal_inadimplencia",
-      rows.map((r) => ({ ...r, import_id: importId, data_importacao: agora })),
+      rows.map((r) => ({ ...r, import_id: importId, empresa, data_importacao: agora })),
       "pendencia_id",
     );
     resumo.atualizados = rows.filter((r) => jaExistiam.has(String(r.pendencia_id))).length;
@@ -336,11 +414,11 @@ async function processar(db: Db, recurso: Recurso, token: string): Promise<Resum
     "nota_id",
     rows.map((r) => String(r.nota_id)),
   );
-  const importId = await criarImport(db, "movimentacao", items.length);
+  const importId = await criarImport(db, "movimentacao", items.length, empresa);
   resumo.gravados = await gravar(
     db,
     "guarantor_portal_case_notes",
-    rows.map((r) => ({ ...r, import_id: importId, data_importacao: agora })),
+    rows.map((r) => ({ ...r, import_id: importId, empresa, data_importacao: agora })),
     "nota_id",
   );
   resumo.atualizados = rows.filter((r) => jaExistiam.has(String(r.nota_id))).length;
@@ -387,9 +465,11 @@ async function autorizado(req: Request): Promise<boolean> {
   return !error && !!data.user;
 }
 
-function erroResumo(recurso: Recurso, msg: string): ResumoRecurso {
+function erroResumo(recurso: Recurso, msg: string, empresa?: Empresa): ResumoRecurso {
   return {
     recurso,
+    empresa,
+    avisos: [],
     total_api: null,
     lidos: 0,
     distintos: 0,
@@ -458,10 +538,20 @@ Deno.serve(async (req) => {
 
     const url = new URL(req.url);
     let recursoParam = url.searchParams.get("recurso");
-    if (!recursoParam && req.method === "POST") {
+    let empresaParam = url.searchParams.get("empresa");
+    if (req.method === "POST" && (!recursoParam || !empresaParam)) {
       const body = await req.json().catch(() => ({}));
-      recursoParam = (body as { recurso?: string }).recurso ?? null;
+      const b = body as { recurso?: string; empresa?: string };
+      recursoParam = recursoParam ?? b.recurso ?? null;
+      empresaParam = empresaParam ?? b.empresa ?? null;
     }
+
+    // Empresa da carteira sincronizada. Enquanto o token por empresa não estiver
+    // configurado, o padrão continua 'Rotina'.
+    if (empresaParam && !EMPRESAS.includes(empresaParam as Empresa)) {
+      return json({ error: `Empresa inválida: '${empresaParam}'. Use ${EMPRESAS.join(" ou ")}.` }, 400);
+    }
+    const empresa: Empresa = (empresaParam as Empresa | null) ?? EMPRESA_PADRAO;
 
     if (url.searchParams.get("probe") === "1") {
       const alvo = (RECURSOS.includes(recursoParam as Recurso) ? recursoParam : "contratos") as Recurso;
@@ -498,24 +588,25 @@ Deno.serve(async (req) => {
     for (const recurso of alvos) {
       console.log(`[${recurso}] iniciando sincronização`);
       try {
-        resumos.push(await processar(db, recurso, token));
+        resumos.push(await processar(db, recurso, token, empresa));
       } catch (e) {
         if (e instanceof TokenInvalidoError) {
           console.error(`[${recurso}] token inválido — execução abortada`);
           return json(
-            { error: e.message, recursos: [...resumos, erroResumo(recurso, e.message)] },
+            { error: e.message, recursos: [...resumos, erroResumo(recurso, e.message, empresa)] },
             401,
           );
         }
         const msg = e instanceof Error ? e.message : String(e);
         console.error(`[${recurso}] erro: ${msg}`);
-        resumos.push(erroResumo(recurso, msg));
+        resumos.push(erroResumo(recurso, msg, empresa));
       }
     }
 
     const totalErros = resumos.reduce((s, r) => s + r.erros.length, 0);
     return json({
       ok: totalErros === 0,
+      empresa,
       executado_em: new Date().toISOString(),
       recursos: resumos,
       totais: {

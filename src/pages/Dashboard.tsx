@@ -23,7 +23,7 @@ const Dashboard = () => {
   const isIdeali = environment === "Ideali";
   const { auditoria, garantidoras, sinistros } = useDashboardResumo(environment);
   const { resumo: ideali, loading: idealiLoading } = useIdealiResumo();
-  const loft = usePortalLoft();
+  const loft = usePortalLoft(environment);
   const loftResumo = useResumo(loft.snapshots, loft.movements);
 
   useEffect(() => {

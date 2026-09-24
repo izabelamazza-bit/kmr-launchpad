@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Loader2, Upload, CheckCircle2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
+import { useEnvironment } from "@/contexts/EnvironmentContext";
 import {
   parseLoftCsv,
   importLoftCsv,
@@ -21,6 +22,7 @@ interface Props {
 }
 
 export function ImportLoftModal({ open, onOpenChange, onDone }: Props) {
+  const { environment: empresa } = useEnvironment();
   const [file, setFile] = useState<File | null>(null);
   const [parsed, setParsed] = useState<LoftParseResult | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
@@ -69,7 +71,7 @@ export function ImportLoftModal({ open, onOpenChange, onDone }: Props) {
     setError(null);
     setProgress(0);
     try {
-      const res = await importLoftCsv(file, parsed, (ins, total) =>
+      const res = await importLoftCsv(file, parsed, empresa, (ins, total) =>
         setProgress(Math.round((ins / total) * 100)),
       );
       setDone(res);

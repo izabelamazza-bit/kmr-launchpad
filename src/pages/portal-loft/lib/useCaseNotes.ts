@@ -14,11 +14,12 @@ export const dataNota = (n: CaseNote): string | null => n.criado_em ?? n.data_im
 export const autorNota = (n: CaseNote): string =>
   n.operation_user_name?.trim() || n.real_estate_user_name?.trim() || "—";
 
-export async function fetchCaseNotes(contrato?: string): Promise<CaseNote[]> {
+export async function fetchCaseNotes(contrato?: string, empresa?: string): Promise<CaseNote[]> {
   const out: CaseNote[] = [];
   for (let from = 0; ; from += PAGE) {
     let q = supabase.from("guarantor_portal_case_notes").select("*");
     if (contrato) q = q.eq("contrato", contrato);
+    if (empresa) q = q.eq("empresa", empresa);
     const { data, error } = await q.range(from, from + PAGE - 1);
     if (error) throw new Error(error.message);
     out.push(...((data ?? []) as CaseNote[]));
@@ -42,7 +43,7 @@ export function buildNotaIndex(rows: CaseNote[]): NotaIndex {
   return idx;
 }
 
-export function useCaseNotesLoft() {
+export function useCaseNotesLoft(empresa?: string) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [index, setIndex] = useState<NotaIndex>(new Map());
@@ -51,13 +52,13 @@ export function useCaseNotesLoft() {
     setLoading(true);
     setError(null);
     try {
-      setIndex(buildNotaIndex(await fetchCaseNotes()));
+      setIndex(buildNotaIndex(await fetchCaseNotes(undefined, empresa)));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Falha ao carregar as movimentações do Portal Loft.");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [empresa]);
 
   useEffect(() => {
     void load();

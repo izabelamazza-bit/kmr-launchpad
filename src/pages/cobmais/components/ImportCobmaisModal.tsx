@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Loader2, Upload, CheckCircle2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
+import { useEnvironment } from "@/contexts/EnvironmentContext";
 import {
   parseCobmaisXlsx,
   importCobmaisXlsx,
@@ -29,6 +30,7 @@ function outrosTotal(porGarantidora: Record<string, number>) {
 }
 
 export function ImportCobmaisModal({ open, onOpenChange, onDone }: Props) {
+  const { environment: empresa } = useEnvironment();
   const [file, setFile] = useState<File | null>(null);
   const [parsed, setParsed] = useState<CobmaisParseResult | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
@@ -78,7 +80,7 @@ export function ImportCobmaisModal({ open, onOpenChange, onDone }: Props) {
     setError(null);
     setProgress(0);
     try {
-      const res = await importCobmaisXlsx(file, parsed, (ins, total) =>
+      const res = await importCobmaisXlsx(file, parsed, empresa, (ins, total) =>
         setProgress(Math.round((ins / total) * 100)),
       );
       setDone(res);

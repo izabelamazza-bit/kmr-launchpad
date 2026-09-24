@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { estaParado, normContrato, type PendenciaIndex } from "./useInadimplenciaLoft";
+import { normCpf } from "./usePortalLoft";
 
 export type CobmaisLatestLoft = Database["public"]["Views"]["cobmais_latest_loft"]["Row"];
 type PortalSnapshot = Database["public"]["Tables"]["guarantor_portal_snapshots"]["Row"];
@@ -56,12 +57,13 @@ export interface CobmaisLoftData {
   reload: () => void;
 }
 
-async function fetchLatestLoft(): Promise<CobmaisLatestLoft[]> {
+async function fetchLatestLoft(empresa: string): Promise<CobmaisLatestLoft[]> {
   const out: CobmaisLatestLoft[] = [];
   for (let from = 0; ; from += PAGE) {
     const { data, error } = await supabase
       .from("cobmais_latest_loft")
       .select("*")
+      .eq("empresa", empresa)
       .range(from, from + PAGE - 1);
     if (error) throw new Error(error.message);
     out.push(...((data ?? []) as CobmaisLatestLoft[]));
@@ -87,7 +89,7 @@ async function fetchPortalSnapshots(importId: string): Promise<PortalSnapshot[]>
 
 const STATUS_RANK: Record<string, number> = { ativo: 3, exonerado: 2, cancelado: 1 };
 
-export function useCobmaisLoft(): CobmaisLoftData {
+export function useCobmaisLoft(empresa: string): CobmaisLoftData {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [rows, setRows] = useState<CobmaisLoftRow[]>([]);
@@ -102,6 +104,7 @@ export function useCobmaisLoft(): CobmaisLoftData {
         supabase
           .from("cobmais_imports")
           .select("id, data_importacao")
+          .eq("empresa", empresa)
           .order("data_importacao", { ascending: false })
           .limit(1),
         supabase
@@ -111,6 +114,7 @@ export function useCobmaisLoft(): CobmaisLoftData {
           // Só importações de contrato têm snapshots com CPF — sem este filtro a
           // importação de inadimplência (mais recente) zerava o cruzamento.
           .eq("tipo", "contrato")
+          .eq("empresa", empresa)
           .order("data_importacao", { ascending: false })
           .limit(1),
       ]);
@@ -122,14 +126,15 @@ export function useCobmaisLoft(): CobmaisLoftData {
 
       const portalImportId = portImp?.[0]?.id ?? null;
       const [cobmais, portal] = await Promise.all([
-        fetchLatestLoft(),
+        fetchLatestLoft(empresa),
         portalImportId ? fetchPortalSnapshots(portalImportId) : Promise.resolve([]),
       ]);
 
-      // Índice por CPF (apenas dígitos) — mantém o contrato de status mais relevante.
+      // Índice por CPF normalizado (dígitos + zeros à esquerda) — mantém o
+      // contrato de status mais relevante.
       const porCpf = new Map<string, PortalSnapshot>();
       for (const s of portal) {
-        const key = digits(s.inquilino_cpf);
+        const key = normCpf(s.inquilino_cpf);
         if (!key) continue;
         const atual = porCpf.get(key);
         if (!atual) {
@@ -143,7 +148,7 @@ export function useCobmaisLoft(): CobmaisLoftData {
 
       setRows(
         cobmais.map((c) => {
-          const cpfDigits = digits(c.cpf_cnpj);
+          const cpfDigits = normCpf(c.cpf_cnpj);
           const portal = cpfDigits ? porCpf.get(cpfDigits) ?? null : null;
           return {
             id: c.id ?? cpfDigits,
@@ -168,7 +173,7 @@ export function useCobmaisLoft(): CobmaisLoftData {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [empresa]);
 
   useEffect(() => {
     void load();

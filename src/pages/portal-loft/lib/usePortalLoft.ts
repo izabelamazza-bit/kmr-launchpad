@@ -8,6 +8,17 @@ export type Movement = Database["public"]["Views"]["guarantor_portal_movements"]
 
 const PAGE = 1000;
 
+/**
+ * CPF normalizado para cruzamento: só dígitos, completado com zeros à esquerda
+ * até 11. A API da CredPago passou a devolver o CPF como número, derrubando o
+ * zero inicial — sem esta normalização o cruzamento por CPF zera.
+ */
+export const normCpf = (v: string | null | undefined) => {
+  const d = (v ?? "").replace(/\D/g, "");
+  if (!d) return "";
+  return d.length < 11 ? d.padStart(11, "0") : d;
+};
+
 async function fetchSnapshotsByImport(importId: string): Promise<Snapshot[]> {
   const out: Snapshot[] = [];
   for (let from = 0; ; from += PAGE) {
@@ -77,7 +88,7 @@ export interface PortalLoftData {
   reload: () => void;
 }
 
-export function usePortalLoft(): PortalLoftData {
+export function usePortalLoft(empresa: string): PortalLoftData {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentImport, setCurrentImport] = useState<PortalImport | null>(null);
@@ -101,6 +112,7 @@ export function usePortalLoft(): PortalLoftData {
         .select("*")
         .eq("garantidora", "Loft")
         .eq("tipo", "contrato")
+        .eq("empresa", empresa)
         .order("data_importacao", { ascending: false })
         .limit(2);
       if (impErr) throw new Error(impErr.message);
@@ -109,6 +121,7 @@ export function usePortalLoft(): PortalLoftData {
         .from("guarantor_portal_imports")
         .select("tipo, origem, data_importacao")
         .eq("garantidora", "Loft")
+        .eq("empresa", empresa)
         .order("data_importacao", { ascending: false });
       if (todasErr) throw new Error(todasErr.message);
       const resumoTipo = (tipo: string): UltimaImportacao => {
@@ -164,7 +177,8 @@ export function usePortalLoft(): PortalLoftData {
       const { data: movs, error: movErr } = await supabase
         .from("guarantor_portal_movements")
         .select("*")
-        .eq("import_atual_id", atual.id);
+        .eq("import_atual_id", atual.id)
+        .eq("empresa", empresa);
       if (movErr) throw new Error(movErr.message);
       setMovements((movs ?? []) as Movement[]);
     } catch (e) {
@@ -172,7 +186,7 @@ export function usePortalLoft(): PortalLoftData {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [empresa]);
 
   useEffect(() => {
     void load();

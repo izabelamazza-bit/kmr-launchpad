@@ -202,6 +202,7 @@ const BATCH = 500;
 export async function importLoftCsv(
   file: File,
   parsed: LoftParseResult,
+  empresa: string,
   onProgress?: (inseridos: number, total: number) => void,
 ): Promise<ImportLoftResult> {
   const { rows, totalLinhas, ignoradas } = parsed;
@@ -217,6 +218,7 @@ export async function importLoftCsv(
       nome_arquivo: file.name,
       total_linhas: totalLinhas,
       importado_por: auth?.user?.id ?? null,
+      empresa,
     })
     .select("id")
     .single();
@@ -231,7 +233,7 @@ export async function importLoftCsv(
 
   try {
     for (let i = 0; i < rows.length; i += BATCH) {
-      const batch = rows.slice(i, i + BATCH).map((r) => ({ ...r, import_id: importId }));
+      const batch = rows.slice(i, i + BATCH).map((r) => ({ ...r, import_id: importId, empresa }));
       const { error } = await supabase.from("guarantor_portal_snapshots").insert(batch as never);
       if (error) throw new Error(error.message);
       inseridos += batch.length;

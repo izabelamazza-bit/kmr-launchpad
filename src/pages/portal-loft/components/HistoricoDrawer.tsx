@@ -9,6 +9,7 @@ import { PendenciasTab } from "./PendenciasTab";
 import { MovimentacoesTab } from "./MovimentacoesTab";
 import { fetchPendencias, type Pendencia } from "../lib/useInadimplenciaLoft";
 import { fetchCaseNotes, type CaseNote } from "../lib/useCaseNotes";
+import { useEnvironment } from "@/contexts/EnvironmentContext";
 import { fmtBool, fmtDate, fmtDateTime, fmtMoney, type Snapshot } from "../lib/usePortalLoft";
 
 type Kind = "text" | "money" | "date" | "bool" | "num";
@@ -53,6 +54,7 @@ interface Props {
 }
 
 export function HistoricoDrawer({ contrato, abaInicial = "historico", onOpenChange }: Props) {
+  const { environment: empresa } = useEnvironment();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rows, setRows] = useState<(Snapshot & { data_importacao: string | null })[]>([]);
@@ -68,7 +70,7 @@ export function HistoricoDrawer({ contrato, abaInicial = "historico", onOpenChan
     let cancelled = false;
     setNotasLoading(true);
     setNotasError(null);
-    fetchCaseNotes(contrato)
+    fetchCaseNotes(contrato, empresa)
       .then((res) => {
         if (!cancelled) setNotas(res);
       })
@@ -84,14 +86,14 @@ export function HistoricoDrawer({ contrato, abaInicial = "historico", onOpenChan
     return () => {
       cancelled = true;
     };
-  }, [contrato]);
+  }, [contrato, empresa]);
 
   useEffect(() => {
     if (!contrato) return;
     let cancelled = false;
     setPendLoading(true);
     setPendError(null);
-    fetchPendencias(contrato)
+    fetchPendencias(contrato, empresa)
       .then((res) => {
         if (!cancelled) setPendencias(res);
       })
@@ -107,7 +109,7 @@ export function HistoricoDrawer({ contrato, abaInicial = "historico", onOpenChan
     return () => {
       cancelled = true;
     };
-  }, [contrato]);
+  }, [contrato, empresa]);
 
   useEffect(() => {
     if (!contrato) return;
@@ -118,7 +120,8 @@ export function HistoricoDrawer({ contrato, abaInicial = "historico", onOpenChan
       const { data, error: err } = await supabase
         .from("guarantor_portal_snapshots")
         .select("*, guarantor_portal_imports!inner(data_importacao)")
-        .eq("contrato", contrato);
+        .eq("contrato", contrato)
+        .eq("empresa", empresa);
       if (cancelled) return;
       if (err) {
         setError(err.message);
