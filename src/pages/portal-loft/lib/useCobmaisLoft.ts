@@ -125,14 +125,15 @@ export function useCobmaisLoft(empresa: string): CobmaisLoftData {
 
       const portalImportId = portImp?.[0]?.id ?? null;
       const [cobmais, portal] = await Promise.all([
-        fetchLatestLoft(),
+        fetchLatestLoft(empresa),
         portalImportId ? fetchPortalSnapshots(portalImportId) : Promise.resolve([]),
       ]);
 
-      // Índice por CPF (apenas dígitos) — mantém o contrato de status mais relevante.
+      // Índice por CPF normalizado (dígitos + zeros à esquerda) — mantém o
+      // contrato de status mais relevante.
       const porCpf = new Map<string, PortalSnapshot>();
       for (const s of portal) {
-        const key = digits(s.inquilino_cpf);
+        const key = normCpf(s.inquilino_cpf);
         if (!key) continue;
         const atual = porCpf.get(key);
         if (!atual) {
