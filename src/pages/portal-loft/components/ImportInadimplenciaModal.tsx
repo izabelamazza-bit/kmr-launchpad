@@ -6,8 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Loader2, Upload, CheckCircle2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
-import {
 import { useEnvironment } from "@/contexts/EnvironmentContext";
+import {
   parseInadimplenciaCsv,
   importInadimplenciaCsv,
   INADIMPLENCIA_CSV_HEADERS,
