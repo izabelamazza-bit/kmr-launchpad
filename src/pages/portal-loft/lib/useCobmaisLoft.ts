@@ -103,6 +103,7 @@ export function useCobmaisLoft(empresa: string): CobmaisLoftData {
         supabase
           .from("cobmais_imports")
           .select("id, data_importacao")
+          .eq("empresa", empresa)
           .order("data_importacao", { ascending: false })
           .limit(1),
         supabase
@@ -112,6 +113,7 @@ export function useCobmaisLoft(empresa: string): CobmaisLoftData {
           // Só importações de contrato têm snapshots com CPF — sem este filtro a
           // importação de inadimplência (mais recente) zerava o cruzamento.
           .eq("tipo", "contrato")
+          .eq("empresa", empresa)
           .order("data_importacao", { ascending: false })
           .limit(1),
       ]);
