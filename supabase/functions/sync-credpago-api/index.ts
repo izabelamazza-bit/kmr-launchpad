@@ -11,7 +11,9 @@ import {
   type Row,
 } from "./mappers.ts";
 
-const BASE_URL = "https://lucoreia.com/api/v1/credpago";
+// Domínio atualizado: lucoreia.com responde 308 para lucore.com.br e o
+// redirecionamento entre domínios descarta o header Authorization (401).
+const BASE_URL = "https://lucore.com.br/api/v1/credpago";
 const LIMIT = 500;
 const BATCH = 500;
 const MAX_RETRIES = 3;
@@ -450,7 +452,8 @@ Deno.serve(async (req) => {
       return json({ error: "Não autorizado. Envie um JWT de usuário válido ou o header x-sync-secret." }, 401);
     }
 
-    const token = Deno.env.get("CREDPAGO_API_TOKEN");
+    // Sanitiza o secret: remove espaços/quebras de linha e prefixo "Bearer " colado por engano.
+    const token = (Deno.env.get("CREDPAGO_API_TOKEN") ?? "").trim().replace(/^Bearer\s+/i, "");
     if (!token) return json({ error: "Secret CREDPAGO_API_TOKEN não configurado." }, 500);
 
     const url = new URL(req.url);
