@@ -205,6 +205,7 @@ async function existentes(ids: string[]): Promise<Set<string>> {
 export async function importInadimplenciaCsv(
   file: File,
   parsed: InadimplenciaParseResult,
+  empresa: string,
   onProgress?: (feitos: number, total: number) => void,
 ): Promise<ImportInadimplenciaResult> {
   const { rows, totalLinhas, ignoradas, jsonInvalido } = parsed;
