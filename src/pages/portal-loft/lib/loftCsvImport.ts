@@ -202,6 +202,7 @@ const BATCH = 500;
 export async function importLoftCsv(
   file: File,
   parsed: LoftParseResult,
+  empresa: string,
   onProgress?: (inseridos: number, total: number) => void,
 ): Promise<ImportLoftResult> {
   const { rows, totalLinhas, ignoradas } = parsed;

@@ -359,6 +359,7 @@ export async function importCobmaisXlsx(
       nome_arquivo: file.name,
       total_linhas: totalLinhas,
       importado_por: auth?.user?.id ?? null,
+      empresa,
     })
     .select("id")
     .single();
@@ -375,7 +376,7 @@ export async function importCobmaisXlsx(
 
   try {
     for (let i = 0; i < rows.length; i += BATCH) {
-      const batch = rows.slice(i, i + BATCH).map((r) => ({ ...r, import_id: importId }));
+      const batch = rows.slice(i, i + BATCH).map((r) => ({ ...r, import_id: importId, empresa }));
       const { error } = await supabase.from("cobmais_snapshots").insert(batch);
       if (error) throw new Error(error.message);
       inseridos += batch.length;
