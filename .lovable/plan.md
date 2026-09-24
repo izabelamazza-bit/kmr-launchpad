@@ -1,36 +1,38 @@
-# Redefinir Senha na aba Segurança (Editar usuário)
+# Diagnóstico: cruzamento por CPF zerado após a correção de URL
 
-## Resposta à sua pergunta 1 (verificada no código)
+Não apliquei nenhuma correção. Abaixo, os valores reais encontrados.
 
-`src/components/RequirePasswordChange.tsx` lê **os dois**, nesta ordem:
+## 1. Importação de hoje (24/09, origem api, tipo contrato)
+- 306 linhas, CPF preenchido nas 306.
+- Exemplos: `12792573694`, `5687424865`, `16156915613`, `70639061605`, `66724414920`.
+- Formato: só dígitos, sem pontuação. 105 das 306 têm menos de 11 dígitos, porque o zero à esquerda sumiu (ex.: `5687424865` era `05687424865`). Isso indica que a API passou a mandar o CPF como número.
 
-1. Primeiro lê `session.user.user_metadata.must_change_password` (Auth).
-2. Depois consulta `users_registry.must_change_password` pelo `user_id` — e, se a linha existir, **esse valor sobrescreve** o do Auth (a tabela é a fonte da verdade; o metadata funciona só como fallback se o banco falhar).
+## 2. Importação anterior que funcionava (10/09)
+- 2.263 linhas.
+- Exemplos: `522.796.936-15`, `000.563.091-63`, `110.181.656-22`, `046.116.866-98`, `301.873.206-59`.
+- Formato: com pontuação e zeros à esquerda. O formato mudou, sim.
 
-A função `admin-reset-user-password` grava nos dois lugares (`updateUserById` com `user_metadata.must_change_password: true` e `update` em `users_registry`), portanto está escrevendo no lugar certo. O campo `warning` da resposta existe exatamente para o caso em que a senha troca no Auth mas a gravação no `users_registry` falha — nesse cenário a exigência de troca pode não valer, e o aviso precisa ser mostrado ao admin.
+## 3 e 4. O formato explica os 0 resultados? Só em parte
+A tela compara apenas os dígitos, então a pontuação não atrapalha. O zero perdido atrapalharia só ~1/3 dos casos. O problema principal é outro: **a carteira mudou**.
 
-## O que será construído
+| Comparação | Resultado |
+|---|---|
+| Contratos em comum (hoje × 10/09) | **0** |
+| CPFs em comum, mesmo corrigindo os zeros | **0** |
+| Base de 10/09 × Cobmais (230 CPFs) | 241 coincidências |
+| Base de hoje × Cobmais (com ou sem correção dos zeros) | **0** |
 
-Hoje o "Editar usuário" é um painel único sem abas. A entrega:
+- Hoje: cidade Montes Claros, contratos 1024516 a 4688182, corretores como Helmar Luckmann e Amanda Costa Ferreira.
+- Em 10/09: cidade Uberlândia, contratos de 5 dígitos (24425, 31464...), corretores Paula, Luana e Mireile.
 
-- Transformar o conteúdo do painel de edição em abas, seguindo o padrão visual já usado no sistema:
-  - **Dados** — campos atuais (nome, e-mail, perfil, status).
-  - **Segurança** — nova aba, visível apenas na edição (não em "Novo usuário") e apenas quando o usuário já tem conta no Auth.
-- Na aba Segurança, seção "Redefinir senha" com o texto: "Gera uma nova senha temporária para o usuário. Escolha como repassá-la. O usuário deverá alterar a senha no próximo login."
-- Dois botões lado a lado (empilhados no mobile), ambos desabilitados durante qualquer requisição:
-  1. "Resetar e mostrar na tela" → `{ userId, method: "show" }`
-  2. "Resetar e enviar por e-mail" → `{ userId, method: "email" }`
-- Modo "show": ao retornar `success: true` e `password`, abre um diálogo destacado com a senha em fonte grande/monoespaçada, botão "Copiar" (com confirmação visual), o aviso fixo "Repasse esta senha ao usuário por um canal seguro. Ela não poderá ser recuperada depois de fechar esta tela.", o `warning` da resposta quando houver (explicando que a senha foi trocada mas a marcação de troca obrigatória pode não ter sido salva, e que a ação pode ser repetida), e botão "Fechar" que apaga a senha do estado.
-- Modo "email": loading, toast de confirmação em caso de sucesso; como o envio ainda é um TODO na função, se vier erro exibe mensagem clara de que o envio por e-mail ainda não está disponível e que a opção "mostrar na tela" deve ser usada, sem quebrar a tela.
-- Mensagens específicas por erro: 400 (dados inválidos), 401 (sessão expirada — entrar novamente), 404 (usuário não encontrado no Auth), 502 (falha ao atualizar a senha no serviço de autenticação), e fallback para erros de rede.
+**Causa provável:** o token novo, ou o novo endereço, dá acesso à carteira de **outra imobiliária**. Não é a carteira Rotina/Alugar. O nome do campo continua batendo, já que o CPF veio preenchido nas 306 linhas. Os dados é que são de outra carteira. O volume também caiu de 2.263 para 306.
 
-## Detalhes técnicos
+Sobre o item 3 (resposta crua da API): não chamei a API agora para não disparar nada em modo de planejamento. Mas o campo `inquilino_cpf` está sendo lido e gravado, então o nome não mudou.
 
-- Novo componente `src/pages/cadastros/components/ResetPasswordSection.tsx` (seção + diálogo da senha), consumido pelo `FormSheet` de `src/pages/cadastros/Users.tsx`.
-- Chamada via `supabase.functions.invoke("admin-reset-user-password", { body })`; o status HTTP é lido de `FunctionsHttpError.context.status` para mapear as mensagens, com fallback no campo `error` do corpo.
-- Senha guardada só em estado local do diálogo, limpa no fechar/desmontar; nunca em log, nunca em `console`.
-- Nenhuma mudança de banco nem na edge function.
-
-## Verificação (item 2 do seu pedido)
-
-Após implementar, testo com o usuário Daniel Moura via navegador na tela `/cadastros/usuarios`: método "show", confirmo a senha no modal, faço login real com ela em uma sessão separada e confirmo o redirecionamento obrigatório para `/trocar-senha`. Reporto o resultado com evidência de tela. Se o Daniel não tiver conta no Auth vinculada, aviso antes de testar.
+## Próximos passos propostos (depois da sua confirmação)
+1. Confirmar com a CredPago de qual conta ou imobiliária é o token novo e gerar o token da conta certa. Esse passo não depende de código.
+2. Enquanto isso, pausar a rotina das 6h. Assim a importação de 10/09 continua sendo a mais recente e o cruzamento volta a funcionar. Também apagar as 2 importações de hoje (306 linhas cada), que são de outra carteira.
+3. Proteção no código:
+   - completar o CPF com zeros à esquerda até 11 dígitos quando vier como número;
+   - abortar a gravação de contratos se nenhum contrato bater com a importação anterior (sinal de carteira trocada), avisando no resumo.
+4. Mostrar uma amostra da resposta crua da API (1 item, CPF mascarado) para fechar o item 3.
