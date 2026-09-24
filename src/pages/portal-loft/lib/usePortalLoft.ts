@@ -177,7 +177,8 @@ export function usePortalLoft(empresa: string): PortalLoftData {
       const { data: movs, error: movErr } = await supabase
         .from("guarantor_portal_movements")
         .select("*")
-        .eq("import_atual_id", atual.id);
+        .eq("import_atual_id", atual.id)
+        .eq("empresa", empresa);
       if (movErr) throw new Error(movErr.message);
       setMovements((movs ?? []) as Movement[]);
     } catch (e) {
@@ -185,7 +186,7 @@ export function usePortalLoft(empresa: string): PortalLoftData {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [empresa]);
 
   useEffect(() => {
     void load();
