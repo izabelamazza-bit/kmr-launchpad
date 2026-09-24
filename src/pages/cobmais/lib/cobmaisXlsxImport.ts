@@ -3,6 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 
 export const COBMAIS_SHEET = "Cobrança";
 
+/** Empresas que possuem relatório Cobmais. */
+export const EMPRESAS_COBMAIS = ["Rotina", "Alugar"] as const;
+
 export const COBMAIS_CPF_HEADER = "CPF/CNPJ";
 
 const HEADERS_A = [
