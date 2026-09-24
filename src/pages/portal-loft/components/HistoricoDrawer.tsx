@@ -109,7 +109,7 @@ export function HistoricoDrawer({ contrato, abaInicial = "historico", onOpenChan
     return () => {
       cancelled = true;
     };
-  }, [contrato]);
+  }, [contrato, empresa]);
 
   useEffect(() => {
     if (!contrato) return;
@@ -120,7 +120,8 @@ export function HistoricoDrawer({ contrato, abaInicial = "historico", onOpenChan
       const { data, error: err } = await supabase
         .from("guarantor_portal_snapshots")
         .select("*, guarantor_portal_imports!inner(data_importacao)")
-        .eq("contrato", contrato);
+        .eq("contrato", contrato)
+        .eq("empresa", empresa);
       if (cancelled) return;
       if (err) {
         setError(err.message);
