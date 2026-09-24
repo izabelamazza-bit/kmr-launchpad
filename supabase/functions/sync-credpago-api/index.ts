@@ -465,9 +465,11 @@ async function autorizado(req: Request): Promise<boolean> {
   return !error && !!data.user;
 }
 
-function erroResumo(recurso: Recurso, msg: string): ResumoRecurso {
+function erroResumo(recurso: Recurso, msg: string, empresa?: Empresa): ResumoRecurso {
   return {
     recurso,
+    empresa,
+    avisos: [],
     total_api: null,
     lidos: 0,
     distintos: 0,
