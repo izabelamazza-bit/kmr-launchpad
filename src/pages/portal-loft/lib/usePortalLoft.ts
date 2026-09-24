@@ -8,6 +8,17 @@ export type Movement = Database["public"]["Views"]["guarantor_portal_movements"]
 
 const PAGE = 1000;
 
+/**
+ * CPF normalizado para cruzamento: só dígitos, completado com zeros à esquerda
+ * até 11. A API da CredPago passou a devolver o CPF como número, derrubando o
+ * zero inicial — sem esta normalização o cruzamento por CPF zera.
+ */
+export const normCpf = (v: string | null | undefined) => {
+  const d = (v ?? "").replace(/\D/g, "");
+  if (!d) return "";
+  return d.length < 11 ? d.padStart(11, "0") : d;
+};
+
 async function fetchSnapshotsByImport(importId: string): Promise<Snapshot[]> {
   const out: Snapshot[] = [];
   for (let from = 0; ; from += PAGE) {
