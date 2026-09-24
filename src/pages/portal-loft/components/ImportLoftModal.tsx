@@ -7,6 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { Loader2, Upload, CheckCircle2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import {
+import { useEnvironment } from "@/contexts/EnvironmentContext";
   parseLoftCsv,
   importLoftCsv,
   LOFT_CSV_HEADERS,
@@ -21,6 +22,7 @@ interface Props {
 }
 
 export function ImportLoftModal({ open, onOpenChange, onDone }: Props) {
+  const { environment: empresa } = useEnvironment();
   const [file, setFile] = useState<File | null>(null);
   const [parsed, setParsed] = useState<LoftParseResult | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
