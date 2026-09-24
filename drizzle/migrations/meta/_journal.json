@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1790277903893,
+      "tag": "0000_add_empresa_portal_loft_cobmais",
+      "breakpoints": true
+    }
+  ]
+}

@@ -284,6 +284,7 @@ export type Database = {
       cobmais_imports: {
         Row: {
           data_importacao: string
+          empresa: string
           id: string
           importado_por: string | null
           nome_arquivo: string | null
@@ -291,6 +292,7 @@ export type Database = {
         }
         Insert: {
           data_importacao?: string
+          empresa?: string
           id?: string
           importado_por?: string | null
           nome_arquivo?: string | null
@@ -298,6 +300,7 @@ export type Database = {
         }
         Update: {
           data_importacao?: string
+          empresa?: string
           id?: string
           importado_por?: string | null
           nome_arquivo?: string | null
@@ -314,6 +317,7 @@ export type Database = {
           cpf_cnpj: string | null
           credor: string | null
           data_snapshot: string
+          empresa: string
           garantidora_normalizada: string | null
           id: string
           import_id: string
@@ -332,6 +336,7 @@ export type Database = {
           cpf_cnpj?: string | null
           credor?: string | null
           data_snapshot?: string
+          empresa?: string
           garantidora_normalizada?: string | null
           id?: string
           import_id: string
@@ -350,6 +355,7 @@ export type Database = {
           cpf_cnpj?: string | null
           credor?: string | null
           data_snapshot?: string
+          empresa?: string
           garantidora_normalizada?: string | null
           id?: string
           import_id?: string
@@ -493,6 +499,7 @@ export type Database = {
           criado_em: string | null
           data_importacao: string
           descricao: string | null
+          empresa: string
           id: string
           id_blocklist_valor: string | null
           import_id: string | null
@@ -505,6 +512,7 @@ export type Database = {
           criado_em?: string | null
           data_importacao?: string
           descricao?: string | null
+          empresa?: string
           id?: string
           id_blocklist_valor?: string | null
           import_id?: string | null
@@ -517,6 +525,7 @@ export type Database = {
           criado_em?: string | null
           data_importacao?: string
           descricao?: string | null
+          empresa?: string
           id?: string
           id_blocklist_valor?: string | null
           import_id?: string | null
@@ -558,6 +567,7 @@ export type Database = {
       guarantor_portal_imports: {
         Row: {
           data_importacao: string
+          empresa: string
           garantidora: string
           id: string
           importado_por: string | null
@@ -568,6 +578,7 @@ export type Database = {
         }
         Insert: {
           data_importacao?: string
+          empresa?: string
           garantidora?: string
           id?: string
           importado_por?: string | null
@@ -578,6 +589,7 @@ export type Database = {
         }
         Update: {
           data_importacao?: string
+          empresa?: string
           garantidora?: string
           id?: string
           importado_por?: string | null
@@ -598,6 +610,7 @@ export type Database = {
           data_pendencia: string | null
           details_json: Json
           dt_vencimento: string | null
+          empresa: string
           expiration_days: number | null
           forma_pgto_codigo: string | null
           id: string
@@ -617,6 +630,7 @@ export type Database = {
           data_pendencia?: string | null
           details_json?: Json
           dt_vencimento?: string | null
+          empresa?: string
           expiration_days?: number | null
           forma_pgto_codigo?: string | null
           id?: string
@@ -636,6 +650,7 @@ export type Database = {
           data_pendencia?: string | null
           details_json?: Json
           dt_vencimento?: string | null
+          empresa?: string
           expiration_days?: number | null
           forma_pgto_codigo?: string | null
           id?: string
@@ -671,6 +686,7 @@ export type Database = {
           data_criacao: string | null
           data_exoneracao: string | null
           data_snapshot: string
+          empresa: string
           endereco: string | null
           endereco_numero: string | null
           fianca_total: number | null
@@ -707,6 +723,7 @@ export type Database = {
           data_criacao?: string | null
           data_exoneracao?: string | null
           data_snapshot?: string
+          empresa?: string
           endereco?: string | null
           endereco_numero?: string | null
           fianca_total?: number | null
@@ -743,6 +760,7 @@ export type Database = {
           data_criacao?: string | null
           data_exoneracao?: string | null
           data_snapshot?: string
+          empresa?: string
           endereco?: string | null
           endereco_numero?: string | null
           fianca_total?: number | null
@@ -1514,6 +1532,7 @@ export type Database = {
           credor: string | null
           data_importacao: string | null
           data_snapshot: string | null
+          empresa: string | null
           garantidora_normalizada: string | null
           id: string | null
           import_id: string | null
@@ -1541,6 +1560,7 @@ export type Database = {
           cancelamento_taxa_atual: boolean | null
           contrato: string | null
           data_importacao_atual: string | null
+          empresa: string | null
           import_anterior_id: string | null
           import_atual_id: string | null
           inquilino: string | null
