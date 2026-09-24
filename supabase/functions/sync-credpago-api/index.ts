@@ -296,9 +296,16 @@ async function gravar(
   return gravados;
 }
 
-async function processar(db: Db, recurso: Recurso, token: string): Promise<ResumoRecurso> {
+async function processar(
+  db: Db,
+  recurso: Recurso,
+  token: string,
+  empresa: Empresa,
+): Promise<ResumoRecurso> {
   const resumo: ResumoRecurso = {
     recurso,
+    empresa,
+    avisos: [],
     total_api: null,
     lidos: 0,
     distintos: 0,
