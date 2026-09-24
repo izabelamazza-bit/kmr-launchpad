@@ -53,6 +53,7 @@ interface Props {
 }
 
 export function HistoricoDrawer({ contrato, abaInicial = "historico", onOpenChange }: Props) {
+  const { environment: empresa } = useEnvironment();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rows, setRows] = useState<(Snapshot & { data_importacao: string | null })[]>([]);

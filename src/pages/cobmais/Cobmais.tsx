@@ -30,7 +30,9 @@ const Cobmais = () => {
   const [importOpen, setImportOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [garantidora, setGarantidora] = useState("todas");
-  const { loading, error, currentImport, importedByName, snapshots, contagens, reload } = useCobmais();
+  const { environment: empresa } = useEnvironment();
+  const { loading, error, currentImport, importedByName, snapshots, contagens, reload } =
+    useCobmais(empresa);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -61,7 +63,7 @@ const Cobmais = () => {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Cobmais</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Relatório de cobrança da Rotina Recebíveis
+          Relatório de cobrança — {empresa}
         </p>
       </div>
 
