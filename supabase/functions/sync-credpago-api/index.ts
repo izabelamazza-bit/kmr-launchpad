@@ -11,7 +11,9 @@ import {
   type Row,
 } from "./mappers.ts";
 
-const BASE_URL = "https://lucoreia.com/api/v1/credpago";
+// Domínio atualizado: lucoreia.com responde 308 para lucore.com.br e o
+// redirecionamento entre domínios descarta o header Authorization (401).
+const BASE_URL = "https://lucore.com.br/api/v1/credpago";
 const LIMIT = 500;
 const BATCH = 500;
 const MAX_RETRIES = 3;
