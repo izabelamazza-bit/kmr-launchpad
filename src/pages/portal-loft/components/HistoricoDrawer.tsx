@@ -9,6 +9,7 @@ import { PendenciasTab } from "./PendenciasTab";
 import { MovimentacoesTab } from "./MovimentacoesTab";
 import { fetchPendencias, type Pendencia } from "../lib/useInadimplenciaLoft";
 import { fetchCaseNotes, type CaseNote } from "../lib/useCaseNotes";
+import { useEnvironment } from "@/contexts/EnvironmentContext";
 import { fmtBool, fmtDate, fmtDateTime, fmtMoney, type Snapshot } from "../lib/usePortalLoft";
 
 type Kind = "text" | "money" | "date" | "bool" | "num";
@@ -69,7 +70,7 @@ export function HistoricoDrawer({ contrato, abaInicial = "historico", onOpenChan
     let cancelled = false;
     setNotasLoading(true);
     setNotasError(null);
-    fetchCaseNotes(contrato)
+    fetchCaseNotes(contrato, empresa)
       .then((res) => {
         if (!cancelled) setNotas(res);
       })
@@ -85,14 +86,14 @@ export function HistoricoDrawer({ contrato, abaInicial = "historico", onOpenChan
     return () => {
       cancelled = true;
     };
-  }, [contrato]);
+  }, [contrato, empresa]);
 
   useEffect(() => {
     if (!contrato) return;
     let cancelled = false;
     setPendLoading(true);
     setPendError(null);
-    fetchPendencias(contrato)
+    fetchPendencias(contrato, empresa)
       .then((res) => {
         if (!cancelled) setPendencias(res);
       })
