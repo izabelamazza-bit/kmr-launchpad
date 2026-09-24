@@ -345,6 +345,7 @@ const BATCH = 500;
 export async function importCobmaisXlsx(
   file: File,
   parsed: CobmaisParseResult,
+  empresa: string,
   onProgress?: (inseridos: number, total: number) => void,
 ): Promise<ImportCobmaisResult> {
   const { rows, totalLinhas, ignoradas, porGarantidora } = parsed;
