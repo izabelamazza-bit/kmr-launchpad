@@ -88,7 +88,7 @@ export interface PortalLoftData {
   reload: () => void;
 }
 
-export function usePortalLoft(): PortalLoftData {
+export function usePortalLoft(empresa: string): PortalLoftData {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentImport, setCurrentImport] = useState<PortalImport | null>(null);
@@ -112,6 +112,7 @@ export function usePortalLoft(): PortalLoftData {
         .select("*")
         .eq("garantidora", "Loft")
         .eq("tipo", "contrato")
+        .eq("empresa", empresa)
         .order("data_importacao", { ascending: false })
         .limit(2);
       if (impErr) throw new Error(impErr.message);
@@ -120,6 +121,7 @@ export function usePortalLoft(): PortalLoftData {
         .from("guarantor_portal_imports")
         .select("tipo, origem, data_importacao")
         .eq("garantidora", "Loft")
+        .eq("empresa", empresa)
         .order("data_importacao", { ascending: false });
       if (todasErr) throw new Error(todasErr.message);
       const resumoTipo = (tipo: string): UltimaImportacao => {
