@@ -8,6 +8,7 @@ export type CobmaisImport = Database["public"]["Tables"]["cobmais_imports"]["Row
 const PAGE = 1000;
 
 async function fetchSnapshots(importId: string): Promise<CobmaisSnapshot[]> {
+  // Snapshots herdam a empresa da importação — filtrar por import_id já basta.
   const out: CobmaisSnapshot[] = [];
   for (let from = 0; ; from += PAGE) {
     const { data, error } = await supabase
@@ -29,7 +30,7 @@ export function fmtDateTime(iso?: string | null): string {
   return Number.isNaN(d.getTime()) ? "—" : d.toLocaleString("pt-BR");
 }
 
-export function useCobmais() {
+export function useCobmais(empresa: string) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentImport, setCurrentImport] = useState<CobmaisImport | null>(null);
@@ -43,6 +44,7 @@ export function useCobmais() {
       const { data: imports, error: impErr } = await supabase
         .from("cobmais_imports")
         .select("*")
+        .eq("empresa", empresa)
         .order("data_importacao", { ascending: false })
         .limit(1);
       if (impErr) throw new Error(impErr.message);
