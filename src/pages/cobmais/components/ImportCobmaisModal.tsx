@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +14,7 @@ import {
   COBMAIS_FORMATS,
   COBMAIS_SHEET,
   GARANTIDORAS_RASTREADAS,
+  EMPRESAS_COBMAIS,
   type CobmaisParseResult,
   type ImportCobmaisResult,
 } from "../lib/cobmaisXlsxImport";
@@ -30,7 +32,12 @@ function outrosTotal(porGarantidora: Record<string, number>) {
 }
 
 export function ImportCobmaisModal({ open, onOpenChange, onDone }: Props) {
-  const { environment: empresa } = useEnvironment();
+  const { environment } = useEnvironment();
+  const sugestao = (EMPRESAS_COBMAIS as readonly string[]).includes(environment) ? environment : "";
+  const [empresa, setEmpresa] = useState<string>(sugestao);
+  useEffect(() => {
+    if (open) setEmpresa(sugestao);
+  }, [open, sugestao]);
   const [file, setFile] = useState<File | null>(null);
   const [parsed, setParsed] = useState<CobmaisParseResult | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
@@ -57,6 +64,7 @@ export function ImportCobmaisModal({ open, onOpenChange, onDone }: Props) {
   };
 
   const handleAnalyze = async () => {
+    if (!empresa) return toast.error("Selecione a empresa do relatório");
     if (!file) return toast.error("Selecione um arquivo .xlsx");
     setAnalyzing(true);
     setError(null);
@@ -75,7 +83,7 @@ export function ImportCobmaisModal({ open, onOpenChange, onDone }: Props) {
   };
 
   const handleConfirm = async () => {
-    if (!file || !parsed) return;
+    if (!file || !parsed || !empresa) return;
     setSaving(true);
     setError(null);
     setProgress(0);
@@ -109,6 +117,7 @@ export function ImportCobmaisModal({ open, onOpenChange, onDone }: Props) {
               <CheckCircle2 className="h-5 w-5" />
               Importação concluída
             </div>
+            <EmpresaRow empresa={empresa} />
             <Row label="Linhas na aba Cobrança" value={done.totalLinhas} />
             <Row label="Registros importados" value={done.inseridos} highlight="green" />
             {done.ignoradas > 0 && (
@@ -124,6 +133,8 @@ export function ImportCobmaisModal({ open, onOpenChange, onDone }: Props) {
             <p className="text-muted-foreground">
               Aba e cabeçalho validados. Confira os números antes de gravar no banco.
             </p>
+            <EmpresaRow empresa={empresa} />
+            {empresa !== environment && <AvisoEmpresa empresa={empresa} ativa={environment} />}
             <Row label="Linhas na aba Cobrança" value={parsed.totalLinhas} />
             <Row label="Registros a importar" value={parsed.rows.length} highlight="green" />
             {parsed.ignoradas > 0 && (
@@ -154,6 +165,25 @@ export function ImportCobmaisModal({ open, onOpenChange, onDone }: Props) {
           </div>
         ) : (
           <div className="space-y-4">
+            <div>
+              <Label className="mb-1.5 block">Empresa do relatório *</Label>
+              <Select value={empresa} onValueChange={setEmpresa} disabled={analyzing}>
+                <SelectTrigger aria-label="Empresa do relatório">
+                  <SelectValue placeholder="Selecione a empresa" />
+                </SelectTrigger>
+                <SelectContent className="bg-popover z-50">
+                  {EMPRESAS_COBMAIS.map((e) => (
+                    <SelectItem key={e} value={e}>{e}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1.5">
+                Sugerido pela empresa ativa. Confira antes de enviar.
+              </p>
+              {empresa && empresa !== environment && (
+                <div className="mt-2"><AvisoEmpresa empresa={empresa} ativa={environment} /></div>
+              )}
+            </div>
             <div>
               <Label className="mb-1.5 block">Arquivo (.xlsx) *</Label>
               <Input
@@ -187,7 +217,7 @@ export function ImportCobmaisModal({ open, onOpenChange, onDone }: Props) {
               <Button variant="outline" onClick={handleClose} disabled={analyzing}>
                 Cancelar
               </Button>
-              <Button onClick={handleAnalyze} disabled={analyzing || !file}>
+              <Button onClick={handleAnalyze} disabled={analyzing || !file || !empresa}>
                 <Upload className="h-4 w-4 mr-1" />
                 Analisar arquivo
               </Button>
@@ -209,6 +239,27 @@ function Garantidoras({ porGarantidora }: { porGarantidora: Record<string, numbe
         <Row key={g} label={g} value={porGarantidora[g] ?? 0} />
       ))}
       <Row label="Outros produtos (não rastreados)" value={outrosTotal(porGarantidora)} />
+    </div>
+  );
+}
+
+function EmpresaRow({ empresa }: { empresa: string }) {
+  return (
+    <div className="flex justify-between items-center rounded-md bg-primary/5 border border-primary/20 px-3 py-2 gap-4">
+      <span>Empresa</span>
+      <span className="font-semibold text-primary">{empresa}</span>
+    </div>
+  );
+}
+
+function AvisoEmpresa({ empresa, ativa }: { empresa: string; ativa: string }) {
+  return (
+    <div className="flex gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-2.5 text-xs">
+      <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+      <span>
+        Este arquivo será gravado na {empresa}. Você está vendo a {ativa} — troque a empresa no
+        topo para ver o resultado.
+      </span>
     </div>
   );
 }
