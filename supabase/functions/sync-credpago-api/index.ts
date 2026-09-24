@@ -353,11 +353,35 @@ async function processar(
   if (recurso === "contratos") {
     // Rede de segurança: 1 linha por contrato dentro da carga.
     const rows = dedup(items.map(mapContrato).filter((r): r is Row => r !== null), "contrato");
-    const importId = await criarImport(db, "contrato", items.length);
+
+    // Proteção contra troca de carteira: a carga precisa ter alguma interseção
+    // com a importação anterior DA MESMA EMPRESA. Sem histórico da empresa
+    // (primeira importação) não há com o que comparar — segue e avisa.
+    const anteriores = await contratosImportacaoAnterior(db, empresa);
+    if (anteriores === null) {
+      const aviso =
+        `primeira importação de contratos da empresa '${empresa}' — ` +
+        `sem importação anterior para comparar, verificação de carteira ignorada.`;
+      resumo.avisos!.push(aviso);
+      console.log(`[contratos] ${aviso}`);
+    } else if (anteriores.size > 0) {
+      const comuns = rows.filter((r) => anteriores.has(String(r.contrato))).length;
+      if (comuns === 0) {
+        resumo.erros.push(
+          `nenhum dos ${rows.length} contratos coincide com a importação anterior de '${empresa}' ` +
+            `(${anteriores.size} contratos) — possível troca de carteira/token. Nada foi gravado.`,
+        );
+        console.error(`[contratos] sem interseção com a carteira anterior de ${empresa} — gravação abortada`);
+        return resumo;
+      }
+      console.log(`[contratos] ${comuns} de ${rows.length} contratos em comum com a importação anterior de ${empresa}`);
+    }
+
+    const importId = await criarImport(db, "contrato", items.length, empresa);
     resumo.gravados = await gravar(
       db,
       "guarantor_portal_snapshots",
-      rows.map((r) => ({ ...r, import_id: importId, data_snapshot: agora })),
+      rows.map((r) => ({ ...r, import_id: importId, empresa, data_snapshot: agora })),
     );
     resumo.novos = resumo.gravados;
     return resumo;
@@ -371,11 +395,11 @@ async function processar(
       "pendencia_id",
       rows.map((r) => String(r.pendencia_id)),
     );
-    const importId = await criarImport(db, "inadimplencia", items.length);
+    const importId = await criarImport(db, "inadimplencia", items.length, empresa);
     resumo.gravados = await gravar(
       db,
       "guarantor_portal_inadimplencia",
-      rows.map((r) => ({ ...r, import_id: importId, data_importacao: agora })),
+      rows.map((r) => ({ ...r, import_id: importId, empresa, data_importacao: agora })),
       "pendencia_id",
     );
     resumo.atualizados = rows.filter((r) => jaExistiam.has(String(r.pendencia_id))).length;
@@ -390,11 +414,11 @@ async function processar(
     "nota_id",
     rows.map((r) => String(r.nota_id)),
   );
-  const importId = await criarImport(db, "movimentacao", items.length);
+  const importId = await criarImport(db, "movimentacao", items.length, empresa);
   resumo.gravados = await gravar(
     db,
     "guarantor_portal_case_notes",
-    rows.map((r) => ({ ...r, import_id: importId, data_importacao: agora })),
+    rows.map((r) => ({ ...r, import_id: importId, empresa, data_importacao: agora })),
     "nota_id",
   );
   resumo.atualizados = rows.filter((r) => jaExistiam.has(String(r.nota_id))).length;
