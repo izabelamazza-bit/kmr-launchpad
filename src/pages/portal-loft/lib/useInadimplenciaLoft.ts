@@ -62,11 +62,12 @@ export function estaParado(resumo: PendenciaResumoContrato | undefined, dias = 5
   return d !== null && d >= dias;
 }
 
-export async function fetchPendencias(contrato?: string): Promise<Pendencia[]> {
+export async function fetchPendencias(contrato?: string, empresa?: string): Promise<Pendencia[]> {
   const out: Pendencia[] = [];
   for (let from = 0; ; from += PAGE) {
     let q = supabase.from("guarantor_portal_inadimplencia").select("*");
     if (contrato) q = q.eq("contrato", contrato);
+    if (empresa) q = q.eq("empresa", empresa);
     const { data, error } = await q.range(from, from + PAGE - 1);
     if (error) throw new Error(error.message);
     out.push(...((data ?? []) as Pendencia[]));
@@ -151,7 +152,7 @@ export function buildPendenciaIndex(
   return idx;
 }
 
-export function useInadimplenciaLoft(notas?: Map<string, string>) {
+export function useInadimplenciaLoft(notas?: Map<string, string>, empresa?: string) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [index, setIndex] = useState<PendenciaIndex>(new Map());
@@ -160,13 +161,13 @@ export function useInadimplenciaLoft(notas?: Map<string, string>) {
     setLoading(true);
     setError(null);
     try {
-      setIndex(buildPendenciaIndex(await fetchPendencias(), notas));
+      setIndex(buildPendenciaIndex(await fetchPendencias(undefined, empresa), notas));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Falha ao carregar as pendências do Portal Loft.");
     } finally {
       setLoading(false);
     }
-  }, [notas]);
+  }, [notas, empresa]);
 
   useEffect(() => {
     void load();

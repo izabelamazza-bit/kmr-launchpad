@@ -208,7 +208,12 @@ async function coletar(recurso: Recurso, token: string): Promise<Leitura> {
 
 type Db = ReturnType<typeof createClient>;
 
-async function criarImport(db: Db, tipo: string, totalLinhas: number): Promise<string> {
+async function criarImport(
+  db: Db,
+  tipo: string,
+  totalLinhas: number,
+  empresa: Empresa,
+): Promise<string> {
   const { data, error } = await db
     .from("guarantor_portal_imports")
     .insert({
@@ -217,11 +222,45 @@ async function criarImport(db: Db, tipo: string, totalLinhas: number): Promise<s
       origem: "api",
       nome_arquivo: "API CredPago",
       total_linhas: totalLinhas,
+      empresa,
     })
     .select("id")
     .single();
   if (error || !data) throw new RecursoError(`não foi possível registrar a importação: ${error?.message}`);
   return data.id as string;
+}
+
+/**
+ * Contratos da importação anterior DA MESMA EMPRESA.
+ * A comparação é sempre intra-empresa: Rotina e Alugar são carteiras distintas
+ * e legitimamente não têm contratos em comum entre si.
+ * Retorna null quando a empresa ainda não tem importação de contrato anterior.
+ */
+async function contratosImportacaoAnterior(db: Db, empresa: Empresa): Promise<Set<string> | null> {
+  const { data: imports, error } = await db
+    .from("guarantor_portal_imports")
+    .select("id")
+    .eq("garantidora", "Loft")
+    .eq("tipo", "contrato")
+    .eq("empresa", empresa)
+    .order("data_importacao", { ascending: false })
+    .limit(1);
+  if (error) throw new RecursoError(`falha ao buscar a importação anterior: ${error.message}`);
+  const anteriorId = imports?.[0]?.id as string | undefined;
+  if (!anteriorId) return null;
+
+  const out = new Set<string>();
+  for (let from = 0; ; from += BATCH) {
+    const { data, error: snapErr } = await db
+      .from("guarantor_portal_snapshots")
+      .select("contrato")
+      .eq("import_id", anteriorId)
+      .range(from, from + BATCH - 1);
+    if (snapErr) throw new RecursoError(`falha ao ler a importação anterior: ${snapErr.message}`);
+    (data ?? []).forEach((r: Record<string, unknown>) => out.add(String(r.contrato)));
+    if (!data || data.length < BATCH) break;
+  }
+  return out;
 }
 
 async function idsExistentes(db: Db, table: string, coluna: string, ids: string[]): Promise<Set<string>> {
