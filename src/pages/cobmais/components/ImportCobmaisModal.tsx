@@ -78,7 +78,7 @@ export function ImportCobmaisModal({ open, onOpenChange, onDone }: Props) {
     setError(null);
     setProgress(0);
     try {
-      const res = await importCobmaisXlsx(file, parsed, (ins, total) =>
+      const res = await importCobmaisXlsx(file, parsed, empresa, (ins, total) =>
         setProgress(Math.round((ins / total) * 100)),
       );
       setDone(res);

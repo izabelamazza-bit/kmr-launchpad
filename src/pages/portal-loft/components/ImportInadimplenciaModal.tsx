@@ -69,7 +69,7 @@ export function ImportInadimplenciaModal({ open, onOpenChange, onDone }: Props) 
     setError(null);
     setProgress(0);
     try {
-      const res = await importInadimplenciaCsv(file, parsed, (feitos, total) =>
+      const res = await importInadimplenciaCsv(file, parsed, empresa, (feitos, total) =>
         setProgress(Math.round((feitos / total) * 100)),
       );
       setDone(res);
