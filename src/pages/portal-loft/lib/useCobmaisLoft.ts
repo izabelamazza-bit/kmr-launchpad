@@ -56,12 +56,13 @@ export interface CobmaisLoftData {
   reload: () => void;
 }
 
-async function fetchLatestLoft(): Promise<CobmaisLatestLoft[]> {
+async function fetchLatestLoft(empresa: string): Promise<CobmaisLatestLoft[]> {
   const out: CobmaisLatestLoft[] = [];
   for (let from = 0; ; from += PAGE) {
     const { data, error } = await supabase
       .from("cobmais_latest_loft")
       .select("*")
+      .eq("empresa", empresa)
       .range(from, from + PAGE - 1);
     if (error) throw new Error(error.message);
     out.push(...((data ?? []) as CobmaisLatestLoft[]));
@@ -87,7 +88,7 @@ async function fetchPortalSnapshots(importId: string): Promise<PortalSnapshot[]>
 
 const STATUS_RANK: Record<string, number> = { ativo: 3, exonerado: 2, cancelado: 1 };
 
-export function useCobmaisLoft(): CobmaisLoftData {
+export function useCobmaisLoft(empresa: string): CobmaisLoftData {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [rows, setRows] = useState<CobmaisLoftRow[]>([]);
