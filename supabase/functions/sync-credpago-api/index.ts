@@ -58,8 +58,16 @@ function apenasUltimaCarga(recurso: Recurso, items: Row[]): { items: Row[]; carg
   return { items: filtrados, carga: ultima };
 }
 
+/** Empresas atendidas pela integração (texto livre, igual a audit_contracts.empresa). */
+const EMPRESAS = ["Rotina", "Alugar"] as const;
+type Empresa = (typeof EMPRESAS)[number];
+const EMPRESA_PADRAO: Empresa = "Rotina";
+
 interface ResumoRecurso {
   recurso: Recurso;
+  empresa?: Empresa;
+  /** Avisos que não impedem a gravação (ex.: primeira importação da empresa). */
+  avisos?: string[];
   total_api: number | null;
   lidos: number;
   distintos: number;
