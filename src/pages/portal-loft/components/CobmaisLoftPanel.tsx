@@ -18,6 +18,7 @@ import {
 import { useInadimplenciaLoft } from "../lib/useInadimplenciaLoft";
 import { useCaseNotesLoft } from "../lib/useCaseNotes";
 import { normContrato } from "../lib/useInadimplenciaLoft";
+import { useEnvironment } from "@/contexts/EnvironmentContext";
 
 interface Props {
   onImport: () => void;
@@ -29,9 +30,11 @@ const LABEL_EXTRA: Record<Exclude<FiltroExtra, "todos">, string> = {
 };
 
 export function CobmaisLoftPanel({ onImport }: Props) {
-  const { loading, error, rows, ultimaImportacaoCobmais, ultimaImportacaoPortal } = useCobmaisLoft();
-  const { index: notas } = useCaseNotesLoft();
-  const { index: pendencias } = useInadimplenciaLoft(notas);
+  const { environment: empresa } = useEnvironment();
+  const { loading, error, rows, ultimaImportacaoCobmais, ultimaImportacaoPortal } =
+    useCobmaisLoft(empresa);
+  const { index: notas } = useCaseNotesLoft(empresa);
+  const { index: pendencias } = useInadimplenciaLoft(notas, empresa);
   const [faixa, setFaixa] = useState("0");
   const [extra, setExtra] = useState<FiltroExtra>("todos");
   const [busca, setBusca] = useState("");
