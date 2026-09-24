@@ -538,10 +538,20 @@ Deno.serve(async (req) => {
 
     const url = new URL(req.url);
     let recursoParam = url.searchParams.get("recurso");
-    if (!recursoParam && req.method === "POST") {
+    let empresaParam = url.searchParams.get("empresa");
+    if (req.method === "POST" && (!recursoParam || !empresaParam)) {
       const body = await req.json().catch(() => ({}));
-      recursoParam = (body as { recurso?: string }).recurso ?? null;
+      const b = body as { recurso?: string; empresa?: string };
+      recursoParam = recursoParam ?? b.recurso ?? null;
+      empresaParam = empresaParam ?? b.empresa ?? null;
     }
+
+    // Empresa da carteira sincronizada. Enquanto o token por empresa não estiver
+    // configurado, o padrão continua 'Rotina'.
+    if (empresaParam && !EMPRESAS.includes(empresaParam as Empresa)) {
+      return json({ error: `Empresa inválida: '${empresaParam}'. Use ${EMPRESAS.join(" ou ")}.` }, 400);
+    }
+    const empresa: Empresa = (empresaParam as Empresa | null) ?? EMPRESA_PADRAO;
 
     if (url.searchParams.get("probe") === "1") {
       const alvo = (RECURSOS.includes(recursoParam as Recurso) ? recursoParam : "contratos") as Recurso;
