@@ -1,4 +1,12 @@
 import { useEffect, useState } from "react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { garantidoraColor } from "@/pages/auditoria/lib/garantidoras";
+import {
+  useSinistrosEnriquecidos,
+  statusSinistroLabel,
+  GARANTIDORAS_FILTRO,
+  GARANTIDORA_NAO_IDENTIFICADA,
+} from "./lib/sinistrosEnriquecidos";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { ArrowLeft, LogOut, Plus, Eye, Search } from "lucide-react";
@@ -18,44 +26,27 @@ import {
 import logoKMR from "@/assets/Logo_KMR.png";
 import { useEnvironment } from "@/contexts/EnvironmentContext";
 
-interface SinistroRow {
-  id: string;
-  inquilino_nome: string;
-  inquilino_cpf: string;
-  codigo_contrato: string;
-  status_imovel: string;
-  status: string;
-  created_at: string;
-}
-
-const SINISTRO_STATUS: Record<string, { label: string; className: string }> = {
-  em_analise: {
-    label: "Em análise",
-    className: "bg-yellow-100 text-yellow-800 hover:bg-yellow-100 border-yellow-200",
-  },
-  pagamento: {
-    label: "Em pagamento",
-    className: "bg-blue-100 text-blue-800 hover:bg-blue-100 border-blue-200",
-  },
-  pago: {
-    label: "Pago",
-    className: "bg-green-100 text-green-800 hover:bg-green-100 border-green-200",
-  },
-  cancelado: {
-    label: "Cancelado",
-    className: "bg-red-100 text-red-800 hover:bg-red-100 border-red-200",
-  },
+const SINISTRO_STATUS_CLASS: Record<string, string> = {
+  em_analise: "bg-yellow-100 text-yellow-800 hover:bg-yellow-100 border-yellow-200",
+  pagamento: "bg-blue-100 text-blue-800 hover:bg-blue-100 border-blue-200",
+  pago: "bg-green-100 text-green-800 hover:bg-green-100 border-green-200",
+  cancelado: "bg-red-100 text-red-800 hover:bg-red-100 border-red-200",
 };
 
+const GarantidoraBadge = ({ g }: { g: string }) => {
+  if (g === "Alerta")
+    return <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-200 hover:bg-amber-100">Alerta</Badge>;
+  if (g === GARANTIDORA_NAO_IDENTIFICADA)
+    return <Badge variant="outline" className="bg-muted text-muted-foreground">{g}</Badge>;
+  const c = garantidoraColor(g);
+  return <Badge style={{ backgroundColor: c.bg, color: c.text }} className="border-0">{c.label}</Badge>;
+};
+
+const brl = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
 const getStatusBadge = (status: string) => {
-  // Compatibilidade: registros legados (rascunho/aberto) viram "Em análise"
-  if (status === "rascunho" || status === "aberto") return SINISTRO_STATUS.em_analise;
-  return (
-    SINISTRO_STATUS[status] ?? {
-      label: status,
-      className: "bg-muted text-muted-foreground",
-    }
-  );
+  const key = status === "rascunho" || status === "aberto" ? "em_analise" : status;
+  return { label: statusSinistroLabel(status), className: SINISTRO_STATUS_CLASS[key] ?? "bg-muted text-muted-foreground" };
 };
 
 const getImovelLabel = (status: string) =>
@@ -64,28 +55,15 @@ const getImovelLabel = (status: string) =>
 const Sinistros = () => {
   const navigate = useNavigate();
   const { environment } = useEnvironment();
-  const [data, setData] = useState<SinistroRow[]>([]);
+  const { data, loading } = useSinistrosEnriquecidos(environment);
   const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [filtroGar, setFiltroGar] = useState("todas");
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) navigate("/login");
     });
   }, [navigate]);
-
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
-      const { data } = await supabase
-        .from("sinistros")
-        .select("id, inquilino_nome, inquilino_cpf, codigo_contrato, status_imovel, status, created_at")
-        .eq("empresa", environment)
-        .order("created_at", { ascending: false });
-      setData((data ?? []) as SinistroRow[]);
-      setLoading(false);
-    })();
-  }, [environment]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -94,6 +72,7 @@ const Sinistros = () => {
 
   const filtered = data.filter((s) => {
     const q = search.toLowerCase();
+    if (filtroGar !== "todas" && s.garantidora !== filtroGar) return false;
     return (
       !q ||
       s.inquilino_nome.toLowerCase().includes(q) ||
@@ -136,7 +115,8 @@ const Sinistros = () => {
           </Button>
         </div>
 
-        <div className="relative mb-6">
+        <div className="flex flex-col sm:flex-row gap-3 mb-6">
+        <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Buscar por nome, CPF ou contrato..."
@@ -145,6 +125,18 @@ const Sinistros = () => {
             className="pl-10 min-h-[44px]"
           />
         </div>
+          <Select value={filtroGar} onValueChange={setFiltroGar}>
+            <SelectTrigger className="sm:w-56 min-h-[44px]" aria-label="Garantidora">
+              <SelectValue placeholder="Garantidora" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todas">Todas as garantidoras</SelectItem>
+              {GARANTIDORAS_FILTRO.map((g) => (
+                <SelectItem key={g} value={g}>{g}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
         <div className="bg-card rounded-lg border shadow-sm overflow-hidden">
           <Table>
@@ -152,7 +144,10 @@ const Sinistros = () => {
               <TableRow>
                 <TableHead>Inquilino</TableHead>
                 <TableHead className="hidden md:table-cell">Contrato</TableHead>
-                <TableHead>Imóvel</TableHead>
+                <TableHead>Garantidora</TableHead>
+                <TableHead className="hidden lg:table-cell">Vencimento(s)</TableHead>
+                <TableHead className="hidden lg:table-cell">Imóvel</TableHead>
+                <TableHead className="hidden sm:table-cell text-right">Valor total</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="hidden sm:table-cell">Criado em</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
@@ -161,14 +156,14 @@ const Sinistros = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                     Carregando...
                   </TableCell>
                 </TableRow>
               ) : filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                    {search ? "Nenhum resultado encontrado." : "Nenhum sinistro registrado."}
+                  <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                    {search || filtroGar !== "todas" ? "Nenhum resultado encontrado." : "Nenhum sinistro registrado."}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -178,9 +173,14 @@ const Sinistros = () => {
                     <TableRow key={s.id}>
                       <TableCell className="font-medium">{s.inquilino_nome}</TableCell>
                       <TableCell className="hidden md:table-cell">{s.codigo_contrato}</TableCell>
-                      <TableCell>
+                      <TableCell><GarantidoraBadge g={s.garantidora} /></TableCell>
+                      <TableCell className="hidden lg:table-cell text-sm whitespace-nowrap">
+                        {s.vencimentos.length ? s.vencimentos.join(", ") : <span className="text-muted-foreground">Sem débitos</span>}
+                      </TableCell>
+                      <TableCell className="hidden lg:table-cell">
                         <Badge variant="outline">{getImovelLabel(s.status_imovel)}</Badge>
                       </TableCell>
+                      <TableCell className="hidden sm:table-cell text-right whitespace-nowrap">{brl(s.valor_total_sinistro)}</TableCell>
                       <TableCell>
                         <Badge className={badge.className} variant="outline">
                           {badge.label}
