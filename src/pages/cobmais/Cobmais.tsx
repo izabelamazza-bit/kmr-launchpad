@@ -75,7 +75,9 @@ const Cobmais = () => {
             <h2 className="text-base font-semibold">Última importação</h2>
             <p className="text-sm text-muted-foreground mt-1">
               {currentImport
-                ? `${fmtDateTime(currentImport.data_importacao)} · ${currentImport.empresa} por ${
+                ? `${fmtDateTime(currentImport.data_importacao)} · ${currentImport.empresa} · ${
+                    currentImport.total_linhas ?? 0
+                  } linhas · por ${
                     importedByName ?? "usuário não identificado"
                   }${currentImport.nome_arquivo ? ` — ${currentImport.nome_arquivo}` : ""}`
                 : "Nenhuma importação registrada ainda."}
@@ -96,6 +98,8 @@ const Cobmais = () => {
           ))}
         </div>
       )}
+
+      <HistoricoImportacoes refreshKey={histKey} empresa={empresa} />
 
       <Card>
         <CardContent className="p-6 space-y-4">
@@ -185,8 +189,6 @@ const Cobmais = () => {
         </CardContent>
       </Card>
 
-      <HistoricoImportacoes refreshKey={histKey} />
-
       <ImportCobmaisModal open={importOpen} onOpenChange={setImportOpen} onDone={() => {
           reload();
           setHistKey((k) => k + 1);
@@ -217,13 +219,14 @@ interface HistRow {
   quem: string | null;
 }
 
-function HistoricoImportacoes({ refreshKey }: { refreshKey: number }) {
+function HistoricoImportacoes({ refreshKey, empresa }: { refreshKey: number; empresa: string }) {
   const [rows, setRows] = useState<HistRow[] | null>(null);
   useEffect(() => {
     (async () => {
       const { data } = await supabase
         .from("cobmais_imports")
         .select("id, data_importacao, empresa, nome_arquivo, total_linhas, importado_por")
+        .eq("empresa", empresa)
         .order("data_importacao", { ascending: false })
         .limit(10);
       const ids = [...new Set((data ?? []).map((d) => d.importado_por).filter(Boolean))] as string[];
@@ -242,7 +245,7 @@ function HistoricoImportacoes({ refreshKey }: { refreshKey: number }) {
         })),
       );
     })();
-  }, [refreshKey]);
+  }, [refreshKey, empresa]);
 
   return (
     <Card>
